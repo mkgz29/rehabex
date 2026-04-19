@@ -1,4 +1,4 @@
-import { benefits } from '../data/landing';
+import { benefits } from '../content/benefits';
 import { SectionHeading } from './SectionHeading';
 
 export function BenefitsSection() {

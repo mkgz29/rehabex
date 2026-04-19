@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { navLinks } from '../data/landing';
+import { navLinks } from '../content/navigation';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
