@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { defaultLandingContent } from '../../lib/defaultContent';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { getLandingContent, saveHeroContent } from '../../services/cms';
-import type { HeroSlide } from '../../types/cms';
+import type { HeroContent } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { FormActions } from '../components/FormActions';
@@ -12,8 +12,8 @@ import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
 
 export function AdminHeroPage() {
-  const [slides, setSlides] = useState<HeroSlide[]>(defaultLandingContent.hero.slides);
-  const [initialSlides, setInitialSlides] = useState<HeroSlide[]>(defaultLandingContent.hero.slides);
+  const [heroContent, setHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
+  const [initialHeroContent, setInitialHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +22,8 @@ export function AdminHeroPage() {
     async function load() {
       try {
         const content = await getLandingContent();
-        setSlides(content.hero.slides.slice(0, 3));
-        setInitialSlides(content.hero.slides.slice(0, 3));
+        setHeroContent(content.hero);
+        setInitialHeroContent(content.hero);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el Hero.');
       }
@@ -32,12 +32,12 @@ export function AdminHeroPage() {
     load();
   }, []);
 
-  const updateSlide = (slideId: string, field: keyof HeroSlide, value: string) => {
-    setSlides((current) => current.map((slide) => (slide.id === slideId ? { ...slide, [field]: value } : slide)));
+  const updateHero = (field: keyof HeroContent, value: string) => {
+    setHeroContent((current) => ({ ...current, [field]: value }));
   };
 
   const handleCancel = () => {
-    setSlides(initialSlides);
+    setHeroContent(initialHeroContent);
     setMessage(null);
     setError(null);
   };
@@ -49,8 +49,8 @@ export function AdminHeroPage() {
     setError(null);
 
     try {
-      await saveHeroContent({ slides: slides.slice(0, 3) });
-      setInitialSlides(slides);
+      await saveHeroContent(heroContent);
+      setInitialHeroContent(heroContent);
       setMessage(
         hasSupabaseConfig
           ? 'Hero guardado correctamente.'
@@ -67,7 +67,7 @@ export function AdminHeroPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Hero"
-        description="Edita hasta 3 slides del Hero con imagen, titulo, subtitulo y dos botones por slide."
+        description="Edita un Hero simple con badge, texto principal, botones y una sola imagen destacada."
       />
 
       {!hasSupabaseConfig ? (
@@ -80,85 +80,84 @@ export function AdminHeroPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <form className="space-y-6" onSubmit={handleSubmit}>
-        {slides.map((slide, index) => (
-          <section key={slide.id} className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">Slide {index + 1}</h3>
-              <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Maximo 3 slides</span>
-            </div>
+        <section className="grid gap-5 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 lg:grid-cols-2">
+          <ImageField
+            label="Imagen principal"
+            hint="Usa una imagen horizontal, clara y profesional."
+            value={heroContent.image_url}
+            onChange={(value) => updateHero('image_url', value)}
+          />
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              <ImageField
-                label="Imagen principal"
-                hint="Usa una imagen horizontal y profesional."
-                value={slide.image}
-                onChange={(value) => updateSlide(slide.id, 'image', value)}
+          <div className="space-y-4">
+            <FormField label="Badge" hint="Opcional. Texto corto arriba del titulo.">
+              <input
+                type="text"
+                value={heroContent.badge ?? ''}
+                onChange={(event) => updateHero('badge', event.target.value)}
+                className="admin-input"
               />
+            </FormField>
 
-              <div className="space-y-4">
-                <FormField label="Texto alternativo">
-                  <input
-                    type="text"
-                    value={slide.alt}
-                    onChange={(event) => updateSlide(slide.id, 'alt', event.target.value)}
-                    className="admin-input"
-                  />
-                </FormField>
-                <FormField label="Titulo">
-                  <input
-                    type="text"
-                    value={slide.title}
-                    onChange={(event) => updateSlide(slide.id, 'title', event.target.value)}
-                    className="admin-input"
-                  />
-                </FormField>
-                <FormField label="Subtitulo">
-                  <textarea
-                    value={slide.subtitle}
-                    onChange={(event) => updateSlide(slide.id, 'subtitle', event.target.value)}
-                    rows={4}
-                    className="admin-input"
-                  />
-                </FormField>
-              </div>
-            </div>
+            <FormField label="Titulo">
+              <input
+                type="text"
+                value={heroContent.title}
+                onChange={(event) => updateHero('title', event.target.value)}
+                className="admin-input"
+              />
+            </FormField>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <FormField label="Boton principal">
-                <input
-                  type="text"
-                  value={slide.primaryButtonText}
-                  onChange={(event) => updateSlide(slide.id, 'primaryButtonText', event.target.value)}
-                  className="admin-input"
-                />
-              </FormField>
-              <FormField label="Link del boton principal">
-                <input
-                  type="text"
-                  value={slide.primaryButtonLink}
-                  onChange={(event) => updateSlide(slide.id, 'primaryButtonLink', event.target.value)}
-                  className="admin-input"
-                />
-              </FormField>
-              <FormField label="Boton secundario">
-                <input
-                  type="text"
-                  value={slide.secondaryButtonText}
-                  onChange={(event) => updateSlide(slide.id, 'secondaryButtonText', event.target.value)}
-                  className="admin-input"
-                />
-              </FormField>
-              <FormField label="Link del boton secundario">
-                <input
-                  type="text"
-                  value={slide.secondaryButtonLink}
-                  onChange={(event) => updateSlide(slide.id, 'secondaryButtonLink', event.target.value)}
-                  className="admin-input"
-                />
-              </FormField>
-            </div>
-          </section>
-        ))}
+            <FormField label="Subtitulo">
+              <textarea
+                value={heroContent.subtitle}
+                onChange={(event) => updateHero('subtitle', event.target.value)}
+                rows={5}
+                className="admin-input"
+              />
+            </FormField>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5">
+          <h3 className="text-lg font-semibold text-slate-900">Botones</h3>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <FormField label="Boton principal">
+              <input
+                type="text"
+                value={heroContent.primary_cta_text}
+                onChange={(event) => updateHero('primary_cta_text', event.target.value)}
+                className="admin-input"
+              />
+            </FormField>
+
+            <FormField label="Link del boton principal">
+              <input
+                type="text"
+                value={heroContent.primary_cta_link}
+                onChange={(event) => updateHero('primary_cta_link', event.target.value)}
+                className="admin-input"
+              />
+            </FormField>
+
+            <FormField label="Boton secundario" hint="Opcional. Dejalo vacio si no quieres mostrarlo.">
+              <input
+                type="text"
+                value={heroContent.secondary_cta_text ?? ''}
+                onChange={(event) => updateHero('secondary_cta_text', event.target.value)}
+                className="admin-input"
+              />
+            </FormField>
+
+            <FormField label="Link del boton secundario">
+              <input
+                type="text"
+                value={heroContent.secondary_cta_link ?? ''}
+                onChange={(event) => updateHero('secondary_cta_link', event.target.value)}
+                className="admin-input"
+              />
+            </FormField>
+          </div>
+        </section>
 
         <FormActions onCancel={handleCancel} saving={saving} />
       </form>

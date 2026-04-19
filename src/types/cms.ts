@@ -1,17 +1,12 @@
-export type HeroSlide = {
-  id: string;
-  image: string;
-  alt: string;
+export type HeroContent = {
+  badge?: string;
   title: string;
   subtitle: string;
-  primaryButtonText: string;
-  primaryButtonLink: string;
-  secondaryButtonText: string;
-  secondaryButtonLink: string;
-};
-
-export type HeroContent = {
-  slides: HeroSlide[];
+  image_url: string;
+  primary_cta_text: string;
+  primary_cta_link: string;
+  secondary_cta_text?: string;
+  secondary_cta_link?: string;
 };
 
 export type AboutMetric = {

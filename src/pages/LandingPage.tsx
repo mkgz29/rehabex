@@ -17,7 +17,7 @@ export function LandingPage() {
     <div className="min-h-screen overflow-x-hidden bg-stone-50 text-slate-900">
       <Navbar />
       <main>
-        <HeroSection slides={content.hero.slides} />
+        <HeroSection heroContent={content.hero} />
         <FeaturedProductsSection products={featuredProducts} />
         <BenefitsSection />
         <AboutSection content={content.about} />

@@ -41,44 +41,16 @@ export const defaultProducts: Product[] = [
 
 export const defaultLandingContent: LandingContent = {
   hero: {
-    slides: [
-      {
-        id: 'hero-slide-1',
-        image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80',
-        alt: 'Profesional de rehabilitacion guiando una sesion terapeutica',
-        title: 'Tecnologia y acompanamiento para cada etapa de recuperacion.',
-        subtitle:
-          'En REHABEX conectamos profesionales, centros y pacientes con productos confiables para fisioterapia, recuperacion funcional y bienestar diario.',
-        primaryButtonText: 'Ver productos destacados',
-        primaryButtonLink: '#productos',
-        secondaryButtonText: 'Conocer REHABEX',
-        secondaryButtonLink: '#quienes-somos',
-      },
-      {
-        id: 'hero-slide-2',
-        image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80',
-        alt: 'Espacio clinico preparado para sesiones de rehabilitacion',
-        title: 'Productos listos para sostener tratamientos con continuidad y confianza.',
-        subtitle:
-          'Seleccionamos equipamiento funcional para espacios terapeuticos que necesitan durabilidad, confort y resultados consistentes.',
-        primaryButtonText: 'Explorar equipamiento',
-        primaryButtonLink: '#productos',
-        secondaryButtonText: 'Quienes somos',
-        secondaryButtonLink: '#quienes-somos',
-      },
-      {
-        id: 'hero-slide-3',
-        image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80',
-        alt: 'Paciente recibiendo acompanamiento durante una sesion de recuperacion',
-        title: 'Asesoria simple para elegir mejor desde el primer contacto.',
-        subtitle:
-          'Te ayudamos a encontrar la opcion adecuada segun objetivo terapeutico, frecuencia de uso y contexto profesional o domiciliario.',
-        primaryButtonText: 'Hablar con un asesor',
-        primaryButtonLink: '#contacto',
-        secondaryButtonText: 'Ver destacados',
-        secondaryButtonLink: '#productos',
-      },
-    ],
+    badge: 'Soluciones para rehabilitacion profesional',
+    title: 'Tecnologia y acompanamiento para cada etapa de recuperacion.',
+    subtitle:
+      'En REHABEX conectamos profesionales, centros y pacientes con productos confiables para fisioterapia, recuperacion funcional y bienestar diario.',
+    image_url:
+      'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80',
+    primary_cta_text: 'Ver productos destacados',
+    primary_cta_link: '#productos',
+    secondary_cta_text: 'Conocer REHABEX',
+    secondary_cta_link: '#quienes-somos',
   },
   about: {
     image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80',

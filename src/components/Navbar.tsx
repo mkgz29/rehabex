@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { navLinks } from '../content/navigation';
 
@@ -41,6 +42,9 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
+          <Link to="/admin" className="brand-nav-link text-sm font-medium text-slate-600">
+            Admin
+          </Link>
           <a
             href="#contacto"
             className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:[background-color:var(--color-primary-dark)]"
@@ -63,6 +67,13 @@ export function Navbar() {
                 {link.label}
               </a>
             ))}
+            <Link
+              to="/admin"
+              className="brand-soft-hover rounded-2xl px-4 py-3 text-sm font-medium text-slate-700"
+              onClick={() => setIsOpen(false)}
+            >
+              Admin
+            </Link>
             <a
               href="#contacto"
               className="rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-medium text-white transition hover:[background-color:var(--color-primary-dark)]"
