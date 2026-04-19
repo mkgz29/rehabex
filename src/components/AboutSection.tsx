@@ -20,12 +20,12 @@ export function AboutSection() {
           />
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] bg-emerald-50 p-5">
-              <p className="text-3xl font-semibold text-emerald-700">+500</p>
+            <div className="brand-accent-soft rounded-[1.5rem] p-5">
+              <p className="brand-accent-text text-3xl font-semibold">+500</p>
               <p className="mt-2 text-sm leading-6 text-slate-700">consultas atendidas con recomendacion personalizada.</p>
             </div>
-            <div className="rounded-[1.5rem] bg-amber-50 p-5">
-              <p className="text-3xl font-semibold text-amber-700">24/7</p>
+            <div className="brand-accent-soft-strong rounded-[1.5rem] p-5">
+              <p className="brand-accent-text text-3xl font-semibold">24/7</p>
               <p className="mt-2 text-sm leading-6 text-slate-700">foco en continuidad terapeutica y respuesta postventa.</p>
             </div>
           </div>

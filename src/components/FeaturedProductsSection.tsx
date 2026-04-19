@@ -25,7 +25,7 @@ export function FeaturedProductsSection() {
               <div className="p-6">
                 <h3 className="text-xl font-semibold text-slate-900">{product.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{product.description}</p>
-                <a href="#contacto" className="mt-5 inline-flex text-sm font-semibold text-emerald-700">
+                <a href="#contacto" className="brand-link mt-5 inline-flex text-sm font-semibold">
                   Consultar disponibilidad
                 </a>
               </div>

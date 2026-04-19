@@ -14,7 +14,7 @@ export function SectionHeading({
   theme = 'light',
 }: SectionHeadingProps) {
   const alignment = align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl';
-  const eyebrowColor = theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700';
+  const eyebrowColor = theme === 'dark' ? 'brand-accent-text-soft' : 'brand-accent-text';
   const titleColor = theme === 'dark' ? 'text-white' : 'text-slate-900';
   const descriptionColor = theme === 'dark' ? 'text-slate-300' : 'text-slate-600';
 

@@ -9,7 +9,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-stone-50/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <a href="#" className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
+          <span className="brand-button flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold">
             RX
           </span>
           <div>
@@ -20,7 +20,7 @@ export function Navbar() {
 
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-full border border-slate-300 p-2 text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700 md:hidden"
+          className="brand-ring-button inline-flex items-center justify-center rounded-full border border-slate-300 p-2 text-slate-700 md:hidden"
           onClick={() => setIsOpen((current) => !current)}
           aria-expanded={isOpen}
           aria-label="Abrir menu de navegacion"
@@ -36,14 +36,14 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-slate-600 transition hover:text-emerald-700"
+              className="brand-nav-link text-sm font-medium text-slate-600"
             >
               {link.label}
             </a>
           ))}
           <a
             href="#contacto"
-            className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700"
+            className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:[background-color:var(--color-primary-dark)]"
           >
             Contacto
           </a>
@@ -57,7 +57,7 @@ export function Navbar() {
               <a
                 key={link.href}
                 href={link.href}
-                className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700"
+                className="brand-soft-hover rounded-2xl px-4 py-3 text-sm font-medium text-slate-700"
                 onClick={() => setIsOpen(false)}
               >
                 {link.label}
@@ -65,7 +65,7 @@ export function Navbar() {
             ))}
             <a
               href="#contacto"
-              className="rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-medium text-white transition hover:bg-emerald-700"
+              className="rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-medium text-white transition hover:[background-color:var(--color-primary-dark)]"
               onClick={() => setIsOpen(false)}
             >
               Contacto

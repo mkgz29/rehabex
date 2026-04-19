@@ -15,7 +15,7 @@ export function BenefitsSection() {
         <div className="grid gap-4 sm:grid-cols-2">
           {benefits.map((benefit) => (
             <article key={benefit.title} className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+              <div className="brand-icon-soft flex h-11 w-11 items-center justify-center rounded-full">
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>

@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary: #ea7a1f;
+    --color-primary-dark: #c85f0a;
+    --color-primary-soft: #fff1e6;
+    --color-primary-border: #f3c29a;
+    --color-primary-soft-strong: #fde1cc;
+  }
+
   html {
     scroll-behavior: smooth;
   }
@@ -28,5 +36,86 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+}
+
+@layer components {
+  .brand-badge {
+    @apply border px-3 py-1;
+    border-color: var(--color-primary-border);
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+  }
+
+  .brand-button {
+    @apply text-white transition;
+    background-color: var(--color-primary);
+  }
+
+  .brand-button:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  .brand-link {
+    color: var(--color-primary-dark);
+  }
+
+  .brand-link:hover {
+    color: var(--color-primary);
+  }
+
+  .brand-ring-button {
+    @apply transition;
+  }
+
+  .brand-ring-button:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-dark);
+  }
+
+  .brand-nav-link {
+    @apply transition;
+  }
+
+  .brand-nav-link:hover {
+    color: var(--color-primary-dark);
+  }
+
+  .brand-soft-hover {
+    @apply transition;
+  }
+
+  .brand-soft-hover:hover {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+  }
+
+  .brand-dot-active {
+    background-color: var(--color-primary);
+  }
+
+  .brand-accent-soft {
+    background-color: var(--color-primary-soft);
+  }
+
+  .brand-accent-soft-strong {
+    background-color: var(--color-primary-soft-strong);
+  }
+
+  .brand-accent-text {
+    color: var(--color-primary-dark);
+  }
+
+  .brand-accent-text-soft {
+    color: var(--color-primary-border);
+  }
+
+  .brand-accent-border {
+    border-color: var(--color-primary-border);
+  }
+
+  .brand-icon-soft {
+    background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    color: var(--color-primary-border);
   }
 }

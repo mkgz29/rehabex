@@ -15,7 +15,7 @@ function HeroSlideCard({ badge, title, description, image, alt }: HeroSlideCardP
     <div className="grid min-h-[520px] items-center gap-10 lg:min-h-[600px] lg:grid-cols-[minmax(0,1fr)_minmax(320px,480px)]">
       <div className="flex h-full items-center">
         <div className="max-w-2xl">
-          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800">
+          <span className="brand-badge inline-flex rounded-full text-sm font-medium">
             {badge}
           </span>
           <h1 className="mt-6 max-w-xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
@@ -25,7 +25,7 @@ function HeroSlideCard({ badge, title, description, image, alt }: HeroSlideCardP
           <div className="mt-8 flex max-w-xl flex-col gap-3 sm:flex-row">
             <a
               href="#productos"
-              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              className="brand-button inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold"
             >
               Ver productos destacados
             </a>
@@ -87,7 +87,7 @@ export function HeroSection() {
           <button
             type="button"
             onClick={goToPrevious}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700"
+            className="brand-ring-button inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700"
             aria-label="Slide anterior"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -97,7 +97,7 @@ export function HeroSection() {
           <button
             type="button"
             onClick={goToNext}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700"
+            className="brand-ring-button inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700"
             aria-label="Slide siguiente"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -112,7 +112,7 @@ export function HeroSection() {
                 onClick={() => setActiveSlide(index)}
                 aria-label={`Ir al slide ${index + 1}`}
                 className={`h-2.5 rounded-full transition ${
-                  index === activeSlide ? 'w-8 bg-emerald-600' : 'w-2.5 bg-slate-300 hover:bg-slate-400'
+                  index === activeSlide ? 'brand-dot-active w-8' : 'w-2.5 bg-slate-300 hover:bg-slate-400'
                 }`}
               />
             ))}
