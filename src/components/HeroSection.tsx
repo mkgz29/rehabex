@@ -73,7 +73,11 @@ export function HeroSection() {
 
   return (
     <section className="relative isolate overflow-hidden">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_45%),linear-gradient(180deg,_rgba(255,255,255,0.7),_rgba(245,245,244,0.95))]" />
+      <div className="
+  absolute inset-0 top-0 -z-10 h-[28rem] lg:h-[32rem]
+  bg-[radial-gradient(circle_at_top_left,rgba(234,122,31,0.15),transparent_45%),
+      linear-gradient(180deg,rgba(255,255,255,0.8),rgba(245,245,244,0.95))]
+" />
       <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <HeroSlideCard
           badge={slide.badge}
