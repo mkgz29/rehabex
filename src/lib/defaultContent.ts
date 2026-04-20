@@ -106,7 +106,7 @@ export const defaultLandingContent: LandingContent = {
     title: 'Recuperacion con confianza.',
     subtitle: 'Equipamiento y soluciones para rehabilitacion profesional, en un solo lugar.',
     image_url:
-      'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1600&q=80',
+      'https://unsplash.com/photos/aqclGN8xdPg/download?force=true&w=1800',
     primary_cta_text: 'Explorar productos',
     primary_cta_link: '#productos',
   },

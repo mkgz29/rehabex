@@ -9,22 +9,22 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-stone-50/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <a href="/" className="flex items-center">
-          <img src={logo} alt="Rehabex logo" className="h-10 w-auto sm:h-11" />
+      <div className="mx-auto flex min-h-[72px] w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <a href="/" className="flex shrink-0 items-center">
+          <img src={logo} alt="Rehabex logo" className="h-12 w-auto object-contain sm:h-14" />
         </a>
 
         <button
           type="button"
-          className="brand-ring-button inline-flex items-center justify-center rounded-full border border-slate-300 p-2 text-slate-700 md:hidden"
+          className={`brand-menu-button md:hidden ${isOpen ? 'active' : ''}`}
           onClick={() => setIsOpen((current) => !current)}
           aria-expanded={isOpen}
-          aria-label="Abrir menu de navegacion"
+          aria-label={isOpen ? 'Cerrar menu de navegacion' : 'Abrir menu de navegacion'}
         >
-          <span className="sr-only">Abrir menu</span>
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path strokeLinecap="round" d={isOpen ? 'M6 6l12 12M18 6L6 18' : 'M4 7h16M4 12h16M4 17h16'} />
-          </svg>
+          <span className="sr-only">{isOpen ? 'Cerrar menu' : 'Abrir menu'}</span>
+          <span className="brand-menu-button__line" aria-hidden="true" />
+          <span className="brand-menu-button__line" aria-hidden="true" />
+          <span className="brand-menu-button__line" aria-hidden="true" />
         </button>
 
         <nav className="hidden items-center gap-8 md:flex">
