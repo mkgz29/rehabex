@@ -8,10 +8,10 @@ import { useLandingData } from '../hooks/useLandingData';
 
 export function LandingPage() {
   const { content, products } = useLandingData();
-  const featuredProducts = content.featuredProductIds
-    .map((productId) => products.find((product) => product.id === productId && product.active))
-    .filter((product): product is NonNullable<typeof product> => Boolean(product))
-    .slice(0, 3);
+  const featuredProducts = [...products]
+    .filter((product) => product.active && product.featured)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .slice(0, 8);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">

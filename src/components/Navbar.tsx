@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import logo from '../assets/logo.png';
 import { navLinks } from '../content/navigation';
 
 export function Navbar() {
@@ -9,14 +10,8 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-stone-50/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <a href="#" className="flex items-center gap-3">
-          <span className="brand-button flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold">
-            RX
-          </span>
-          <div>
-            <p className="text-lg font-semibold tracking-[0.16em] text-slate-900">REHABEX</p>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Rehabilitacion inteligente</p>
-          </div>
+        <a href="/" className="flex items-center">
+          <img src={logo} alt="Rehabex logo" className="h-10 w-auto sm:h-11" />
         </a>
 
         <button

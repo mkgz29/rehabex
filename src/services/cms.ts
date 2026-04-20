@@ -16,6 +16,16 @@ type ProductRow = {
   active: boolean;
 };
 
+type ProductMarketingValue = {
+  category?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  featured?: boolean;
+  sortOrder?: number;
+};
+
+type ProductMarketingMap = Record<string, ProductMarketingValue>;
+
 function cloneLandingContent() {
   return JSON.parse(JSON.stringify(defaultLandingContent)) as LandingContent;
 }
@@ -27,8 +37,50 @@ function mapProductRow(row: ProductRow): Product {
     description: row.description,
     price: Number(row.price),
     imageUrl: row.image_url,
+    category: undefined,
+    ctaText: 'Consultar disponibilidad',
+    ctaLink: '#contacto',
+    featured: false,
+    sortOrder: 0,
     active: row.active,
   };
+}
+
+function mergeProductMarketing(products: Product[], marketing: ProductMarketingMap) {
+  return products.map((product) => {
+    const marketingValue = marketing[product.id];
+
+    return {
+      ...product,
+      category: marketingValue?.category ?? product.category,
+      ctaText: marketingValue?.ctaText ?? product.ctaText,
+      ctaLink: marketingValue?.ctaLink ?? product.ctaLink,
+      featured: marketingValue?.featured ?? product.featured,
+      sortOrder: marketingValue?.sortOrder ?? product.sortOrder,
+    };
+  });
+}
+
+async function getProductMarketingContent() {
+  if (!supabase) {
+    return {} as ProductMarketingMap;
+  }
+
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'product_marketing_content')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error('No se pudo cargar la configuracion comercial de productos.');
+  }
+
+  return ((data?.value as ProductMarketingMap | null) ?? {}) as ProductMarketingMap;
+}
+
+async function saveProductMarketingContent(marketing: ProductMarketingMap) {
+  return saveSetting('product_marketing_content', marketing);
 }
 
 function mergeLandingSettings(settings: SettingRow[]) {
@@ -94,16 +146,16 @@ export async function getProducts() {
     return [...defaultProducts];
   }
 
-  const { data, error } = await supabase
-    .from('products')
-    .select('id, name, description, price, image_url, active')
-    .order('created_at', { ascending: true });
+  const [{ data, error }, marketing] = await Promise.all([
+    supabase.from('products').select('id, name, description, price, image_url, active').order('created_at', { ascending: true }),
+    getProductMarketingContent(),
+  ]);
 
   if (error) {
     throw new Error('No se pudieron cargar los productos.');
   }
 
-  return ((data ?? []) as ProductRow[]).map(mapProductRow);
+  return mergeProductMarketing(((data ?? []) as ProductRow[]).map(mapProductRow), marketing);
 }
 
 export async function saveProduct(product: ProductInput) {
@@ -142,7 +194,26 @@ export async function saveProduct(product: ProductInput) {
     throw new Error('No se pudo guardar el producto.');
   }
 
-  return mapProductRow(data as ProductRow);
+  const savedProduct = {
+    ...mapProductRow(data as ProductRow),
+    category: product.category,
+    ctaText: product.ctaText,
+    ctaLink: product.ctaLink,
+    featured: product.featured,
+    sortOrder: product.sortOrder,
+  };
+
+  const marketing = await getProductMarketingContent();
+  marketing[savedProduct.id] = {
+    category: savedProduct.category,
+    ctaText: savedProduct.ctaText,
+    ctaLink: savedProduct.ctaLink,
+    featured: savedProduct.featured,
+    sortOrder: savedProduct.sortOrder,
+  };
+  await saveProductMarketingContent(marketing);
+
+  return savedProduct;
 }
 
 export async function deleteProduct(productId: string) {
@@ -154,5 +225,11 @@ export async function deleteProduct(productId: string) {
 
   if (error) {
     throw new Error('No se pudo eliminar el producto.');
+  }
+
+  const marketing = await getProductMarketingContent();
+  if (productId in marketing) {
+    delete marketing[productId];
+    await saveProductMarketingContent(marketing);
   }
 }

@@ -2,7 +2,6 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const adminLinks = [
   { label: 'Hero', to: '/admin/hero' },
-  { label: 'Destacados', to: '/admin/destacados' },
   { label: 'Quienes somos', to: '/admin/quienes-somos' },
   { label: 'Productos', to: '/admin/productos' },
 ];

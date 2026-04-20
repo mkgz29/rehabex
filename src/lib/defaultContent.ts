@@ -8,6 +8,11 @@ export const defaultProducts: Product[] = [
     price: 249900,
     imageUrl:
       'https://images.unsplash.com/photo-1582719471384-894fbb16e074?auto=format&fit=crop&w=900&q=80',
+    category: 'Electroterapia',
+    ctaText: 'Ver producto',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 1,
     active: true,
   },
   {
@@ -17,6 +22,11 @@ export const defaultProducts: Product[] = [
     price: 45990,
     imageUrl:
       'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80',
+    category: 'Movimiento',
+    ctaText: 'Consultar disponibilidad',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 2,
     active: true,
   },
   {
@@ -26,6 +36,11 @@ export const defaultProducts: Product[] = [
     price: 389000,
     imageUrl:
       'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',
+    category: 'Equipamiento',
+    ctaText: 'Ver producto',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 3,
     active: true,
   },
   {
@@ -35,6 +50,53 @@ export const defaultProducts: Product[] = [
     price: 28990,
     imageUrl:
       'https://images.unsplash.com/photo-1599058917765-a780eda07a3e?auto=format&fit=crop&w=900&q=80',
+    category: 'Recuperacion',
+    ctaText: 'Consultar disponibilidad',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 4,
+    active: true,
+  },
+  {
+    id: 'pistola-masaje-terapeutica',
+    name: 'Pistola de masaje terapeutica',
+    description: 'Percusion controlada para descarga muscular, activacion y recuperacion post tratamiento.',
+    price: 67990,
+    imageUrl:
+      'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?auto=format&fit=crop&w=900&q=80',
+    category: 'Terapia muscular',
+    ctaText: 'Ver producto',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 5,
+    active: true,
+  },
+  {
+    id: 'compresa-frio-calor-pro',
+    name: 'Compresa frio calor Pro',
+    description: 'Solucion reutilizable para manejo termico en procesos de dolor, inflamacion y descarga.',
+    price: 18990,
+    imageUrl:
+      'https://images.unsplash.com/photo-1576671081837-49000212a370?auto=format&fit=crop&w=900&q=80',
+    category: 'Criotermia',
+    ctaText: 'Consultar disponibilidad',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 6,
+    active: true,
+  },
+  {
+    id: 'tabla-equilibrio-clinica',
+    name: 'Tabla de equilibrio clinica',
+    description: 'Base estable para ejercicios de propiocepcion, control postural y trabajo funcional progresivo.',
+    price: 52990,
+    imageUrl:
+      'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80',
+    category: 'Propiocepcion',
+    ctaText: 'Ver producto',
+    ctaLink: '#contacto',
+    featured: true,
+    sortOrder: 7,
     active: true,
   },
 ];

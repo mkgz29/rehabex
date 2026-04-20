@@ -17,6 +17,11 @@ const emptyProduct: ProductInput = {
   description: '',
   price: 0,
   imageUrl: '',
+  category: '',
+  ctaText: 'Consultar disponibilidad',
+  ctaLink: '#contacto',
+  featured: false,
+  sortOrder: 0,
   active: true,
 };
 
@@ -40,7 +45,17 @@ export function AdminProductsPage() {
     load();
   }, []);
 
-  const sortedProducts = useMemo(() => [...products].sort((a, b) => Number(b.active) - Number(a.active)), [products]);
+  const sortedProducts = useMemo(
+    () =>
+      [...products].sort(
+        (a, b) =>
+          Number(b.active) - Number(a.active) ||
+          Number(b.featured) - Number(a.featured) ||
+          a.sortOrder - b.sortOrder ||
+          a.name.localeCompare(b.name),
+      ),
+    [products],
+  );
 
   const handleEdit = (product: Product) => {
     setEditingProduct({
@@ -49,6 +64,11 @@ export function AdminProductsPage() {
       description: product.description,
       price: product.price,
       imageUrl: product.imageUrl,
+      category: product.category ?? '',
+      ctaText: product.ctaText,
+      ctaLink: product.ctaLink,
+      featured: product.featured,
+      sortOrder: product.sortOrder,
       active: product.active,
     });
     setMessage(null);
@@ -112,7 +132,7 @@ export function AdminProductsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Productos"
-        description="Administra nombre, descripcion, precio, imagen y estado de cada producto con un formulario simple."
+        description="Administra imagen, contenido comercial, CTA, estado de destacado y orden de aparicion de cada producto."
       />
 
       {!hasSupabaseConfig ? (
@@ -135,7 +155,13 @@ export function AdminProductsPage() {
                     <img src={product.imageUrl} alt={product.name} className="h-16 w-16 rounded-2xl object-cover object-center" />
                     <div>
                       <h4 className="text-sm font-semibold text-slate-900">{product.name}</h4>
+                      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">
+                        {product.category || 'Sin categoria'}
+                      </p>
                       <p className="mt-1 text-xs text-slate-500">{formatCurrency(product.price)}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {product.featured ? `Destacado · Orden ${product.sortOrder}` : 'No destacado'}
+                      </p>
                       <p className="mt-1 text-xs text-slate-500">{product.active ? 'Activo' : 'Inactivo'}</p>
                     </div>
                   </div>
@@ -186,6 +212,15 @@ export function AdminProductsPage() {
               />
             </FormField>
 
+            <FormField label="Categoria" hint="Opcional. Texto corto encima del nombre en la card.">
+              <input
+                type="text"
+                value={editingProduct.category ?? ''}
+                onChange={(event) => setEditingProduct((current) => ({ ...current, category: event.target.value }))}
+                className="admin-input"
+              />
+            </FormField>
+
             <FormField label="Precio" hint="Solo ingresa el numero, sin puntos ni simbolos.">
               <input
                 type="number"
@@ -203,6 +238,51 @@ export function AdminProductsPage() {
               value={editingProduct.imageUrl}
               onChange={(value) => setEditingProduct((current) => ({ ...current, imageUrl: value }))}
             />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Texto del CTA">
+                <input
+                  type="text"
+                  value={editingProduct.ctaText}
+                  onChange={(event) => setEditingProduct((current) => ({ ...current, ctaText: event.target.value }))}
+                  className="admin-input"
+                />
+              </FormField>
+
+              <FormField label="Link del CTA">
+                <input
+                  type="text"
+                  value={editingProduct.ctaLink}
+                  onChange={(event) => setEditingProduct((current) => ({ ...current, ctaLink: event.target.value }))}
+                  className="admin-input"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Orden de aparicion" hint="Menor numero = aparece antes entre los destacados.">
+              <input
+                type="number"
+                min="0"
+                value={editingProduct.sortOrder}
+                onChange={(event) =>
+                  setEditingProduct((current) => ({ ...current, sortOrder: Number(event.target.value) || 0 }))
+                }
+                className="admin-input"
+              />
+            </FormField>
+
+            <label className="flex items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Mostrar como destacado</p>
+                <p className="mt-1 text-xs text-slate-500">Activalo para incluirlo en la seccion premium de la landing.</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={editingProduct.featured}
+                onChange={(event) => setEditingProduct((current) => ({ ...current, featured: event.target.checked }))}
+                className="h-5 w-5 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+              />
+            </label>
 
             <label className="flex items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-3">
               <div>

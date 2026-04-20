@@ -25,6 +25,11 @@ export type Product = {
   description: string;
   price: number;
   imageUrl: string;
+  category?: string;
+  ctaText: string;
+  ctaLink: string;
+  featured: boolean;
+  sortOrder: number;
   active: boolean;
 };
 
