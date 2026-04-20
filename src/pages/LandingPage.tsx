@@ -1,5 +1,4 @@
 import { AboutSection } from '../components/AboutSection';
-import { BenefitsSection } from '../components/BenefitsSection';
 import { FeaturedProductsSection } from '../components/FeaturedProductsSection';
 import { Footer } from '../components/Footer';
 import { HeroSection } from '../components/HeroSection';
@@ -19,7 +18,6 @@ export function LandingPage() {
       <main>
         <HeroSection heroContent={content.hero} />
         <FeaturedProductsSection products={featuredProducts} />
-        <BenefitsSection />
         <AboutSection content={content.about} />
       </main>
       <Footer />
