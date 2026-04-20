@@ -14,7 +14,7 @@ export function LandingPage() {
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-stone-50 text-slate-900">
+    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">
       <Navbar />
       <main>
         <HeroSection heroContent={content.hero} />

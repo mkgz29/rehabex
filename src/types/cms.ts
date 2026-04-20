@@ -1,12 +1,9 @@
 export type HeroContent = {
-  badge?: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   image_url: string;
   primary_cta_text: string;
   primary_cta_link: string;
-  secondary_cta_text?: string;
-  secondary_cta_link?: string;
 };
 
 export type AboutMetric = {

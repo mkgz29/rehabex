@@ -6,51 +6,32 @@ type HeroSectionProps = {
 
 export function HeroSection({ heroContent }: HeroSectionProps) {
   return (
-    <section className="relative isolate overflow-hidden">
-      <div
-        className="absolute inset-0 top-0 -z-10 h-[28rem] lg:h-[32rem]"
-        style={{
-          background:
-            'radial-gradient(circle at top left, rgba(234, 122, 31, 0.15), transparent 45%), linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 245, 244, 0.95))',
-        }}
-      />
-      <div className="mx-auto grid min-h-[520px] w-full max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:min-h-[600px] lg:grid-cols-[minmax(0,1fr)_minmax(320px,480px)] lg:px-8 lg:py-24">
-        <div className="flex h-full items-center">
+    <section className="relative isolate overflow-hidden bg-stone-950">
+      <div className="relative min-h-[88vh] w-full sm:min-h-[90vh]">
+        <img
+          src={heroContent.image_url}
+          alt={heroContent.title}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.22)_0%,rgba(15,23,42,0.42)_38%,rgba(15,23,42,0.74)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,122,31,0.18),transparent_34%)]" />
+
+        <div className="relative mx-auto flex min-h-[88vh] w-full max-w-7xl items-end px-4 pb-14 pt-28 sm:min-h-[90vh] sm:px-6 sm:pb-16 sm:pt-32 lg:px-8 lg:pb-20">
           <div className="max-w-2xl">
-            {heroContent.badge ? (
-              <span className="brand-badge inline-flex rounded-full text-sm font-medium">{heroContent.badge}</span>
-            ) : null}
-            <h1 className="mt-6 max-w-xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+            <p className="text-xs font-medium uppercase tracking-[0.32em] text-white/70">REHABEX</p>
+            <h1 className="mt-4 max-w-xl text-5xl font-semibold tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
               {heroContent.title}
             </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">{heroContent.subtitle}</p>
-            <div className="mt-8 flex max-w-xl flex-col gap-3 sm:flex-row">
+            {heroContent.subtitle ? (
+              <p className="mt-5 max-w-lg text-base leading-7 text-white/80 sm:text-lg">{heroContent.subtitle}</p>
+            ) : null}
+            <div className="mt-8">
               <a
                 href={heroContent.primary_cta_link}
-                className="brand-button inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold"
+                className="brand-button inline-flex min-h-12 items-center justify-center rounded-full px-7 py-3 text-sm font-semibold shadow-[0_20px_45px_rgba(234,122,31,0.28)]"
               >
                 {heroContent.primary_cta_text}
               </a>
-              {heroContent.secondary_cta_text && heroContent.secondary_cta_link ? (
-                <a
-                  href={heroContent.secondary_cta_link}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-900 hover:bg-white"
-                >
-                  {heroContent.secondary_cta_text}
-                </a>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex h-full items-center">
-          <div className="w-full overflow-hidden rounded-[2rem] border border-white/70 bg-white/70 p-3 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur">
-            <div className="overflow-hidden rounded-[1.5rem]">
-              <img
-                src={heroContent.image_url}
-                alt={heroContent.title}
-                className="h-[300px] w-full object-cover object-center lg:h-[400px]"
-              />
             </div>
           </div>
         </div>

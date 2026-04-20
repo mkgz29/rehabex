@@ -41,16 +41,12 @@ export const defaultProducts: Product[] = [
 
 export const defaultLandingContent: LandingContent = {
   hero: {
-    badge: 'Soluciones para rehabilitacion profesional',
-    title: 'Tecnologia y acompanamiento para cada etapa de recuperacion.',
-    subtitle:
-      'En REHABEX conectamos profesionales, centros y pacientes con productos confiables para fisioterapia, recuperacion funcional y bienestar diario.',
+    title: 'Recuperacion con confianza.',
+    subtitle: 'Equipamiento y soluciones para rehabilitacion profesional, en un solo lugar.',
     image_url:
-      'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80',
-    primary_cta_text: 'Ver productos destacados',
+      'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1600&q=80',
+    primary_cta_text: 'Explorar productos',
     primary_cta_link: '#productos',
-    secondary_cta_text: 'Conocer REHABEX',
-    secondary_cta_link: '#quienes-somos',
   },
   about: {
     image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80',

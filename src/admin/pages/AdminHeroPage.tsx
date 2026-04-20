@@ -67,7 +67,7 @@ export function AdminHeroPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Hero"
-        description="Edita un Hero simple con badge, texto principal, botones y una sola imagen destacada."
+        description="Edita un Hero visual con una sola imagen protagonista, texto corto y un unico CTA principal."
       />
 
       {!hasSupabaseConfig ? (
@@ -83,22 +83,13 @@ export function AdminHeroPage() {
         <section className="grid gap-5 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 lg:grid-cols-2">
           <ImageField
             label="Imagen principal"
-            hint="Usa una imagen horizontal, clara y profesional."
+            hint="Usa una imagen amplia y de alto impacto visual. Se recorta con object-cover en desktop y mobile."
             value={heroContent.image_url}
             onChange={(value) => updateHero('image_url', value)}
           />
 
           <div className="space-y-4">
-            <FormField label="Badge" hint="Opcional. Texto corto arriba del titulo.">
-              <input
-                type="text"
-                value={heroContent.badge ?? ''}
-                onChange={(event) => updateHero('badge', event.target.value)}
-                className="admin-input"
-              />
-            </FormField>
-
-            <FormField label="Titulo">
+            <FormField label="Titulo" hint="Breve, directo y facil de leer sobre la imagen.">
               <input
                 type="text"
                 value={heroContent.title}
@@ -107,21 +98,16 @@ export function AdminHeroPage() {
               />
             </FormField>
 
-            <FormField label="Subtitulo">
+            <FormField label="Subtitulo" hint="Opcional. Una sola frase corta para apoyar el titulo.">
               <textarea
-                value={heroContent.subtitle}
+                value={heroContent.subtitle ?? ''}
                 onChange={(event) => updateHero('subtitle', event.target.value)}
-                rows={5}
+                rows={4}
                 className="admin-input"
               />
             </FormField>
-          </div>
-        </section>
 
-        <section className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5">
-          <h3 className="text-lg font-semibold text-slate-900">Botones</h3>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <FormField label="Boton principal">
+            <FormField label="Texto del CTA principal">
               <input
                 type="text"
                 value={heroContent.primary_cta_text}
@@ -130,29 +116,11 @@ export function AdminHeroPage() {
               />
             </FormField>
 
-            <FormField label="Link del boton principal">
+            <FormField label="Link del CTA principal">
               <input
                 type="text"
                 value={heroContent.primary_cta_link}
                 onChange={(event) => updateHero('primary_cta_link', event.target.value)}
-                className="admin-input"
-              />
-            </FormField>
-
-            <FormField label="Boton secundario" hint="Opcional. Dejalo vacio si no quieres mostrarlo.">
-              <input
-                type="text"
-                value={heroContent.secondary_cta_text ?? ''}
-                onChange={(event) => updateHero('secondary_cta_text', event.target.value)}
-                className="admin-input"
-              />
-            </FormField>
-
-            <FormField label="Link del boton secundario">
-              <input
-                type="text"
-                value={heroContent.secondary_cta_link ?? ''}
-                onChange={(event) => updateHero('secondary_cta_link', event.target.value)}
                 className="admin-input"
               />
             </FormField>
