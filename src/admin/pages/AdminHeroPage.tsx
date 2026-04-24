@@ -54,7 +54,7 @@ export function AdminHeroPage() {
       setMessage(
         hasSupabaseConfig
           ? 'Hero guardado correctamente.'
-          : 'Vista local actualizada. Configura Supabase para persistir los cambios.',
+          : 'Hero guardado en este navegador. Configura Supabase si quieres compartirlo o persistirlo globalmente.',
       );
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar el Hero.');
@@ -72,7 +72,7 @@ export function AdminHeroPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Estas viendo datos de ejemplo. Para guardar de forma permanente, agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+          Sin Supabase, los cambios se guardan en este navegador. Agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para compartirlos o persistirlos globalmente.
         </AdminNotice>
       ) : null}
 

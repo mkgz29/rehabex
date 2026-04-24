@@ -13,7 +13,10 @@ type ProductRow = {
   description: string;
   price: number;
   image_url: string;
-  active: boolean;
+  is_active: boolean;
+  is_featured?: boolean | null;
+  display_order?: number | null;
+  category?: string | null;
 };
 
 type ProductMarketingValue = {
@@ -26,8 +29,88 @@ type ProductMarketingValue = {
 
 type ProductMarketingMap = Record<string, ProductMarketingValue>;
 
+const LOCAL_SETTINGS_KEY = 'rehabex.settings';
+
 function cloneLandingContent() {
   return JSON.parse(JSON.stringify(defaultLandingContent)) as LandingContent;
+}
+
+function isBrowser() {
+  return typeof window !== 'undefined';
+}
+
+function getLocalSettings() {
+  if (!isBrowser()) {
+    return [] as SettingRow[];
+  }
+
+  const raw = window.localStorage.getItem(LOCAL_SETTINGS_KEY);
+  if (!raw) {
+    return [] as SettingRow[];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as SettingRow[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalSettings(settings: SettingRow[]) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  window.localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function normalizeHeroContent(value: unknown): HeroContent | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+
+  return {
+    ...defaultLandingContent.hero,
+    title: typeof raw.title === 'string' ? raw.title : defaultLandingContent.hero.title,
+    subtitle:
+      typeof raw.subtitle === 'string'
+        ? raw.subtitle
+        : typeof raw.subtitulo === 'string'
+          ? raw.subtitulo
+          : defaultLandingContent.hero.subtitle,
+    image_url:
+      typeof raw.image_url === 'string'
+        ? raw.image_url
+        : typeof raw.imageUrl === 'string'
+          ? raw.imageUrl
+          : defaultLandingContent.hero.image_url,
+    primary_cta_text:
+      typeof raw.primary_cta_text === 'string'
+        ? raw.primary_cta_text
+        : typeof raw.cta_text === 'string'
+          ? raw.cta_text
+          : typeof raw.ctaText === 'string'
+            ? raw.ctaText
+            : defaultLandingContent.hero.primary_cta_text,
+    primary_cta_link:
+      typeof raw.primary_cta_link === 'string'
+        ? raw.primary_cta_link
+        : typeof raw.cta_link === 'string'
+          ? raw.cta_link
+          : typeof raw.ctaLink === 'string'
+            ? raw.ctaLink
+            : defaultLandingContent.hero.primary_cta_link,
+  };
+}
+
+function formatSupabaseError(context: string, error: { message?: string; details?: string; hint?: string; code?: string }) {
+  const parts = [error.message, error.details, error.hint, error.code ? `code=${error.code}` : null].filter(Boolean);
+  const message = parts.join(' | ') || 'Error desconocido de Supabase.';
+  console.error(`[cms] ${context}`, error);
+  return `${context}: ${message}`;
 }
 
 function mapProductRow(row: ProductRow): Product {
@@ -37,12 +120,12 @@ function mapProductRow(row: ProductRow): Product {
     description: row.description,
     price: Number(row.price),
     imageUrl: row.image_url,
-    category: undefined,
+    category: row.category ?? undefined,
     ctaText: 'Consultar disponibilidad',
     ctaLink: '#contacto',
-    featured: false,
-    sortOrder: 0,
-    active: row.active,
+    featured: Boolean(row.is_featured),
+    sortOrder: Number(row.display_order ?? 0),
+    active: row.is_active,
   };
 }
 
@@ -73,7 +156,8 @@ async function getProductMarketingContent() {
     .maybeSingle();
 
   if (error) {
-    throw new Error('No se pudo cargar la configuracion comercial de productos.');
+    console.error('[cms] No se pudo cargar product_marketing_content', error);
+    throw new Error(formatSupabaseError('No se pudo cargar la configuracion comercial de productos', error));
   }
 
   return ((data?.value as ProductMarketingMap | null) ?? {}) as ProductMarketingMap;
@@ -88,7 +172,7 @@ function mergeLandingSettings(settings: SettingRow[]) {
 
   for (const setting of settings) {
     if (setting.key === 'hero_content' && setting.value) {
-      merged.hero = setting.value as HeroContent;
+      merged.hero = normalizeHeroContent(setting.value) ?? merged.hero;
     }
 
     if (setting.key === 'about_content' && setting.value) {
@@ -105,7 +189,7 @@ function mergeLandingSettings(settings: SettingRow[]) {
 
 export async function getLandingContent() {
   if (!supabase) {
-    return cloneLandingContent();
+    return mergeLandingSettings(getLocalSettings());
   }
 
   const { data, error } = await supabase.from('settings').select('key, value');
@@ -131,6 +215,10 @@ export async function saveFeaturedProductIds(productIds: string[]) {
 
 async function saveSetting(key: string, value: unknown) {
   if (!supabase) {
+    const settings = getLocalSettings();
+    const nextSettings = settings.filter((setting) => setting.key !== key);
+    nextSettings.push({ key, value });
+    saveLocalSettings(nextSettings);
     return;
   }
 
@@ -143,18 +231,28 @@ async function saveSetting(key: string, value: unknown) {
 
 export async function getProducts() {
   if (!supabase) {
+    console.log('Cargando productos desde datos mock: cliente Supabase no configurado.');
     return [...defaultProducts];
   }
 
-  const [{ data, error }, marketing] = await Promise.all([
-    supabase.from('products').select('id, name, description, price, image_url, active').order('created_at', { ascending: true }),
-    getProductMarketingContent(),
-  ]);
+  console.log('Cargando productos desde Supabase...');
+  const { data, error } = await supabase.from('products').select('*').order('display_order', { ascending: true });
+  console.log('products data:', data);
+  console.log('products error:', error);
 
   if (error) {
-    throw new Error('No se pudieron cargar los productos.');
+    console.error('[cms] No se pudieron cargar los productos', error);
+    throw new Error(formatSupabaseError('No se pudieron cargar los productos', error));
   }
 
+  let marketing: ProductMarketingMap = {};
+  try {
+    marketing = await getProductMarketingContent();
+  } catch {
+    marketing = {};
+  }
+
+  console.log('products mapped:', ((data ?? []) as ProductRow[]).map(mapProductRow));
   return mergeProductMarketing(((data ?? []) as ProductRow[]).map(mapProductRow), marketing);
 }
 
@@ -166,13 +264,21 @@ export async function saveProduct(product: ProductInput) {
     } as Product;
   }
 
+  const normalizedPrice = Number(product.price);
+  if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+    throw new Error('El precio del producto no es valido.');
+  }
+
   const payload = {
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    price: product.price,
-    image_url: product.imageUrl,
-    active: product.active,
+    ...(product.id ? { id: product.id } : {}),
+    name: product.name.trim(),
+    description: product.description.trim(),
+    category: product.category?.trim() || null,
+    price: normalizedPrice,
+    image_url: product.imageUrl.trim(),
+    is_featured: product.featured,
+    display_order: product.sortOrder,
+    is_active: product.active,
   };
 
   const query = product.id
@@ -180,27 +286,29 @@ export async function saveProduct(product: ProductInput) {
         .from('products')
         .update(payload)
         .eq('id', product.id)
-        .select('id, name, description, price, image_url, active')
+        .select('id, name, description, price, image_url, category, is_featured, display_order, is_active')
         .single()
     : supabase
         .from('products')
         .insert(payload)
-        .select('id, name, description, price, image_url, active')
+        .select('id, name, description, price, image_url, category, is_featured, display_order, is_active')
         .single();
 
   const { data, error } = await query;
 
   if (error || !data) {
-    throw new Error('No se pudo guardar el producto.');
+    throw new Error(
+      formatSupabaseError(
+        `No se pudo guardar el producto en Supabase${product.id ? ` (id=${product.id})` : ''}`,
+        error ?? { message: 'La operacion no devolvio datos.' },
+      ),
+    );
   }
 
   const savedProduct = {
     ...mapProductRow(data as ProductRow),
-    category: product.category,
     ctaText: product.ctaText,
     ctaLink: product.ctaLink,
-    featured: product.featured,
-    sortOrder: product.sortOrder,
   };
 
   const marketing = await getProductMarketingContent();
@@ -211,7 +319,17 @@ export async function saveProduct(product: ProductInput) {
     featured: savedProduct.featured,
     sortOrder: savedProduct.sortOrder,
   };
-  await saveProductMarketingContent(marketing);
+  try {
+    await saveProductMarketingContent(marketing);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error('[cms] No se pudo guardar el marketing del producto', error);
+      throw error;
+    }
+
+    console.error('[cms] No se pudo guardar el marketing del producto', error);
+    throw new Error('No se pudo guardar la configuracion comercial del producto.');
+  }
 
   return savedProduct;
 }

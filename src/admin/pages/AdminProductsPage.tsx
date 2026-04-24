@@ -34,10 +34,13 @@ export function AdminProductsPage() {
 
   useEffect(() => {
     async function load() {
+      console.log('AdminProductsPage useEffect: iniciando carga de productos...');
       try {
         const productList = await getProducts();
+        console.log('AdminProductsPage productList:', productList);
         setProducts(productList);
       } catch (loadError) {
+        console.error('AdminProductsPage loadError:', loadError);
         setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los productos.');
       }
     }
@@ -88,13 +91,9 @@ export function AdminProductsPage() {
     setError(null);
 
     try {
-      const savedProduct = await saveProduct(editingProduct);
-      setProducts((current) => {
-        const exists = current.some((product) => product.id === savedProduct.id);
-        return exists
-          ? current.map((product) => (product.id === savedProduct.id ? savedProduct : product))
-          : [...current, savedProduct];
-      });
+      await saveProduct(editingProduct);
+      const productList = await getProducts();
+      setProducts(productList);
       setEditingProduct(emptyProduct);
       setMessage(
         hasSupabaseConfig

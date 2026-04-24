@@ -86,7 +86,7 @@ export function AdminFeaturedProductsPage() {
       setMessage(
         hasSupabaseConfig
           ? 'Destacados guardados correctamente.'
-          : 'Vista local actualizada. Configura Supabase para persistir los cambios.',
+          : 'Destacados guardados en este navegador. Configura Supabase si quieres compartirlos o persistirlos globalmente.',
       );
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'No se pudieron guardar los destacados.');
@@ -104,7 +104,7 @@ export function AdminFeaturedProductsPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Estas viendo datos de ejemplo. Para guardar de forma permanente, agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+          Sin Supabase, los cambios se guardan en este navegador. Agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para compartirlos o persistirlos globalmente.
         </AdminNotice>
       ) : null}
 

@@ -19,17 +19,16 @@ export function useLandingData() {
     let ignore = false;
 
     async function load() {
-      try {
-        const [content, products] = await Promise.all([getLandingContent(), getProducts()]);
+      const [contentResult, productsResult] = await Promise.allSettled([getLandingContent(), getProducts()]);
 
-        if (!ignore) {
-          setState({ content, products });
-        }
-      } catch {
-        if (!ignore) {
-          setState({ content: defaultLandingContent, products: defaultProducts });
-        }
+      if (ignore) {
+        return;
       }
+
+      setState({
+        content: contentResult.status === 'fulfilled' ? contentResult.value : defaultLandingContent,
+        products: productsResult.status === 'fulfilled' ? productsResult.value : defaultProducts,
+      });
     }
 
     load();

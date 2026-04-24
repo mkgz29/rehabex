@@ -3,6 +3,7 @@ import { FeaturedProductsSection } from '../components/FeaturedProductsSection';
 import { Footer } from '../components/Footer';
 import { HeroSection } from '../components/HeroSection';
 import { Navbar } from '../components/Navbar';
+import { WhatsAppFloatingButton } from '../components/WhatsAppFloatingButton';
 import { useLandingData } from '../hooks/useLandingData';
 
 export function LandingPage() {
@@ -21,6 +22,7 @@ export function LandingPage() {
         <AboutSection content={content.about} />
       </main>
       <Footer />
+      <WhatsAppFloatingButton />
     </div>
   );
 }

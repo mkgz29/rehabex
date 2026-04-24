@@ -57,7 +57,7 @@ export function AdminAboutPage() {
       setMessage(
         hasSupabaseConfig
           ? 'Seccion guardada correctamente.'
-          : 'Vista local actualizada. Configura Supabase para persistir los cambios.',
+          : 'Seccion guardada en este navegador. Configura Supabase si quieres compartirla o persistirla globalmente.',
       );
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar la seccion.');
@@ -75,7 +75,7 @@ export function AdminAboutPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Estas viendo datos de ejemplo. Para guardar de forma permanente, agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+          Sin Supabase, los cambios se guardan en este navegador. Agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para compartirlos o persistirlos globalmente.
         </AdminNotice>
       ) : null}
 
