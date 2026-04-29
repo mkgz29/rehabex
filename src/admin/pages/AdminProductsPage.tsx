@@ -18,8 +18,6 @@ const emptyProduct: ProductInput = {
   price: 0,
   imageUrl: '',
   category: '',
-  ctaText: 'Consultar disponibilidad',
-  ctaLink: '#contacto',
   featured: false,
   sortOrder: 0,
   active: true,
@@ -34,13 +32,10 @@ export function AdminProductsPage() {
 
   useEffect(() => {
     async function load() {
-      console.log('AdminProductsPage useEffect: iniciando carga de productos...');
       try {
         const productList = await getProducts();
-        console.log('AdminProductsPage productList:', productList);
         setProducts(productList);
       } catch (loadError) {
-        console.error('AdminProductsPage loadError:', loadError);
         setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los productos.');
       }
     }
@@ -68,8 +63,6 @@ export function AdminProductsPage() {
       price: product.price,
       imageUrl: product.imageUrl,
       category: product.category ?? '',
-      ctaText: product.ctaText,
-      ctaLink: product.ctaLink,
       featured: product.featured,
       sortOrder: product.sortOrder,
       active: product.active,
@@ -131,7 +124,7 @@ export function AdminProductsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Productos"
-        description="Administra imagen, contenido comercial, CTA, estado de destacado y orden de aparicion de cada producto."
+        description="Administra imagen, contenido comercial, estado de destacado y orden de aparicion de cada producto."
       />
 
       {!hasSupabaseConfig ? (
@@ -159,7 +152,7 @@ export function AdminProductsPage() {
                       </p>
                       <p className="mt-1 text-xs text-slate-500">{formatCurrency(product.price)}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {product.featured ? `Destacado · Orden ${product.sortOrder}` : 'No destacado'}
+                        {product.featured ? `Destacado - Orden ${product.sortOrder}` : 'No destacado'}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">{product.active ? 'Activo' : 'Inactivo'}</p>
                     </div>
@@ -199,10 +192,11 @@ export function AdminProductsPage() {
                 value={editingProduct.name}
                 onChange={(event) => setEditingProduct((current) => ({ ...current, name: event.target.value }))}
                 className="admin-input"
+                required
               />
             </FormField>
 
-            <FormField label="Descripcion">
+            <FormField label="Descripcion" hint="Opcional.">
               <textarea
                 value={editingProduct.description}
                 onChange={(event) => setEditingProduct((current) => ({ ...current, description: event.target.value }))}
@@ -223,12 +217,13 @@ export function AdminProductsPage() {
             <FormField label="Precio" hint="Solo ingresa el numero, sin puntos ni simbolos.">
               <input
                 type="number"
-                min="0"
+                min="1"
                 value={editingProduct.price}
                 onChange={(event) =>
                   setEditingProduct((current) => ({ ...current, price: Number(event.target.value) || 0 }))
                 }
                 className="admin-input"
+                required
               />
             </FormField>
 
@@ -237,26 +232,6 @@ export function AdminProductsPage() {
               value={editingProduct.imageUrl}
               onChange={(value) => setEditingProduct((current) => ({ ...current, imageUrl: value }))}
             />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Texto del CTA">
-                <input
-                  type="text"
-                  value={editingProduct.ctaText}
-                  onChange={(event) => setEditingProduct((current) => ({ ...current, ctaText: event.target.value }))}
-                  className="admin-input"
-                />
-              </FormField>
-
-              <FormField label="Link del CTA">
-                <input
-                  type="text"
-                  value={editingProduct.ctaLink}
-                  onChange={(event) => setEditingProduct((current) => ({ ...current, ctaLink: event.target.value }))}
-                  className="admin-input"
-                />
-              </FormField>
-            </div>
 
             <FormField label="Orden de aparicion" hint="Menor numero = aparece antes entre los destacados.">
               <input

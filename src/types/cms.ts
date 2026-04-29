@@ -26,19 +26,17 @@ export type Product = {
   price: number;
   imageUrl: string;
   category?: string;
-  ctaText: string;
-  ctaLink: string;
   featured: boolean;
   sortOrder: number;
   active: boolean;
+  createdAt?: string;
 };
 
 export type LandingContent = {
   hero: HeroContent;
   about: AboutContent;
-  featuredProductIds: string[];
 };
 
-export type ProductInput = Omit<Product, 'id'> & {
+export type ProductInput = Omit<Product, 'id' | 'createdAt'> & {
   id?: string;
 };

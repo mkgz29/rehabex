@@ -89,8 +89,8 @@ export function FeaturedProductsSection({ products }: FeaturedProductsSectionPro
                 ) : null}
                 <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{product.name}</h3>
                 <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{product.description}</p>
-                <a href={product.ctaLink} className="brand-link mt-6 inline-flex items-center gap-2 text-sm font-semibold">
-                  {product.ctaText}
+                <a href="#contacto" className="brand-link mt-6 inline-flex items-center gap-2 text-sm font-semibold">
+                  Consultar disponibilidad
                   <span aria-hidden="true">{'->'}</span>
                 </a>
               </div>

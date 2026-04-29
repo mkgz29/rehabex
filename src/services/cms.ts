@@ -10,26 +10,18 @@ type SettingRow = {
 type ProductRow = {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
   image_url: string;
   is_active: boolean;
-  is_featured?: boolean | null;
-  display_order?: number | null;
+  is_featured: boolean;
+  display_order: number;
   category?: string | null;
+  created_at?: string | null;
 };
-
-type ProductMarketingValue = {
-  category?: string;
-  ctaText?: string;
-  ctaLink?: string;
-  featured?: boolean;
-  sortOrder?: number;
-};
-
-type ProductMarketingMap = Record<string, ProductMarketingValue>;
 
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
+const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at';
 
 function cloneLandingContent() {
   return JSON.parse(JSON.stringify(defaultLandingContent)) as LandingContent;
@@ -117,54 +109,15 @@ function mapProductRow(row: ProductRow): Product {
   return {
     id: row.id,
     name: row.name,
-    description: row.description,
+    description: row.description ?? '',
     price: Number(row.price),
     imageUrl: row.image_url,
     category: row.category ?? undefined,
-    ctaText: 'Consultar disponibilidad',
-    ctaLink: '#contacto',
     featured: Boolean(row.is_featured),
     sortOrder: Number(row.display_order ?? 0),
     active: row.is_active,
+    createdAt: row.created_at ?? undefined,
   };
-}
-
-function mergeProductMarketing(products: Product[], marketing: ProductMarketingMap) {
-  return products.map((product) => {
-    const marketingValue = marketing[product.id];
-
-    return {
-      ...product,
-      category: marketingValue?.category ?? product.category,
-      ctaText: marketingValue?.ctaText ?? product.ctaText,
-      ctaLink: marketingValue?.ctaLink ?? product.ctaLink,
-      featured: marketingValue?.featured ?? product.featured,
-      sortOrder: marketingValue?.sortOrder ?? product.sortOrder,
-    };
-  });
-}
-
-async function getProductMarketingContent() {
-  if (!supabase) {
-    return {} as ProductMarketingMap;
-  }
-
-  const { data, error } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'product_marketing_content')
-    .maybeSingle();
-
-  if (error) {
-    console.error('[cms] No se pudo cargar product_marketing_content', error);
-    throw new Error(formatSupabaseError('No se pudo cargar la configuracion comercial de productos', error));
-  }
-
-  return ((data?.value as ProductMarketingMap | null) ?? {}) as ProductMarketingMap;
-}
-
-async function saveProductMarketingContent(marketing: ProductMarketingMap) {
-  return saveSetting('product_marketing_content', marketing);
 }
 
 function mergeLandingSettings(settings: SettingRow[]) {
@@ -177,10 +130,6 @@ function mergeLandingSettings(settings: SettingRow[]) {
 
     if (setting.key === 'about_content' && setting.value) {
       merged.about = setting.value as AboutContent;
-    }
-
-    if (setting.key === 'featured_product_ids' && Array.isArray(setting.value)) {
-      merged.featuredProductIds = setting.value as string[];
     }
   }
 
@@ -209,10 +158,6 @@ export async function saveAboutContent(about: AboutContent) {
   return saveSetting('about_content', about);
 }
 
-export async function saveFeaturedProductIds(productIds: string[]) {
-  return saveSetting('featured_product_ids', productIds);
-}
-
 async function saveSetting(key: string, value: unknown) {
   if (!supabase) {
     const settings = getLocalSettings();
@@ -231,68 +176,75 @@ async function saveSetting(key: string, value: unknown) {
 
 export async function getProducts() {
   if (!supabase) {
-    console.log('Cargando productos desde datos mock: cliente Supabase no configurado.');
     return [...defaultProducts];
   }
 
-  console.log('Cargando productos desde Supabase...');
-  const { data, error } = await supabase.from('products').select('*').order('display_order', { ascending: true });
-  console.log('products data:', data);
-  console.log('products error:', error);
+  const { data, error } = await supabase.from('products').select(PRODUCT_SELECT).order('display_order', { ascending: true });
 
   if (error) {
-    console.error('[cms] No se pudieron cargar los productos', error);
     throw new Error(formatSupabaseError('No se pudieron cargar los productos', error));
   }
 
-  let marketing: ProductMarketingMap = {};
-  try {
-    marketing = await getProductMarketingContent();
-  } catch {
-    marketing = {};
+  return ((data ?? []) as ProductRow[]).map(mapProductRow);
+}
+
+export async function getActiveProducts() {
+  if (!supabase) {
+    return [...defaultProducts]
+      .filter((product) => product.active)
+      .sort((a, b) => a.sortOrder - b.sortOrder || (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
   }
 
-  console.log('products mapped:', ((data ?? []) as ProductRow[]).map(mapProductRow));
-  return mergeProductMarketing(((data ?? []) as ProductRow[]).map(mapProductRow), marketing);
+  const { data, error } = await supabase
+    .from('products')
+    .select(PRODUCT_SELECT)
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(formatSupabaseError('No se pudieron cargar los productos activos', error));
+  }
+
+  return ((data ?? []) as ProductRow[]).map(mapProductRow);
+}
+
+export async function getProductById(productId: string) {
+  if (!supabase) {
+    return defaultProducts.find((product) => product.id === productId) ?? null;
+  }
+
+  const { data, error } = await supabase.from('products').select(PRODUCT_SELECT).eq('id', productId).maybeSingle();
+
+  if (error) {
+    throw new Error(formatSupabaseError('No se pudo cargar el producto', error));
+  }
+
+  return data ? mapProductRow(data as ProductRow) : null;
 }
 
 export async function saveProduct(product: ProductInput) {
+  const payload = mapProductInputToRow(product);
+
   if (!supabase) {
     return {
       ...product,
       id: product.id ?? crypto.randomUUID(),
+      description: payload.description,
+      category: payload.category ?? undefined,
+      price: payload.price,
+      imageUrl: payload.image_url,
+      featured: payload.is_featured,
+      sortOrder: payload.display_order,
+      active: payload.is_active,
     } as Product;
   }
 
-  const normalizedPrice = Number(product.price);
-  if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
-    throw new Error('El precio del producto no es valido.');
-  }
-
-  const payload = {
-    ...(product.id ? { id: product.id } : {}),
-    name: product.name.trim(),
-    description: product.description.trim(),
-    category: product.category?.trim() || null,
-    price: normalizedPrice,
-    image_url: product.imageUrl.trim(),
-    is_featured: product.featured,
-    display_order: product.sortOrder,
-    is_active: product.active,
-  };
+  validateProductInput(product);
 
   const query = product.id
-    ? supabase
-        .from('products')
-        .update(payload)
-        .eq('id', product.id)
-        .select('id, name, description, price, image_url, category, is_featured, display_order, is_active')
-        .single()
-    : supabase
-        .from('products')
-        .insert(payload)
-        .select('id, name, description, price, image_url, category, is_featured, display_order, is_active')
-        .single();
+    ? supabase.from('products').update(payload).eq('id', product.id).select(PRODUCT_SELECT).single()
+    : supabase.from('products').insert(payload).select(PRODUCT_SELECT).single();
 
   const { data, error } = await query;
 
@@ -305,33 +257,38 @@ export async function saveProduct(product: ProductInput) {
     );
   }
 
-  const savedProduct = {
-    ...mapProductRow(data as ProductRow),
-    ctaText: product.ctaText,
-    ctaLink: product.ctaLink,
-  };
+  return mapProductRow(data as ProductRow);
+}
 
-  const marketing = await getProductMarketingContent();
-  marketing[savedProduct.id] = {
-    category: savedProduct.category,
-    ctaText: savedProduct.ctaText,
-    ctaLink: savedProduct.ctaLink,
-    featured: savedProduct.featured,
-    sortOrder: savedProduct.sortOrder,
-  };
-  try {
-    await saveProductMarketingContent(marketing);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('[cms] No se pudo guardar el marketing del producto', error);
-      throw error;
-    }
-
-    console.error('[cms] No se pudo guardar el marketing del producto', error);
-    throw new Error('No se pudo guardar la configuracion comercial del producto.');
+function validateProductInput(product: ProductInput) {
+  if (!product.name.trim()) {
+    throw new Error('El nombre del producto es obligatorio.');
   }
 
-  return savedProduct;
+  const normalizedPrice = Number(product.price);
+  if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+    throw new Error('El precio del producto debe ser mayor a 0.');
+  }
+
+  if (!product.imageUrl.trim()) {
+    throw new Error('La imagen del producto es obligatoria.');
+  }
+}
+
+function mapProductInputToRow(product: ProductInput) {
+  validateProductInput(product);
+
+  return {
+    ...(product.id ? { id: product.id } : {}),
+    name: product.name.trim(),
+    description: product.description.trim(),
+    category: product.category?.trim() || null,
+    price: Number(product.price),
+    image_url: product.imageUrl.trim(),
+    is_featured: product.featured,
+    display_order: Number(product.sortOrder) || 0,
+    is_active: product.active,
+  };
 }
 
 export async function deleteProduct(productId: string) {
@@ -342,12 +299,6 @@ export async function deleteProduct(productId: string) {
   const { error } = await supabase.from('products').delete().eq('id', productId);
 
   if (error) {
-    throw new Error('No se pudo eliminar el producto.');
-  }
-
-  const marketing = await getProductMarketingContent();
-  if (productId in marketing) {
-    delete marketing[productId];
-    await saveProductMarketingContent(marketing);
+    throw new Error(formatSupabaseError('No se pudo eliminar el producto de Supabase', error));
   }
 }

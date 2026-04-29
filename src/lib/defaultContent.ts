@@ -9,8 +9,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1582719471384-894fbb16e074?auto=format&fit=crop&w=900&q=80',
     category: 'Electroterapia',
-    ctaText: 'Ver producto',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 1,
     active: true,
@@ -23,8 +21,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80',
     category: 'Movimiento',
-    ctaText: 'Consultar disponibilidad',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 2,
     active: true,
@@ -37,8 +33,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',
     category: 'Equipamiento',
-    ctaText: 'Ver producto',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 3,
     active: true,
@@ -51,8 +45,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1599058917765-a780eda07a3e?auto=format&fit=crop&w=900&q=80',
     category: 'Recuperacion',
-    ctaText: 'Consultar disponibilidad',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 4,
     active: true,
@@ -65,8 +57,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?auto=format&fit=crop&w=900&q=80',
     category: 'Terapia muscular',
-    ctaText: 'Ver producto',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 5,
     active: true,
@@ -79,8 +69,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1576671081837-49000212a370?auto=format&fit=crop&w=900&q=80',
     category: 'Criotermia',
-    ctaText: 'Consultar disponibilidad',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 6,
     active: true,
@@ -93,8 +81,6 @@ export const defaultProducts: Product[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80',
     category: 'Propiocepcion',
-    ctaText: 'Ver producto',
-    ctaLink: '#contacto',
     featured: true,
     sortOrder: 7,
     active: true,
@@ -120,5 +106,4 @@ export const defaultLandingContent: LandingContent = {
       { id: 'metric-2', value: '24/7', label: 'foco en continuidad terapeutica y respuesta postventa.' },
     ],
   },
-  featuredProductIds: defaultProducts.slice(0, 3).map((product) => product.id),
 };

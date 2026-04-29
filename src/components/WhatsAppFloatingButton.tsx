@@ -1,4 +1,4 @@
-const WHATSAPP_PHONE_NUMBER = '5491100000000';
+export const WHATSAPP_PHONE_NUMBER = '5491100000000';
 const WHATSAPP_MESSAGE = 'Hola, quiero consultar por productos de Rehabex.';
 
 const whatsappHref = `https://wa.me/${WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
