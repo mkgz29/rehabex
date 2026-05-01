@@ -1,18 +1,58 @@
+# =========================
 # dependencies
+# =========================
 node_modules/
 
-# env files
+# =========================
+# env files (CRÍTICO)
+# =========================
 .env
 .env.local
-.env.*
+.env.* 
 
-# build
+# =========================
+# build / output
+# =========================
 dist/
 build/
+.vite
+dist-ssr
 
+# =========================
 # logs
+# =========================
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
-# OS
-.DS_Store
+# =========================
+# typescript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# vercel
+# =========================
 .vercel
+.vercel_build_output
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# =========================
+# misc
+# =========================
+coverage/
+.tmp/
+.cache/
