@@ -11,16 +11,19 @@ type CheckoutItem = {
 
 export async function createCheckoutPreference(cartItems: CartItem[]) {
   const items: CheckoutItem[] = cartItems.map((item) => ({
-    productId: item.id,
+    productId: item.productId,
     quantity: item.quantity,
   }));
+  const payload = { items };
+
+  console.log('[checkout] Payload final para crear preferencia:', payload);
 
   const response = await fetch('/api/create-preference', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ items }),
+    body: JSON.stringify(payload),
   });
 
   const data = (await response.json().catch(() => null)) as Partial<CheckoutPreferenceResponse> & {

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 const CART_STORAGE_KEY = 'rehabex.cart';
 
 export type CartItem = {
-  id: string;
+  productId: string;
   name: string;
   price: number;
   imageUrl: string;
@@ -49,16 +49,24 @@ export function CartProvider({ children }: CartProviderProps) {
         const price = Number(item.price);
         const quantity = Math.max(1, Math.floor(Number(item.quantity ?? 1)));
 
+        if (!isUuid(item.productId)) {
+          console.error('[cart] Product ID invalido para checkout. Se esperaba UUID de Supabase.', {
+            productId: item.productId,
+            name: item.name,
+          });
+          return;
+        }
+
         if (!Number.isFinite(price) || price < 0) {
           return;
         }
 
         setItems((currentItems) => {
-          const existingItem = currentItems.find((currentItem) => currentItem.id === item.id);
+          const existingItem = currentItems.find((currentItem) => currentItem.productId === item.productId);
 
           if (existingItem) {
             return currentItems.map((currentItem) =>
-              currentItem.id === item.id
+              currentItem.productId === item.productId
                 ? { ...currentItem, quantity: currentItem.quantity + quantity }
                 : currentItem,
             );
@@ -67,7 +75,7 @@ export function CartProvider({ children }: CartProviderProps) {
           return [
             ...currentItems,
             {
-              id: item.id,
+              productId: item.productId,
               name: item.name,
               price,
               imageUrl: item.imageUrl,
@@ -77,17 +85,17 @@ export function CartProvider({ children }: CartProviderProps) {
         });
       },
       removeItem(productId) {
-        setItems((currentItems) => currentItems.filter((item) => item.id !== productId));
+        setItems((currentItems) => currentItems.filter((item) => item.productId !== productId));
       },
       increaseQuantity(productId) {
         setItems((currentItems) =>
-          currentItems.map((item) => (item.id === productId ? { ...item, quantity: item.quantity + 1 } : item)),
+          currentItems.map((item) => (item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item)),
         );
       },
       decreaseQuantity(productId) {
         setItems((currentItems) =>
           currentItems.flatMap((item) => {
-            if (item.id !== productId) {
+            if (item.productId !== productId) {
               return [item];
             }
 
@@ -128,12 +136,14 @@ function loadCartItems() {
         return [];
       }
 
-      const rawItem = item as Partial<CartItem>;
+      const rawItem = item as Partial<CartItem> & { id?: string };
+      const productId = typeof rawItem.productId === 'string' ? rawItem.productId : rawItem.id;
       const price = Number(rawItem.price);
       const quantity = Math.max(1, Math.floor(Number(rawItem.quantity)));
 
       if (
-        typeof rawItem.id !== 'string' ||
+        typeof productId !== 'string' ||
+        !isUuid(productId) ||
         typeof rawItem.name !== 'string' ||
         typeof rawItem.imageUrl !== 'string' ||
         !Number.isFinite(price) ||
@@ -145,7 +155,7 @@ function loadCartItems() {
 
       return [
         {
-          id: rawItem.id,
+          productId,
           name: rawItem.name,
           price,
           imageUrl: rawItem.imageUrl,
@@ -156,4 +166,8 @@ function loadCartItems() {
   } catch {
     return [] as CartItem[];
   }
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

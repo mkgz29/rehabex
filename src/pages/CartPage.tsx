@@ -57,7 +57,7 @@ export function CartPage() {
             <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-4">
                 {items.map((item) => (
-                  <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <article key={item.productId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="grid gap-4 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-center">
                       <img
                         src={item.imageUrl}
@@ -77,7 +77,7 @@ export function CartPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => decreaseQuantity(item.id)}
+                              onClick={() => decreaseQuantity(item.productId)}
                               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-lg font-semibold text-slate-700 transition hover:border-slate-900"
                               aria-label={`Restar ${item.name}`}
                             >
@@ -88,7 +88,7 @@ export function CartPage() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => increaseQuantity(item.id)}
+                              onClick={() => increaseQuantity(item.productId)}
                               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-lg font-semibold text-slate-700 transition hover:border-slate-900"
                               aria-label={`Sumar ${item.name}`}
                             >
@@ -96,7 +96,7 @@ export function CartPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeItem(item.id)}
+                              onClick={() => removeItem(item.productId)}
                               className="rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
                             >
                               Eliminar
