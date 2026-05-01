@@ -1,4 +1,6 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 type ApiRequest = {
   method?: string;
@@ -13,11 +15,8 @@ type ApiResponse = {
 };
 
 type CheckoutItemInput = {
-  id?: unknown;
-  name?: unknown;
-  title?: unknown;
+  productId?: unknown;
   quantity?: unknown;
-  unit_price?: unknown;
 };
 
 type PreferenceItem = {
@@ -28,6 +27,18 @@ type PreferenceItem = {
   currency_id: 'ARS';
 };
 
+type ProductRow = {
+  id: string;
+  name: string;
+  price: number | string;
+  is_active: boolean;
+};
+
+type ValidCheckoutItem = {
+  productId: string;
+  quantity: number;
+};
+
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'POST') {
     response.setHeader?.('Allow', 'POST');
@@ -35,38 +46,51 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-  if (!accessToken) {
-    return response.status(500).json({ error: 'Mercado Pago no esta configurado.' });
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const baseUrl = getBaseUrl();
+
+  if (!accessToken || !supabaseUrl || !supabaseServiceRoleKey) {
+    console.error('[checkout] Faltan variables backend requeridas para crear la preferencia.', {
+      hasMercadoPagoAccessToken: Boolean(accessToken),
+      hasSupabaseUrl: Boolean(supabaseUrl),
+      hasSupabaseServiceRoleKey: Boolean(supabaseServiceRoleKey),
+    });
+    return response.status(500).json({ error: 'El checkout no esta configurado.' });
   }
 
-  const rawItems = getRequestItems(request.body);
-  const items = rawItems.map(normalizeItem);
-
-  const invalidItem = items.find((item) => !item);
-  if (!rawItems.length || invalidItem) {
-    return response.status(400).json({ error: 'El carrito contiene items invalidos.' });
+  const validation = getValidatedItems(request.body);
+  if (validation.ok === false) {
+    return response.status(400).json({ error: validation.error });
   }
 
-  const preferenceItems = items as PreferenceItem[];
-  const origin = getRequestOrigin(request);
+  const items = validation.items;
 
   try {
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    const products = await getProductsById(supabase, items.map((item) => item.productId));
+    const preferenceItems = buildPreferenceItems(items, products);
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 
-    // TODO: para produccion, revalidar ids y precios contra Supabase antes de crear la preferencia.
     const mercadoPagoResponse = await preference.create({
       body: {
         items: preferenceItems,
         back_urls: {
-          success: `${origin}/carrito?status=success`,
-          failure: `${origin}/carrito?status=failure`,
-          pending: `${origin}/carrito?status=pending`,
+          success: `${baseUrl}/success`,
+          failure: `${baseUrl}/failure`,
+          pending: `${baseUrl}/pending`,
         },
         auto_return: 'approved',
         metadata: {
           cart_items: preferenceItems.map((item) => ({
-            id: item.id,
+            product_id: item.id,
             quantity: item.quantity,
             unit_price: item.unit_price,
           })),
@@ -74,55 +98,121 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       },
     });
 
-    const checkoutUrl = mercadoPagoResponse.init_point ?? mercadoPagoResponse.sandbox_init_point;
+    console.log('[checkout] Preferencia Mercado Pago creada.', {
+      preferenceId: mercadoPagoResponse.id,
+      hasSandboxInitPoint: Boolean(mercadoPagoResponse.sandbox_init_point),
+      hasInitPoint: Boolean(mercadoPagoResponse.init_point),
+    });
+
+    const checkoutUrl = mercadoPagoResponse.sandbox_init_point ?? mercadoPagoResponse.init_point;
     if (!checkoutUrl) {
+      console.error('[checkout] Mercado Pago no devolvio init_point ni sandbox_init_point.', mercadoPagoResponse);
       return response.status(502).json({ error: 'Mercado Pago no devolvio una URL de checkout.' });
     }
 
     return response.status(200).json({ checkoutUrl });
   } catch (error) {
+    if (error instanceof CheckoutValidationError) {
+      return response.status(400).json({ error: error.message });
+    }
+
     console.error('[checkout] No se pudo crear la preferencia de Mercado Pago.', error);
     return response.status(500).json({ error: 'No se pudo crear la preferencia de pago.' });
   }
 }
 
-function getRequestItems(body: unknown) {
-  if (!body || typeof body !== 'object') {
-    return [] as CheckoutItemInput[];
+function getValidatedItems(body: unknown): { ok: true; items: ValidCheckoutItem[] } | { ok: false; error: string } {
+  const parsedBody = parseRequestBody(body);
+
+  if (!parsedBody || typeof parsedBody !== 'object') {
+    return { ok: false, error: 'El carrito contiene items invalidos.' };
   }
 
-  const items = (body as { items?: unknown }).items;
-  return Array.isArray(items) ? (items as CheckoutItemInput[]) : [];
+  const items = (parsedBody as { items?: unknown }).items;
+  if (!Array.isArray(items) || items.length === 0) {
+    return { ok: false, error: 'El carrito contiene items invalidos.' };
+  }
+
+  const validatedItems: ValidCheckoutItem[] = [];
+
+  for (const item of items as CheckoutItemInput[]) {
+    const productId = typeof item.productId === 'string' ? item.productId.trim() : '';
+    const quantity = item.quantity;
+
+    if (!productId) {
+      return { ok: false, error: 'El carrito contiene productos invalidos.' };
+    }
+
+    if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity <= 0) {
+      return { ok: false, error: 'El carrito contiene cantidades invalidas.' };
+    }
+
+    validatedItems.push({ productId, quantity });
+  }
+
+  return { ok: true, items: validatedItems };
 }
 
-function normalizeItem(item: CheckoutItemInput) {
-  const id = typeof item.id === 'string' ? item.id : '';
-  const titleValue = typeof item.title === 'string' ? item.title : item.name;
-  const title = typeof titleValue === 'string' ? titleValue.trim() : '';
-  const quantity = Number(item.quantity);
-  const unitPrice = Number(item.unit_price);
+async function getProductsById(
+  supabase: SupabaseClient,
+  productIds: string[],
+) {
+  const uniqueProductIds = [...new Set(productIds)];
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, name, price, is_active')
+    .in('id', uniqueProductIds);
 
-  if (!id || !title || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+  if (error) {
+    console.error('[checkout] No se pudieron consultar productos en Supabase.', error);
+    throw new Error('No se pudieron validar los productos del carrito.');
+  }
+
+  return new Map(((data ?? []) as ProductRow[]).map((product) => [product.id, product]));
+}
+
+function buildPreferenceItems(items: ValidCheckoutItem[], products: Map<string, ProductRow>) {
+  return items.map((item) => {
+    const product = products.get(item.productId);
+    if (!product) {
+      throw new CheckoutValidationError('El carrito contiene un producto inexistente.');
+    }
+
+    if (product.is_active !== true) {
+      throw new CheckoutValidationError('El carrito contiene un producto inactivo.');
+    }
+
+    const price = Number(product.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new CheckoutValidationError('El carrito contiene un producto sin precio valido.');
+    }
+
+    // TODO: mantener esta validacion server-side y extenderla cuando existan stock, ordenes y webhooks.
+    return {
+      id: product.id,
+      title: product.name,
+      quantity: item.quantity,
+      unit_price: price,
+      currency_id: 'ARS' as const,
+    };
+  });
+}
+
+function getBaseUrl() {
+  const publicSiteUrl = process.env.PUBLIC_SITE_URL?.trim() || 'http://localhost:3000';
+  return publicSiteUrl.replace(/\/+$/, '');
+}
+
+function parseRequestBody(body: unknown) {
+  if (typeof body !== 'string') {
+    return body;
+  }
+
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
     return null;
   }
-
-  return {
-    id,
-    title,
-    quantity: Math.floor(quantity),
-    unit_price: unitPrice,
-    currency_id: 'ARS' as const,
-  };
 }
 
-function getRequestOrigin(request: ApiRequest) {
-  const forwardedHost = getHeaderValue(request.headers?.['x-forwarded-host']);
-  const host = forwardedHost ?? getHeaderValue(request.headers?.host) ?? 'localhost:5173';
-  const proto = getHeaderValue(request.headers?.['x-forwarded-proto']) ?? (host.startsWith('localhost') ? 'http' : 'https');
-
-  return `${proto}://${host}`;
-}
-
-function getHeaderValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+class CheckoutValidationError extends Error {}

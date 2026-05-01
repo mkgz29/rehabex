@@ -5,18 +5,14 @@ type CheckoutPreferenceResponse = {
 };
 
 type CheckoutItem = {
-  id: string;
-  name: string;
+  productId: string;
   quantity: number;
-  unit_price: number;
 };
 
 export async function createCheckoutPreference(cartItems: CartItem[]) {
   const items: CheckoutItem[] = cartItems.map((item) => ({
-    id: item.id,
-    name: item.name,
+    productId: item.id,
     quantity: item.quantity,
-    unit_price: item.price,
   }));
 
   const response = await fetch('/api/create-preference', {
