@@ -23,6 +23,9 @@ type MercadoPagoPayment = {
   status?: string;
   transaction_amount?: number;
   currency_id?: string;
+  additional_info?: {
+    items?: MercadoPagoPaymentItem[];
+  };
   payer?: {
     id?: number | string;
     email?: string;
@@ -30,6 +33,18 @@ type MercadoPagoPayment = {
   payment_method_id?: string;
   payment_type_id?: string;
   external_reference?: string;
+};
+
+type MercadoPagoPaymentItem = {
+  title?: string;
+  quantity?: number | string;
+  unit_price?: number | string;
+};
+
+type OrderItem = {
+  title: string;
+  quantity: number;
+  unit_price: number;
 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
@@ -76,6 +91,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return response.status(200).json({ received: true });
     }
 
+    const orderItems = buildOrderItems(payment);
     const orderData = {
       payment_id: payment.id?.toString(),
       status: payment.status,
@@ -85,16 +101,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       payment_type_id: payment.payment_type_id,
       payer_email: payment.payer?.email,
       payer_id: payment.payer?.id?.toString(),
-      items: [
-        {
-          title: 'Compra Rehabex',
-          quantity: 1,
-          unit_price: payment.transaction_amount,
-        },
-      ],
+      items: orderItems,
       metadata: payment,
       external_reference: payment.external_reference ?? null,
     };
+
+    console.log('[webhook] Order data final antes de guardar.', orderData);
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
@@ -154,6 +166,42 @@ async function fetchMercadoPagoPayment(paymentId: string, accessToken: string) {
   });
 
   return payment;
+}
+
+function buildOrderItems(payment: MercadoPagoPayment): OrderItem[] {
+  const paymentItems = payment.additional_info?.items;
+
+  if (Array.isArray(paymentItems) && paymentItems.length > 0) {
+    const parsedItems = paymentItems
+      .map((item) => {
+        const title = typeof item.title === 'string' && item.title.trim() ? item.title.trim() : 'Compra Rehabex';
+        const quantity = Number(item.quantity);
+        const unitPrice = Number(item.unit_price);
+
+        if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice)) {
+          return null;
+        }
+
+        return {
+          title,
+          quantity,
+          unit_price: unitPrice,
+        };
+      })
+      .filter((item): item is OrderItem => item !== null);
+
+    if (parsedItems.length > 0) {
+      return parsedItems;
+    }
+  }
+
+  return [
+    {
+      title: 'Compra Rehabex',
+      quantity: 1,
+      unit_price: Number.isFinite(payment.transaction_amount) ? payment.transaction_amount : 0,
+    },
+  ];
 }
 
 function getPaymentId(body: MercadoPagoWebhookBody | null) {
