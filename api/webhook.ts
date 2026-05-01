@@ -24,6 +24,7 @@ type MercadoPagoPayment = {
   transaction_amount?: number;
   currency_id?: string;
   payer?: {
+    id?: number | string;
     email?: string;
   };
   payment_method_id?: string;
@@ -75,14 +76,23 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return response.status(200).json({ received: true });
     }
 
-    const order = {
-      payment_id: String(payment.id ?? paymentId),
-      status: payment.status ?? null,
-      amount: payment.transaction_amount ?? null,
-      currency: payment.currency_id ?? null,
-      payer_email: payment.payer?.email ?? null,
-      payment_method_id: payment.payment_method_id ?? null,
-      payment_type_id: payment.payment_type_id ?? null,
+    const orderData = {
+      payment_id: payment.id?.toString(),
+      status: payment.status,
+      amount: payment.transaction_amount,
+      currency: payment.currency_id || 'ARS',
+      payment_method_id: payment.payment_method_id,
+      payment_type_id: payment.payment_type_id,
+      payer_email: payment.payer?.email,
+      payer_id: payment.payer?.id?.toString(),
+      items: [
+        {
+          title: 'Compra Rehabex',
+          quantity: 1,
+          unit_price: payment.transaction_amount,
+        },
+      ],
+      metadata: payment,
       external_reference: payment.external_reference ?? null,
     };
 
@@ -95,22 +105,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     const { error } = await supabase
       .from('orders')
-      .upsert(order, { onConflict: 'payment_id' });
+      .upsert(orderData, { onConflict: 'payment_id' });
 
     if (error) {
-      console.error('[webhook] No se pudo guardar la orden en Supabase.', {
-        paymentId: order.payment_id,
-        status: order.status,
-        error,
-      });
+      console.error('SUPABASE INSERT ERROR:', error);
       return response.status(200).json({ received: true });
     }
 
     console.log('[webhook] Orden sincronizada desde Mercado Pago.', {
-      paymentId: order.payment_id,
-      status: order.status,
-      amount: order.amount,
-      currency: order.currency,
+      paymentId: orderData.payment_id,
+      status: orderData.status,
+      amount: orderData.amount,
+      currency: orderData.currency,
     });
 
     return response.status(200).json({ received: true });
