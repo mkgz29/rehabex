@@ -7,6 +7,7 @@ const adminLinks = [
   { label: 'Inicio', to: '/admin', end: true },
   { label: 'Hero', to: '/admin/hero' },
   { label: 'Productos', to: '/admin/productos' },
+  { label: 'Ventas', to: '/admin/ordenes' },
   { label: 'Sobre Nosotros', to: '/admin/quienes-somos' },
 ];
 

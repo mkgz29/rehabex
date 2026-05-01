@@ -4,6 +4,7 @@ import { AdminAboutPage } from './admin/pages/AdminAboutPage';
 import { AdminHomePage } from './admin/pages/AdminHomePage';
 import { AdminLayout } from './admin/components/AdminLayout';
 import { AdminHeroPage } from './admin/pages/AdminHeroPage';
+import { AdminOrdersPage } from './admin/pages/AdminOrdersPage';
 import { AdminProductsPage } from './admin/pages/AdminProductsPage';
 import { AppLayout } from './components/AppLayout';
 import { CartPage } from './pages/CartPage';
@@ -42,6 +43,7 @@ function App() {
           <Route path="hero" element={<AdminHeroPage />} />
           <Route path="quienes-somos" element={<AdminAboutPage />} />
           <Route path="productos" element={<AdminProductsPage />} />
+          <Route path="ordenes" element={<AdminOrdersPage />} />
         </Route>
       </Route>
     </Routes>
