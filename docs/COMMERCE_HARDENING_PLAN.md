@@ -1006,21 +1006,23 @@ E2E:
 - Admin ve orden y cambia fulfillment.
 - Producto sin stock no permite compra.
 
-## 18. Decisiones pendientes del propietario
+## 18. Decisiones Fase 0
 
-| Decision | Recomendacion inicial | Estado |
+Estas decisiones quedan cerradas para disenar Fase 1B. El detalle operativo esta versionado en `docs/COMMERCE_PHASE0_DECISIONS.md`.
+
+| Decision | Definicion | Estado |
 | --- | --- | --- |
-| Compra con cuenta o invitado | Arquitectura objetivo confirmada: checkout invitado permitido siempre; si hay sesion, asociar `orders.user_id`; nunca exigir registro para comprar. Falta definir si se promociona crear cuenta post-compra. | Parcialmente definido |
-| Zonas de entrega | Empezar con zonas/manual por localidad/provincia simple. | Pendiente |
-| Calculo de envio | MVP: tarifa fija o retiro gratis; evitar calculo complejo hasta confirmar zonas. | Pendiente |
-| Direccion y horarios de retiro | Definir una ubicacion y ventanas visibles antes de checkout. | Pendiente |
-| Duracion de reserva | 15 minutos iniciales. | Pendiente |
-| Politica de cancelacion | Cancelacion sin costo antes de pago; despues de pago requiere flujo de devolucion. | Pendiente |
-| Politica de devolucion | No reingresar stock hasta validar retorno fisico. | Pendiente |
-| Productos sin stock controlado | Soportar `track_stock = false`, pero restringirlo a admins. | Pendiente |
-| Datos fiscales | Para MVP pedir email/nombre/telefono; CUIT/DNI/factura A/B pendiente. | Pendiente |
-| Notificaciones | Email o WhatsApp operativo despues de orden confirmada. | Pendiente |
-| Retiro vs entrega por producto | Inicialmente ambos por orden completa; restricciones por producto despues. | Pendiente |
+| Compra con cuenta o invitado | Checkout invitado permitido siempre; cuenta opcional post-compra; si hay sesion, asociar `orders.user_id`. | Definido |
+| Zonas de entrega | Operacion manual/configurable por ciudad/provincia/codigo postal; sin motor de tarifas complejo. | Definido |
+| Calculo de envio | Tarifa fija o monto calculado por backend; retiro puede ser gratis. | Definido |
+| Direccion y horarios de retiro | Datos operativos se mantienen configurables; pickup/delivery se modelan en la orden. | Definido |
+| Duracion de reserva | 15 minutos iniciales. | Definido |
+| Politica de cancelacion | Antes de pago aprobado libera reserva; con pago aprobado exige confirmacion del proveedor para estado monetario final. | Definido |
+| Politica de devolucion | No reingresar stock automaticamente hasta validar retorno fisico o decision admin auditada. | Definido |
+| Productos sin stock controlado | Permitidos solo por decision admin explicita; `track_stock = true` y `allow_backorder = false` por defecto. | Definido |
+| Datos fiscales | Fuera del MVP; exigir email/nombre y guardar telefono si se provee. | Definido |
+| Notificaciones | Operacion manual por email/WhatsApp en MVP; automatizacion queda fuera de Fase 1B. | Definido |
+| Retiro vs entrega por producto | Decision a nivel de orden completa; restricciones por producto quedan para una fase futura. | Definido |
 
 ## 19. Criterios de aceptacion
 
