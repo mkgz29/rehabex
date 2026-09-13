@@ -677,9 +677,8 @@ BEGIN
 
 EXCEPTION
   WHEN OTHERS THEN
-    IF v_order_id IS NOT NULL THEN
-      DELETE FROM public.orders WHERE id = v_order_id;
-    END IF;
+    -- The protected block is rolled back before this handler runs. In particular,
+    -- the order inserted above no longer exists here; re-raise without a delete.
     RAISE;
 END;
 $$;

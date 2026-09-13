@@ -21,6 +21,9 @@ DECLARE
   v_order_id uuid;
   v_second_order_id uuid;
   v_other_order_id uuid;
+  v_repeat_order_id uuid;
+  v_before_insert_key uuid := gen_random_uuid();
+  v_after_insert_key uuid := gen_random_uuid();
   v_order_number text;
   v_count integer;
   v_stock integer;
@@ -163,6 +166,28 @@ BEGIN
   END IF;
   INSERT INTO phase1b_results VALUES ('create_checkout_order returns order', true, v_order_number);
 
+  SELECT c.order_id INTO v_repeat_order_id
+  FROM public.create_checkout_order(
+    (SELECT idempotency_key FROM public.orders WHERE id = v_order_id), 'hash-1', v_customer_id,
+    'customer@example.test', 'Customer Test', '+549111111', 'delivery',
+    '{"addressLine1":"Calle 123","city":"CABA","province":"Buenos Aires","postalCode":"1000"}'::jsonb,
+    jsonb_build_array(jsonb_build_object('productId', v_product_id, 'quantity', 2)), 'status-token-hash', 50, 0, 15
+  ) AS c;
+  IF v_repeat_order_id IS DISTINCT FROM v_order_id THEN
+    RAISE EXCEPTION 'idempotent checkout returned a different order';
+  END IF;
+  INSERT INTO phase1b_results VALUES ('checkout idempotency returns existing order', true, v_order_id::text);
+
+  BEGIN
+    PERFORM public.create_checkout_order(v_before_insert_key, 'hash-invalid', v_customer_id, 'invalid', 'Customer Test', null,
+      'pickup', '{}'::jsonb, jsonb_build_array(jsonb_build_object('productId', v_product_id, 'quantity', 1)), 'token', 0, 0, 15);
+    RAISE EXCEPTION 'invalid checkout unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  SELECT count(*) INTO v_count FROM public.orders WHERE idempotency_key = v_before_insert_key;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'pre-insert failure persisted an order'; END IF;
+  INSERT INTO phase1b_results VALUES ('checkout pre-insert failure persists no order', true, v_count::text);
+
   SELECT count(*) INTO v_count FROM public.order_items WHERE order_id = v_order_id;
   IF v_count <> 1 THEN
     RAISE EXCEPTION 'expected 1 order item, got %', v_count;
@@ -220,7 +245,7 @@ BEGIN
 
   BEGIN
     PERFORM public.create_checkout_order(
-      gen_random_uuid(),
+      v_after_insert_key,
       'hash-stock-fail',
       v_customer_id,
       'customer@example.test',
@@ -238,6 +263,21 @@ BEGIN
   EXCEPTION WHEN raise_exception THEN
     INSERT INTO phase1b_results VALUES ('checkout rejects insufficient stock', true, SQLERRM);
   END;
+  SELECT count(*) INTO v_count FROM public.orders WHERE idempotency_key = v_after_insert_key;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'post-insert failure persisted a partial order'; END IF;
+  INSERT INTO phase1b_results VALUES ('checkout post-insert failure persists no order', true, v_count::text);
+
+  BEGIN
+    PERFORM public.create_checkout_order(
+      (SELECT idempotency_key FROM public.orders WHERE id = v_order_id), 'different-hash', v_customer_id,
+      'customer@example.test', 'Customer Test', null, 'pickup', '{}'::jsonb,
+      jsonb_build_array(jsonb_build_object('productId', v_product_id, 'quantity', 1)), 'token', 0, 0, 15);
+    RAISE EXCEPTION 'idempotency conflict unexpectedly succeeded';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  SELECT count(*) INTO v_count FROM public.orders WHERE id = v_order_id;
+  IF v_count <> 1 THEN RAISE EXCEPTION 'idempotency conflict changed an existing order'; END IF;
+  INSERT INTO phase1b_results VALUES ('idempotency conflict preserves existing order', true, v_count::text);
 
   PERFORM set_config('request.jwt.claim.sub', v_customer_id::text, true);
   EXECUTE 'SET LOCAL ROLE authenticated';

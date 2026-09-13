@@ -81,6 +81,15 @@ Compatibilidad:
 
 ## Pruebas locales requeridas
 
+## Preflight 2.2 (2026-09-13)
+
+- El snapshot actual de `public` coincide estructuralmente con el baseline 20260911.
+- Los conteos agregados remotos no detectaron roles, productos u ordenes incompatibles.
+- `202609110101` reemplaza exclusivamente las dos policies historicas de `settings` y evita revocaciones globales.
+- Los rollbacks manuales estan en `supabase/rollbacks/`, fuera del flujo de `db push`.
+- Backup, plan y restauracion de produccion siguen pendientes de confirmacion manual en Dashboard.
+
+
 - Aplicar baseline real en una base Supabase local aislada.
 - Aplicar las migraciones en orden.
 - Verificar que no se apliquen contra `--linked`.

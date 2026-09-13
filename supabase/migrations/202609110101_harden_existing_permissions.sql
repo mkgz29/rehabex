@@ -26,19 +26,9 @@ REVOKE ALL ON FUNCTION "public"."update_updated_at_column"() FROM "anon";
 REVOKE ALL ON FUNCTION "public"."update_updated_at_column"() FROM "authenticated";
 GRANT EXECUTE ON FUNCTION "public"."update_updated_at_column"() TO "service_role";
 
-REVOKE ALL ON ALL TABLES IN SCHEMA "public" FROM "anon";
-REVOKE ALL ON ALL TABLES IN SCHEMA "public" FROM "authenticated";
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA "public" FROM "anon";
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA "public" FROM "authenticated";
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA "public" FROM "anon";
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA "public" FROM "authenticated";
-
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON TABLES FROM "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON TABLES FROM "authenticated";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON SEQUENCES FROM "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON SEQUENCES FROM "authenticated";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON FUNCTIONS FROM "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON FUNCTIONS FROM "authenticated";
+-- Limit permission changes to the four baseline tables; do not disturb unknown objects.
+REVOKE ALL ON TABLE "public"."products", "public"."settings", "public"."profiles", "public"."orders" FROM "anon";
+REVOKE ALL ON TABLE "public"."products", "public"."settings", "public"."profiles", "public"."orders" FROM "authenticated";
 
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -63,6 +53,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "public"."orders" TO "service_role
 GRANT EXECUTE ON FUNCTION "public"."is_admin"() TO "authenticated";
 GRANT EXECUTE ON FUNCTION "public"."is_admin"() TO "service_role";
 GRANT EXECUTE ON FUNCTION "public"."update_updated_at_column"() TO "service_role";
+
+-- These two policies are part of the verified SQL Editor baseline. Recreate only
+-- them so the migration is repeatable without touching unrelated policies.
+DROP POLICY IF EXISTS "public read public settings" ON "public"."settings";
+DROP POLICY IF EXISTS "authenticated read public settings" ON "public"."settings";
 
 CREATE POLICY "public read public settings"
 ON "public"."settings"
