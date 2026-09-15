@@ -4,12 +4,20 @@ import { Link } from 'react-router-dom';
 import { Footer } from '../components/Footer';
 import { useCart } from '../cart/useCart';
 import { formatCurrency } from '../lib/format';
-import { createCheckoutPreference } from '../services/checkoutService';
+import { createSecureCheckout } from '../services/checkoutService';
 
 export function CartPage() {
   const { clearCart, decreaseQuantity, increaseQuantity, items, removeItem, totalItems, totalPrice } = useCart();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('pickup');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [city, setCity] = useState('');
+  const [province, setProvince] = useState('');
+  const [postalCode, setPostalCode] = useState('');
 
   const handleCheckout = async () => {
     if (items.length === 0 || checkoutLoading) {
@@ -20,8 +28,13 @@ export function CartPage() {
     setCheckoutError(null);
 
     try {
-      const checkoutUrl = await createCheckoutPreference(items);
-      window.location.href = checkoutUrl;
+      const { checkoutUrl } = await createSecureCheckout(items, {
+        customer: { name: customerName, email: customerEmail, ...(customerPhone ? { phone: customerPhone } : {}) },
+        delivery: deliveryMethod === 'pickup'
+          ? { method: 'pickup' }
+          : { method: 'delivery', recipientName: customerName, phone: customerPhone || undefined, addressLine1, city, province, postalCode },
+      });
+      window.location.assign(checkoutUrl);
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : 'No se pudo iniciar el checkout.');
       setCheckoutLoading(false);
@@ -122,11 +135,27 @@ export function CartPage() {
                   </div>
                 </div>
 
+                <div className="mt-5 space-y-3 border-t border-slate-200 pt-4 text-sm">
+                  <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Nombre y apellido" autoComplete="name" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                  <input value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                  <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Teléfono (opcional)" type="tel" autoComplete="tel" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                  <label className="flex items-center gap-2"><input type="radio" checked={deliveryMethod === 'pickup'} onChange={() => setDeliveryMethod('pickup')} /> Retiro</label>
+                  <label className="flex items-center gap-2"><input type="radio" checked={deliveryMethod === 'delivery'} onChange={() => setDeliveryMethod('delivery')} /> Envío</label>
+                  {deliveryMethod === 'delivery' ? (
+                    <div className="space-y-3">
+                      <input value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="Dirección" autoComplete="street-address" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                      <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Ciudad" autoComplete="address-level2" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                      <input value={province} onChange={(event) => setProvince(event.target.value)} placeholder="Provincia" autoComplete="address-level1" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                      <input value={postalCode} onChange={(event) => setPostalCode(event.target.value)} placeholder="Código postal" autoComplete="postal-code" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                    </div>
+                  ) : null}
+                </div>
+
                 <button
                   type="button"
                   className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:[background-color:var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={handleCheckout}
-                  disabled={items.length === 0 || checkoutLoading}
+                  disabled={items.length === 0 || checkoutLoading || !customerName || !customerEmail || (deliveryMethod === 'delivery' && (!addressLine1 || !city || !province || !postalCode))}
                 >
                   {checkoutLoading ? 'Creando checkout...' : 'Comprar'}
                 </button>
