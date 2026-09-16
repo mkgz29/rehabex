@@ -40,6 +40,19 @@ export function requestHeader(request: ApiRequest, name: string): RequestField {
   return { value: values.length === 1 ? values[0] ?? null : null, present: values.length > 0, ambiguous: values.length > 1 };
 }
 
+/**
+ * Same ambiguity protection as requestHeader, without changing bytes supplied
+ * by the runtime. This is required for provider-signed values.
+ */
+export function requestHeaderExact(request: ApiRequest, name: string): RequestField {
+  const expected = name.toLowerCase();
+  const values = Object.entries(request.headers ?? {})
+    .filter(([key]) => key.toLowerCase() === expected)
+    .flatMap(([, value]) => Array.isArray(value) ? value : [value])
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+  return { value: values.length === 1 ? values[0] ?? null : null, present: values.length > 0, ambiguous: values.length > 1 };
+}
+
 /** Query keys are intentionally case-sensitive; multiple values fail closed. */
 export function requestQuery(request: ApiRequest, name: string): RequestField {
   const raw = request.query?.[name];
@@ -47,6 +60,14 @@ export function requestQuery(request: ApiRequest, name: string): RequestField {
     .filter((value): value is string => typeof value === 'string')
     .map((value) => value.trim())
     .filter(Boolean);
+  return { value: values.length === 1 ? values[0] ?? null : null, present: values.length > 0, ambiguous: values.length > 1 };
+}
+
+/** Query variant for provider-signed values: no trimming or coercion. */
+export function requestQueryExact(request: ApiRequest, name: string): RequestField {
+  const raw = request.query?.[name];
+  const values = (Array.isArray(raw) ? raw : [raw])
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
   return { value: values.length === 1 ? values[0] ?? null : null, present: values.length > 0, ambiguous: values.length > 1 };
 }
 

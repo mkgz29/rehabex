@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import checkout, { parseCheckoutPayload } from '../../api/checkout';
 import { createOrReusePreference } from '../../server/commerce/preference.js';
-import webhook, { isValidSignature, normalizeWebhookResourceId, parseSignature, webhookResource } from '../../api/mercadopago/webhook';
+import webhook, { diagnoseSignature, isValidSignature, normalizeWebhookResourceId, parseSignature, webhookResource } from '../../api/mercadopago/webhook';
 import apiNotFound from '../../api/404';
 import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
 import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../server/commerce/commerce.js';
@@ -71,26 +71,46 @@ test('webhook HMAC uses Mercado Pago signed manifest and constant-time compariso
   assert.equal(safeEqualHex(value, value), true);
 });
 
-test('webhook signature parsing is deterministic across header casing, field order and normalized identifiers', () => {
+test('webhook manifest is byte-exact; non-official variants are diagnostic only', () => {
   const secret = 'synthetic-test-secret';
   const requestId = 'req-synthetic';
   const rawId = 'PAYMENTABC123';
   const id = normalizeWebhookResourceId(rawId);
   const timestamp = '1704908010';
-  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`).digest('hex');
+  const resource = webhookResource({ query: { 'data.id': rawId } });
+  assert.notEqual(resource.resourceId, null);
+  if (!resource.resourceId) throw new Error('test resource missing');
+  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`, 'utf8').digest('hex');
   assert.equal(isValidSignature(`v1=${digest}, ts=${timestamp}`, requestId, rawId, secret), true);
   assert.deepEqual(parseSignature(`v1=${digest}, ts=${timestamp}`), { timestamp, digest, reason: 'ok' });
   assert.equal(normalizeWebhookResourceId(rawId), 'paymentabc123');
   assert.equal(isValidSignature(`ts=${timestamp},v1=${digest}`, requestId, rawId, 'other-secret'), false);
+  assert.deepEqual(diagnoseSignature(`ts=${timestamp},v1=${digest}`, requestId, resource, secret), {
+    secretLength: secret.length,
+    secretHasLeadingWhitespace: false,
+    secretHasTrailingWhitespace: false,
+    secretHasLineBreak: false,
+    canonicalVariantMatch: 'official_data_id',
+    officialValid: true,
+  });
+
+  const noTerminator = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp}`, 'utf8').digest('hex');
+  assert.equal(isValidSignature(`ts=${timestamp},v1=${noTerminator}`, requestId, rawId, secret), false);
+  assert.equal(diagnoseSignature(`ts=${timestamp},v1=${noTerminator}`, requestId, resource, secret).canonicalVariantMatch, 'data_id_without_final_semicolon');
+
+  const originalCase = createHmac('sha256', secret).update(`id:${rawId};request-id:${requestId};ts:${timestamp};`, 'utf8').digest('hex');
+  assert.equal(isValidSignature(`ts=${timestamp},v1=${originalCase}`, requestId, rawId, secret), false);
+  assert.equal(diagnoseSignature(`ts=${timestamp},v1=${originalCase}`, requestId, resource, secret).canonicalVariantMatch, 'data_id_original_case');
+
   assert.equal(parseSignature(`v1=${digest}`).reason, 'signature_timestamp_missing');
   assert.equal(parseSignature(`ts=${timestamp}`).reason, 'signature_digest_missing');
 });
 
 test('webhook uses one non-ambiguous query resource id and rejects legacy unsigned requests', async () => {
   const fromDataId = webhookResource({ query: { 'data.id': '123456789012' } });
-  assert.deepEqual(fromDataId, { resourceId: '123456789012', source: 'data.id', reason: null });
+  assert.deepEqual(fromDataId, { resourceId: '123456789012', rawResourceId: '123456789012', source: 'data.id', reason: null });
   const fromAlias = webhookResource({ query: { id: '234567890123' } });
-  assert.deepEqual(fromAlias, { resourceId: '234567890123', source: 'id', reason: null });
+  assert.deepEqual(fromAlias, { resourceId: '234567890123', rawResourceId: '234567890123', source: 'id', reason: null });
   assert.equal(webhookResource({ query: { 'data.id': '1', id: '1' } }).reason, 'resource_id_ambiguous');
   assert.equal(webhookResource({ query: { 'data.id': ['1', '2'] } }).reason, 'resource_id_ambiguous');
   assert.equal(webhookResource({ query: { 'data.id': ['1', '1'] } }).reason, 'resource_id_ambiguous');
@@ -103,17 +123,57 @@ test('webhook uses one non-ambiguous query resource id and rejects legacy unsign
   assert.equal(missingRequestId.read().statusCode, 401);
 });
 
-test('webhook ignores a signed irrelevant event without provider access', async () => {
+test('webhook accepts case-insensitive headers for a signed data.id notification', async () => {
   const before = process.env.MERCADOPAGO_WEBHOOK_SECRET;
   const secret = 'synthetic-test-secret';
   process.env.MERCADOPAGO_WEBHOOK_SECRET = secret;
   const timestamp = '1704908010';
   const requestId = 'request-1';
-  const id = '123456789012';
-  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`).digest('hex');
+  const id = 'PAYMENTABC123';
+  const normalizedId = normalizeWebhookResourceId(id);
+  const digest = createHmac('sha256', secret).update(`id:${normalizedId};request-id:${requestId};ts:${timestamp};`).digest('hex');
   const result = mockResponse();
-  await webhook({ method: 'POST', query: { id }, headers: { 'X-Signature': `v1=${digest},ts=${timestamp}`, 'X-Request-Id': requestId }, body: { type: 'merchant_order', data: { id } } }, result.response);
+  await webhook({ method: 'POST', query: { 'data.id': id }, headers: { 'X-Signature': `v1=${digest},ts=${timestamp}`, 'X-Request-Id': requestId }, body: { type: 'merchant_order', data: { id } } }, result.response);
   assert.equal(result.read().statusCode, 200);
+  if (before === undefined) delete process.env.MERCADOPAGO_WEBHOOK_SECRET; else process.env.MERCADOPAGO_WEBHOOK_SECRET = before;
+});
+
+test('webhook records but rejects the id alias even when its HMAC matches', async () => {
+  const before = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  const secret = 'synthetic-test-secret';
+  process.env.MERCADOPAGO_WEBHOOK_SECRET = secret;
+  const timestamp = '1704908010';
+  const requestId = 'request-legacy';
+  const id = '123456789012';
+  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`, 'utf8').digest('hex');
+  const result = mockResponse();
+  await webhook({ method: 'POST', query: { id }, headers: { 'x-signature': `ts=${timestamp},v1=${digest}`, 'x-request-id': requestId }, body: { type: 'payment', data: { id } } }, result.response);
+  assert.equal(result.read().statusCode, 401);
+  if (before === undefined) delete process.env.MERCADOPAGO_WEBHOOK_SECRET; else process.env.MERCADOPAGO_WEBHOOK_SECRET = before;
+});
+
+test('webhook signs the exact runtime request-id and only reports secret shape', async () => {
+  const before = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  const secret = ' secret-with-newline\n';
+  process.env.MERCADOPAGO_WEBHOOK_SECRET = secret;
+  const timestamp = '1704908010';
+  const requestId = ' request-id-as-received ';
+  const id = '123456789012';
+  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`, 'utf8').digest('hex');
+  const result = mockResponse();
+  await webhook({ method: 'POST', query: { 'data.id': id }, headers: { 'x-signature': `ts=${timestamp},v1=${digest}`, 'x-request-id': requestId }, body: { type: 'merchant_order' } }, result.response);
+  assert.equal(result.read().statusCode, 200);
+  const resource = webhookResource({ query: { 'data.id': id } });
+  assert.notEqual(resource.resourceId, null);
+  if (!resource.resourceId) throw new Error('test resource missing');
+  const diagnostic = diagnoseSignature(`ts=${timestamp},v1=${digest}`, requestId, resource, secret);
+  assert.deepEqual({
+    secretLength: diagnostic.secretLength,
+    secretHasLeadingWhitespace: diagnostic.secretHasLeadingWhitespace,
+    secretHasTrailingWhitespace: diagnostic.secretHasTrailingWhitespace,
+    secretHasLineBreak: diagnostic.secretHasLineBreak,
+  }, { secretLength: secret.length, secretHasLeadingWhitespace: true, secretHasTrailingWhitespace: true, secretHasLineBreak: true });
+  assert.equal(webhookResource({ query: { 'data.id': ` ${id}` } }).reason, 'resource_id_invalid');
   if (before === undefined) delete process.env.MERCADOPAGO_WEBHOOK_SECRET; else process.env.MERCADOPAGO_WEBHOOK_SECRET = before;
 });
 
