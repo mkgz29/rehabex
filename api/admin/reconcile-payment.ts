@@ -19,6 +19,8 @@ import {
 
 const PAYMENT_ID = /^[A-Za-z0-9_-]{1,256}$/;
 
+export const config = { api: { bodyParser: false } };
+
 type AdminServiceClient = {
   auth: { getUser: (token: string) => Promise<{ data: { user: { id: string; role?: string; app_metadata?: Record<string, unknown> } | null }; error: unknown }> };
   from: (table: string) => any;
@@ -64,7 +66,8 @@ export function createReconcilePaymentHandler(overrides: Partial<ReconcileDepend
     if (!applyAdminCors(request, response)) return response.status(403).json({ error: 'No autorizado.' });
     if (!isJsonContentType(request)) return response.status(415).json({ error: 'Solicitud invalida.' });
     const body = await readJsonBody(request, MAX_ORDER_STATUS_BODY_BYTES);
-    const payload = body.ok ? parseReconcilePaymentPayload(body.value) : null;
+    if (!body.ok) return response.status(body.reason === 'invalid' ? 400 : 413).json({ error: 'Solicitud invalida.' });
+    const payload = parseReconcilePaymentPayload(body.value);
     if (!payload) return response.status(400).json({ error: 'Solicitud invalida.' });
 
     const token = bearerToken(request.headers?.authorization);

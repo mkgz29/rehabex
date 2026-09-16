@@ -384,6 +384,56 @@ test('admin reconciliation keeps provider failures generic and applies CORS/rate
   });
 });
 
+test('admin reconciliation raw body reaches auth and rejects malformed or oversized input safely', async () => {
+  let providerCalls = 0;
+  const handler = reconcileHandler({
+    fetchPayment: async () => { providerCalls++; return { kind: 'not_found' }; },
+  });
+
+  const validUnauthenticated = mockResponse();
+  await handler({
+    method: 'POST',
+    headers: { origin: 'http://localhost:5173', 'content-type': 'application/json' },
+    body: chunked(JSON.stringify({ paymentId: '179368065874' })),
+  }, validUnauthenticated.response);
+  assert.equal(validUnauthenticated.read().statusCode, 401);
+  assert.equal(providerCalls, 0);
+
+  const malformed = mockResponse();
+  await handler({ method: 'POST', headers: reconcileHeaders(), body: chunked('{"paymentId":') }, malformed.response);
+  assert.equal(malformed.read().statusCode, 400);
+  assert.equal(providerCalls, 0);
+
+  const oversized = mockResponse();
+  await handler({ method: 'POST', headers: reconcileHeaders(), body: chunked(JSON.stringify({ paymentId: 'x'.repeat(600) })) }, oversized.response);
+  assert.equal(oversized.read().statusCode, 413);
+  assert.equal(providerCalls, 0);
+
+  const wrongMethod = mockResponse();
+  await handler({ method: 'GET', headers: { origin: 'http://localhost:5173' } }, wrongMethod.response);
+  assert.equal(wrongMethod.read().statusCode, 405);
+
+  const preflight = mockResponse();
+  await handler({ method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } }, preflight.response);
+  assert.equal(preflight.read().statusCode, 204);
+});
+
+test('authenticated reconciliation parses exactly paymentId from a raw JSON stream', async () => {
+  await withAccessToken(async () => {
+    let receivedPaymentId: string | null = null;
+    const handler = reconcileHandler({
+      fetchPayment: async (paymentId: string) => {
+        receivedPaymentId = paymentId;
+        return { kind: 'not_found' };
+      },
+    });
+    const result = mockResponse();
+    await handler({ method: 'POST', headers: reconcileHeaders(), body: chunked(JSON.stringify({ paymentId: '179368065874' })) }, result.response);
+    assert.equal(result.read().statusCode, 404);
+    assert.equal(receivedPaymentId, '179368065874');
+  });
+});
+
 test('shared reconciliation rejects live mode and provider/order mismatches before any event or transition', async () => {
   const cases: Array<[MercadoPagoPayment, CommerceOrder, string]> = [
     [providerPayment({ live_mode: true }), expectedOrder(), 'test_mode_required'],
