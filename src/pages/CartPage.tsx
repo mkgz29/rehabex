@@ -72,11 +72,9 @@ export function CartPage() {
                 {items.map((item) => (
                   <article key={item.productId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="grid gap-4 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-center">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="h-24 w-24 rounded-2xl object-cover object-center"
-                      />
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="h-24 w-24 rounded-2xl object-cover object-center" />
+                      ) : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-100 text-xs text-slate-500">Sin imagen</div>}
                       <div className="min-w-0">
                         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                           <div>
@@ -85,6 +83,7 @@ export function CartPage() {
                             <p className="mt-1 text-sm font-semibold text-slate-900">
                               Subtotal: {formatCurrency(item.price * item.quantity)}
                             </p>
+                            {item.availableStock !== undefined ? <p className="mt-1 text-sm text-slate-600">Stock visible: {item.availableStock}</p> : null}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
@@ -104,6 +103,7 @@ export function CartPage() {
                               onClick={() => increaseQuantity(item.productId)}
                               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-lg font-semibold text-slate-700 transition hover:border-slate-900"
                               aria-label={`Sumar ${item.name}`}
+                              disabled={item.availableStock !== undefined && item.quantity >= item.availableStock}
                             >
                               +
                             </button>
@@ -134,6 +134,7 @@ export function CartPage() {
                     <span className="font-semibold text-slate-950">{formatCurrency(totalPrice)}</span>
                   </div>
                 </div>
+                <p className="mt-4 text-xs leading-5 text-slate-600">El precio y la disponibilidad definitivos se recalculan en el servidor al iniciar el checkout.</p>
 
                 <div className="mt-5 space-y-3 border-t border-slate-200 pt-4 text-sm">
                   <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Nombre y apellido" autoComplete="name" className="w-full rounded-lg border border-slate-300 px-3 py-2" />

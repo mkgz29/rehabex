@@ -30,6 +30,7 @@ export type Product = {
   sortOrder: number;
   active: boolean;
   createdAt?: string;
+  stockOnHand?: number;
 };
 
 export type LandingContent = {

@@ -13,6 +13,7 @@ export function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
   const { addItem } = useCart();
 
   useEffect(() => {
@@ -56,12 +57,19 @@ export function ProductDetailPage() {
       return;
     }
 
-    addItem({
+    const result = addItem({
       productId: product.id,
       name: product.name,
       price: product.price,
       imageUrl: product.imageUrl,
+      availableStock: product.stockOnHand,
     });
+    if (result !== 'added') {
+      setAddedToCart(false);
+      setCartError('Este producto no esta disponible para agregar al carrito.');
+      return;
+    }
+    setCartError(null);
     setAddedToCart(true);
   };
 
@@ -95,7 +103,9 @@ export function ProductDetailPage() {
           {!loading && !error && product ? (
             <article className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)] lg:items-start">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] h-full w-full object-cover object-center" />
+                {product.imageUrl ? (
+                  <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] h-full w-full object-cover object-center" />
+                ) : <div className="flex aspect-[4/3] items-center justify-center text-sm text-slate-500">Sin imagen</div>}
               </div>
 
               <div className="lg:pt-4">
@@ -104,6 +114,7 @@ export function ProductDetailPage() {
                 ) : null}
                 <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">{product.name}</h1>
                 <p className="mt-5 text-2xl font-semibold text-slate-950">{formatCurrency(product.price)}</p>
+                {product.stockOnHand !== undefined ? <p className="mt-2 text-sm text-slate-600">Stock disponible: {product.stockOnHand}</p> : null}
                 <p className="mt-6 whitespace-pre-line text-base leading-8 text-slate-600">{product.description}</p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -130,6 +141,7 @@ export function ProductDetailPage() {
                     </Link>
                   </div>
                 ) : null}
+                {cartError ? <p className="mt-4 text-sm font-medium text-red-700">{cartError}</p> : null}
               </div>
             </article>
           ) : null}

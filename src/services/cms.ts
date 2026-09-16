@@ -12,16 +12,17 @@ type ProductRow = {
   name: string;
   description: string | null;
   price: number;
-  image_url: string;
+  image_url: string | null;
   is_active: boolean;
   is_featured: boolean;
   display_order: number;
   category?: string | null;
   created_at?: string | null;
+  stock_on_hand?: number | null;
 };
 
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
-const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at';
+const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, stock_on_hand';
 
 function cloneLandingContent() {
   return JSON.parse(JSON.stringify(defaultLandingContent)) as LandingContent;
@@ -111,12 +112,13 @@ function mapProductRow(row: ProductRow): Product {
     name: row.name,
     description: row.description ?? '',
     price: Number(row.price),
-    imageUrl: row.image_url,
+    imageUrl: row.image_url ?? '',
     category: row.category ?? undefined,
     featured: Boolean(row.is_featured),
     sortOrder: Number(row.display_order ?? 0),
     active: row.is_active,
     createdAt: row.created_at ?? undefined,
+    stockOnHand: row.stock_on_hand === null || row.stock_on_hand === undefined ? undefined : Number(row.stock_on_hand),
   };
 }
 

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test:api": "tsx --test tests/api/commerce.contract.test.ts",
+    "test:cart": "tsx --test tests/cart/cartState.test.ts",
     "check:api": "tsc -p tsconfig.api.json"
   },
   "dependencies": {

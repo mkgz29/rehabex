@@ -12,6 +12,7 @@ export function StorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+  const [cartErrorProductId, setCartErrorProductId] = useState<string | null>(null);
   const { addItem } = useCart();
 
   useEffect(() => {
@@ -45,12 +46,20 @@ export function StorePage() {
   }, []);
 
   const handleAddToCart = (product: Product) => {
-    addItem({
+    const result = addItem({
       productId: product.id,
       name: product.name,
       price: product.price,
       imageUrl: product.imageUrl,
+      availableStock: product.stockOnHand,
     });
+    if (result !== 'added') {
+      setAddedProductId(null);
+      setCartErrorProductId(product.id);
+      return;
+    }
+
+    setCartErrorProductId(null);
     setAddedProductId(product.id);
     window.setTimeout(() => setAddedProductId(null), 1800);
   };
@@ -91,11 +100,13 @@ export function StorePage() {
                   className="group flex min-h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_22px_60px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(15,23,42,0.1)]"
                 >
                   <div className="aspect-[4/3] overflow-hidden bg-slate-100">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
-                    />
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
+                      />
+                    ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">Sin imagen</div>}
                   </div>
 
                   <div className="flex flex-1 flex-col p-5">
@@ -114,6 +125,9 @@ export function StorePage() {
                     </div>
 
                     <p className="mt-4 line-clamp-4 text-sm leading-6 text-slate-600">{product.description}</p>
+                    {product.stockOnHand !== undefined ? (
+                      <p className="mt-3 text-sm text-slate-600">Stock disponible: {product.stockOnHand}</p>
+                    ) : null}
 
                     <div className="mt-auto flex flex-col gap-3 pt-6 sm:flex-row">
                       {/* TODO: conectar este boton al carrito o checkout cuando exista ese flujo. */}
@@ -133,6 +147,9 @@ export function StorePage() {
                     </div>
                     {addedProductId === product.id ? (
                       <p className="mt-3 text-sm font-medium text-emerald-700">Producto agregado al carrito.</p>
+                    ) : null}
+                    {cartErrorProductId === product.id ? (
+                      <p className="mt-3 text-sm font-medium text-red-700">Este producto no esta disponible para agregar al carrito.</p>
                     ) : null}
                   </div>
                 </article>
