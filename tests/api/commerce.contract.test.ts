@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import test from 'node:test';
 
-import checkout, { parseCheckoutPayload } from './checkout';
-import { createOrReusePreference } from './_preference';
-import webhook, { isValidSignature } from './mercadopago/webhook';
-import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from './order-status';
-import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from './_commerce';
+import checkout, { parseCheckoutPayload } from '../../api/checkout';
+import { createOrReusePreference } from '../../api/_preference';
+import webhook, { isValidSignature } from '../../api/mercadopago/webhook';
+import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
+import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../api/_commerce';
 
 function mockResponse() {
   let statusCode = 0;

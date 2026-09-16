@@ -22,7 +22,11 @@ Veredicto de esta etapa: avanzar con un hardening por fases. Primero schema/RLS 
 - El plan original permitia una ambiguedad peligrosa en pagos aprobados despues del vencimiento de la reserva. Este documento ahora exige procesar esa aprobacion en una transaccion: consumir la reserva si sigue activa, readquirir stock si vencio pero hay disponibilidad, o dejar la orden `on_hold` con revision auditada si ya no hay stock.
 - El plan original proponia llevar un token publico en la URL de retorno. Se corrige: ningun token secreto o pseudo-secreto debe viajar en `back_urls` ni query params; el frontend debe guardarlo en `sessionStorage` antes de redirigir y enviarlo luego por header.
 
-## 3. Arquitectura actual relevante
+## 3. Arquitectura auditada antes del hardening (historica)
+
+Esta seccion conserva el punto de partida del 2026-09-09. Las rutas
+`/api/create-preference` y `/api/webhook` se retiraron en la etapa 3H; el
+estado vigente esta documentado en `MERCADOPAGO_CHECKOUT_LOCAL.md`.
 
 Hechos comprobados por analisis estatico:
 
@@ -879,8 +883,10 @@ No se modifican en esta etapa. Para implementacion futura:
 - `src/pages/CartPage.tsx`: formulario de comprador/entrega, respuesta con order id/token, manejo 409.
 - `src/hooks/usePaymentResult.ts`: reemplazar query params por consulta de estado interno.
 - `src/pages/PaymentResultPage.tsx`, `SuccessPage.tsx`, `FailurePage.tsx`, `PendingPage.tsx`: render por estado interno.
-- `api/create-preference.ts`: reemplazar por `api/checkout.ts`; cualquier wrapper temporal debe limitarse a desarrollo/staging y no a ventas reales.
-- `api/webhook.ts`: mover a `api/mercadopago/webhook.ts` o endurecer archivo actual.
+- Estado 3H: se retiro `api/create-preference.ts`; `api/checkout.ts` es la unica
+  ruta de checkout.
+- Estado 3H: se retiro `api/webhook.ts`; el unico webhook es
+  `api/mercadopago/webhook.ts`.
 - `api/orders.ts`: separar admin listing y public status.
 - Nuevo endpoint admin para solicitud de cancelacion/devolucion sin cambiar pago hasta confirmacion de proveedor.
 - `src/admin/components/OrdersTable.tsx`: nuevo modelo con tres estados y paginacion.
@@ -1102,8 +1108,8 @@ Componentes de mayor riesgo:
 
 - `CartPage`: mezcla UI, calculo local y redireccion.
 - `CartProvider`: contrato persistido en `localStorage` y validacion UUID.
-- `api/create-preference.ts`: sera reemplazado por checkout real.
-- `api/webhook.ts`: concentra seguridad e idempotencia.
+- `api/checkout.ts`: concentra el checkout real con orden, reserva y preferencia.
+- `api/mercadopago/webhook.ts`: concentra firma, idempotencia y transiciones de pago.
 - `OrdersTable`: asume `orders.status` unico e `items` JSON.
 - `AdminProductsPage`: tendra que incorporar stock/SKU/imagenes sin volverse mas grande.
 

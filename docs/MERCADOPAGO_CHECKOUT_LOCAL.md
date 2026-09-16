@@ -4,6 +4,18 @@ Este flujo no esta desplegado ni habilitado para cobrar. El navegador usa
 `POST /api/checkout`; nunca llama RPC comerciales ni envia precio, moneda,
 descuento, envio o estados.
 
+## Rutas oficiales y pruebas
+
+- `POST /api/checkout`: crea la orden y la preferencia.
+- `POST /api/order-status`: consulta de invitado con token opaco.
+- `POST /api/mercadopago/webhook`: unico webhook oficial de Mercado Pago.
+- `GET /api/orders`: listado administrativo autenticado.
+
+No existe compatibilidad para `/api/create-preference` ni `/api/webhook`.
+Los contratos viven en `tests/api/commerce.contract.test.ts` y se ejecutan con
+`npm run test:api`; deben permanecer fuera de `api/` para no ser funciones de
+Vercel.
+
 ## Variables backend
 
 - `MERCADOPAGO_ACCESS_TOKEN`

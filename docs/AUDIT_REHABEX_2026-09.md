@@ -4,6 +4,11 @@ Fecha de auditoria: 2026-09-09
 Repositorio auditado: `C:\Users\mikelus\Desktop\PROYECTOS\Rehabex`
 Modo: auditoria solamente. No se modifico codigo fuente, no se instalaron dependencias, no se ejecutaron migraciones, seeds ni operaciones contra servicios externos.
 
+> Nota historica: las referencias a `api/create-preference.ts` y
+> `api/webhook.ts` describen el estado auditado el 2026-09-09. La etapa 3H
+> retiro ambas rutas locales; las rutas vigentes se documentan en
+> `MERCADOPAGO_CHECKOUT_LOCAL.md`.
+
 ## Resumen ejecutivo
 
 Rehabex es una SPA de e-commerce desarrollada con React, Vite, TypeScript, Tailwind, Supabase y funciones serverless en `api/` para Mercado Pago y consulta de ordenes. El frontend publico tiene landing, tienda, detalle de producto, carrito, auth y paginas de resultado de pago. El panel administrativo permite editar hero, about, productos y consultar ventas.
