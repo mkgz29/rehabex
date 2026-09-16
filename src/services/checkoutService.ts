@@ -1,7 +1,8 @@
 import type { CartItem } from '../cart/CartProvider';
+import { createCheckoutSnapshot, persistCheckoutSnapshot } from '../cart/checkoutSnapshot';
 
 export type CheckoutDetails = {
-  customer: { email: string; name: string; phone?: string };
+  customer: { email: string; name: string; phone: string };
   delivery: {
     method: 'pickup' | 'delivery';
     recipientName?: string;
@@ -35,14 +36,22 @@ export async function createSecureCheckout(cartItems: CartItem[], details: Check
   if (!response.ok || !data?.checkoutUrl || !data.orderId || !data.statusToken) {
     throw new Error(data?.error ?? 'No se pudo iniciar el checkout.');
   }
-  window.sessionStorage.setItem(`rehabex.order.${data.orderId}.status-token`, data.statusToken);
+  const snapshot = createCheckoutSnapshot(data.orderId, data.statusToken, cartItems);
+  if (!snapshot) throw new Error('No se pudo guardar el contexto seguro del checkout. Reintenta antes de continuar.');
+  try {
+    persistCheckoutSnapshot(window.sessionStorage, window.localStorage, snapshot);
+  } catch {
+    throw new Error('No se pudo guardar el contexto seguro del checkout. Reintenta antes de continuar.');
+  }
   window.sessionStorage.removeItem(IDEMPOTENCY_STORAGE_KEY);
   return data;
 }
 
 /** The backend resolves product price and stock; browser snapshots never cross this boundary. */
 export function checkoutItemsForRequest(cartItems: CartItem[]) {
-  return cartItems.map((item) => ({ productId: item.productId, quantity: item.quantity }));
+  const quantities = new Map<string, number>();
+  for (const item of cartItems) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  return [...quantities].map(([productId, quantity]) => ({ productId, quantity }));
 }
 
 function getIdempotencyKey() {

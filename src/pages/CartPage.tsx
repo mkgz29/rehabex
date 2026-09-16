@@ -7,17 +7,19 @@ import { formatCurrency } from '../lib/format';
 import { createSecureCheckout } from '../services/checkoutService';
 
 export function CartPage() {
-  const { clearCart, decreaseQuantity, increaseQuantity, items, removeItem, totalItems, totalPrice } = useCart();
+  const { clearCart, decreaseQuantity, increaseQuantity, isLineLocked, items, removeItem, totalItems, totalPrice } = useCart();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('pickup');
+  const [recipientName, setRecipientName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [province, setProvince] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
 
   const handleCheckout = async () => {
     if (items.length === 0 || checkoutLoading) {
@@ -29,10 +31,10 @@ export function CartPage() {
 
     try {
       const { checkoutUrl } = await createSecureCheckout(items, {
-        customer: { name: customerName, email: customerEmail, ...(customerPhone ? { phone: customerPhone } : {}) },
+        customer: { name: customerName.trim(), email: customerEmail.trim(), phone: customerPhone.trim() },
         delivery: deliveryMethod === 'pickup'
           ? { method: 'pickup' }
-          : { method: 'delivery', recipientName: customerName, phone: customerPhone || undefined, addressLine1, city, province, postalCode },
+          : { method: 'delivery', recipientName: recipientName.trim(), phone: customerPhone.trim(), addressLine1: addressLine1.trim(), city: city.trim(), province: province.trim(), postalCode: postalCode.trim(), ...(deliveryNotes.trim() ? { notes: deliveryNotes.trim() } : {}) },
       });
       window.location.assign(checkoutUrl);
     } catch (error) {
@@ -70,7 +72,7 @@ export function CartPage() {
             <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-4">
                 {items.map((item) => (
-                  <article key={item.productId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <article key={item.lineId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="grid gap-4 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-center">
                       {item.imageUrl ? (
                         <img src={item.imageUrl} alt={item.name} className="h-24 w-24 rounded-2xl object-cover object-center" />
@@ -84,14 +86,16 @@ export function CartPage() {
                               Subtotal: {formatCurrency(item.price * item.quantity)}
                             </p>
                             {item.availableStock !== undefined ? <p className="mt-1 text-sm text-slate-600">Stock visible: {item.availableStock}</p> : null}
+                            {isLineLocked(item.lineId) ? <p className="mt-1 text-sm font-medium text-amber-700">Pendiente de confirmacion del pago</p> : null}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => decreaseQuantity(item.productId)}
+                              onClick={() => decreaseQuantity(item.lineId)}
                               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-lg font-semibold text-slate-700 transition hover:border-slate-900"
                               aria-label={`Restar ${item.name}`}
+                              disabled={isLineLocked(item.lineId)}
                             >
                               -
                             </button>
@@ -100,17 +104,18 @@ export function CartPage() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => increaseQuantity(item.productId)}
+                              onClick={() => increaseQuantity(item.lineId)}
                               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-lg font-semibold text-slate-700 transition hover:border-slate-900"
                               aria-label={`Sumar ${item.name}`}
-                              disabled={item.availableStock !== undefined && item.quantity >= item.availableStock}
+                              disabled={isLineLocked(item.lineId) || (item.availableStock !== undefined && item.quantity >= item.availableStock)}
                             >
                               +
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeItem(item.productId)}
+                              onClick={() => removeItem(item.lineId)}
                               className="rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                              disabled={isLineLocked(item.lineId)}
                             >
                               Eliminar
                             </button>
@@ -139,15 +144,17 @@ export function CartPage() {
                 <div className="mt-5 space-y-3 border-t border-slate-200 pt-4 text-sm">
                   <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Nombre y apellido" autoComplete="name" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                   <input value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
-                  <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Teléfono (opcional)" type="tel" autoComplete="tel" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                  <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Telefono" type="tel" autoComplete="tel" required className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                   <label className="flex items-center gap-2"><input type="radio" checked={deliveryMethod === 'pickup'} onChange={() => setDeliveryMethod('pickup')} /> Retiro</label>
                   <label className="flex items-center gap-2"><input type="radio" checked={deliveryMethod === 'delivery'} onChange={() => setDeliveryMethod('delivery')} /> Envío</label>
                   {deliveryMethod === 'delivery' ? (
                     <div className="space-y-3">
+                      <input value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="Destinatario" autoComplete="shipping name" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                       <input value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="Dirección" autoComplete="street-address" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                       <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Ciudad" autoComplete="address-level2" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                       <input value={province} onChange={(event) => setProvince(event.target.value)} placeholder="Provincia" autoComplete="address-level1" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                       <input value={postalCode} onChange={(event) => setPostalCode(event.target.value)} placeholder="Código postal" autoComplete="postal-code" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                      <input value={deliveryNotes} onChange={(event) => setDeliveryNotes(event.target.value)} placeholder="Referencias (opcional)" autoComplete="off" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
                     </div>
                   ) : null}
                 </div>
@@ -156,7 +163,7 @@ export function CartPage() {
                   type="button"
                   className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:[background-color:var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={handleCheckout}
-                  disabled={items.length === 0 || checkoutLoading || !customerName || !customerEmail || (deliveryMethod === 'delivery' && (!addressLine1 || !city || !province || !postalCode))}
+                  disabled={items.length === 0 || checkoutLoading || !customerName.trim() || !isValidEmail(customerEmail) || !customerPhone.trim() || (deliveryMethod === 'delivery' && (!recipientName.trim() || !addressLine1.trim() || !city.trim() || !province.trim() || !postalCode.trim()))}
                 >
                   {checkoutLoading ? 'Creando checkout...' : 'Comprar'}
                 </button>
@@ -168,7 +175,7 @@ export function CartPage() {
                   className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-red-200 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
                   onClick={clearCart}
                 >
-                  Vaciar carrito
+                  Vaciar carrito no pendiente
                 </button>
               </aside>
             </div>
@@ -178,4 +185,8 @@ export function CartPage() {
       <Footer />
     </div>
   );
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }

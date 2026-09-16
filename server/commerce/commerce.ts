@@ -22,14 +22,40 @@ export const MAX_CHECKOUT_BODY_BYTES = 16 * 1024;
 export const MAX_WEBHOOK_BODY_BYTES = 8 * 1024;
 export const MAX_ORDER_STATUS_BODY_BYTES = 512;
 
+export type RequestField = {
+  value: string | null;
+  present: boolean;
+  ambiguous: boolean;
+};
+
+/** Headers are case-insensitive. Multiple different values fail closed. */
+export function requestHeader(request: ApiRequest, name: string): RequestField {
+  const expected = name.toLowerCase();
+  const values = Object.entries(request.headers ?? {})
+    .filter(([key]) => key.toLowerCase() === expected)
+    .flatMap(([, value]) => Array.isArray(value) ? value : [value])
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return { value: values.length === 1 ? values[0] ?? null : null, present: values.length > 0, ambiguous: values.length > 1 };
+}
+
+/** Query keys are intentionally case-sensitive; multiple values fail closed. */
+export function requestQuery(request: ApiRequest, name: string): RequestField {
+  const raw = request.query?.[name];
+  const values = (Array.isArray(raw) ? raw : [raw])
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return { value: values.length === 1 ? values[0] ?? null : null, present: values.length > 0, ambiguous: values.length > 1 };
+}
+
 export function header(request: ApiRequest, name: string) {
-  const value = request.headers?.[name] ?? request.headers?.[name.toLowerCase()];
-  return (Array.isArray(value) ? value[0] : value)?.trim() || null;
+  return requestHeader(request, name).value;
 }
 
 export function query(request: ApiRequest, name: string) {
-  const value = request.query?.[name];
-  return (Array.isArray(value) ? value[0] : value)?.trim() || null;
+  return requestQuery(request, name).value;
 }
 
 export function parseJsonBody(body: unknown, maxBytes: number): unknown | null {

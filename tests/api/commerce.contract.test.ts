@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import checkout, { parseCheckoutPayload } from '../../api/checkout';
 import { createOrReusePreference } from '../../server/commerce/preference.js';
-import webhook, { isValidSignature } from '../../api/mercadopago/webhook';
+import webhook, { isValidSignature, normalizeWebhookResourceId, parseSignature, webhookResource } from '../../api/mercadopago/webhook';
 import apiNotFound from '../../api/404';
 import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
 import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../server/commerce/commerce.js';
@@ -23,11 +23,14 @@ function mockResponse() {
 }
 
 test('checkout DTO ignores price-like fields by rejecting them', () => {
-  const valid = { items: [{ productId: '11111111-1111-4111-8111-111111111111', quantity: 1 }], customer: { email: 'guest@example.test', name: 'Guest' }, delivery: { method: 'pickup' } };
+  const valid = { items: [{ productId: '11111111-1111-4111-8111-111111111111', quantity: 1 }], customer: { email: 'guest@example.test', name: 'Guest', phone: '11 5555 1234' }, delivery: { method: 'pickup' } };
   assert.ok(parseCheckoutPayload(valid));
   assert.equal(parseCheckoutPayload({ ...valid, total: 1 }), null);
   assert.equal(parseCheckoutPayload({ ...valid, items: [{ ...valid.items[0], price: 0 }] }), null);
   assert.equal(parseCheckoutPayload({ ...valid, items: [{ ...valid.items[0], quantity: 0 }] }), null);
+  assert.equal(parseCheckoutPayload({ ...valid, customer: { email: 'guest@example.test', name: 'Guest' } }), null);
+  assert.equal(parseCheckoutPayload({ ...valid, customer: { email: 'guest@other-domain.test', name: 'Guest', phone: '11 5555 1234' } })?.customer.email, 'guest@other-domain.test');
+  assert.equal(parseCheckoutPayload({ ...valid, delivery: { method: 'delivery', recipientName: 'Destinatario', addressLine1: 'Calle 1', city: 'Ciudad', province: 'Provincia', postalCode: '1000' } })?.delivery.recipientName, 'Destinatario');
 });
 
 test('checkout rejects absent idempotency key before provider access', async () => {
@@ -66,6 +69,52 @@ test('webhook HMAC uses Mercado Pago signed manifest and constant-time compariso
   assert.equal(isValidSignature(`ts=${timestamp},v1=${value}`, requestId, dataId, secret), true);
   assert.equal(isValidSignature(`ts=${timestamp},v1=${'0'.repeat(64)}`, requestId, dataId, secret), false);
   assert.equal(safeEqualHex(value, value), true);
+});
+
+test('webhook signature parsing is deterministic across header casing, field order and normalized identifiers', () => {
+  const secret = 'synthetic-test-secret';
+  const requestId = 'req-synthetic';
+  const rawId = 'PAYMENTABC123';
+  const id = normalizeWebhookResourceId(rawId);
+  const timestamp = '1704908010';
+  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`).digest('hex');
+  assert.equal(isValidSignature(`v1=${digest}, ts=${timestamp}`, requestId, rawId, secret), true);
+  assert.deepEqual(parseSignature(`v1=${digest}, ts=${timestamp}`), { timestamp, digest, reason: 'ok' });
+  assert.equal(normalizeWebhookResourceId(rawId), 'paymentabc123');
+  assert.equal(isValidSignature(`ts=${timestamp},v1=${digest}`, requestId, rawId, 'other-secret'), false);
+  assert.equal(parseSignature(`v1=${digest}`).reason, 'signature_timestamp_missing');
+  assert.equal(parseSignature(`ts=${timestamp}`).reason, 'signature_digest_missing');
+});
+
+test('webhook uses one non-ambiguous query resource id and rejects legacy unsigned requests', async () => {
+  const fromDataId = webhookResource({ query: { 'data.id': '123456789012' } });
+  assert.deepEqual(fromDataId, { resourceId: '123456789012', source: 'data.id', reason: null });
+  const fromAlias = webhookResource({ query: { id: '234567890123' } });
+  assert.deepEqual(fromAlias, { resourceId: '234567890123', source: 'id', reason: null });
+  assert.equal(webhookResource({ query: { 'data.id': '1', id: '1' } }).reason, 'resource_id_ambiguous');
+  assert.equal(webhookResource({ query: { 'data.id': ['1', '2'] } }).reason, 'resource_id_ambiguous');
+  assert.equal(webhookResource({ query: { 'data.id': ['1', '1'] } }).reason, 'resource_id_ambiguous');
+
+  const result = mockResponse();
+  await webhook({ method: 'POST', query: { 'data.id': '123456789012' }, headers: { 'X-Request-Id': 'request-1' }, body: { type: 'payment', data: { id: 'ignored' } } }, result.response);
+  assert.equal(result.read().statusCode, 401);
+  const missingRequestId = mockResponse();
+  await webhook({ method: 'POST', query: { 'data.id': '123456789012' }, headers: { 'X-Signature': 'ts=1704908010,v1=0'.padEnd(82, '0') }, body: { type: 'payment' } }, missingRequestId.response);
+  assert.equal(missingRequestId.read().statusCode, 401);
+});
+
+test('webhook ignores a signed irrelevant event without provider access', async () => {
+  const before = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  const secret = 'synthetic-test-secret';
+  process.env.MERCADOPAGO_WEBHOOK_SECRET = secret;
+  const timestamp = '1704908010';
+  const requestId = 'request-1';
+  const id = '123456789012';
+  const digest = createHmac('sha256', secret).update(`id:${id};request-id:${requestId};ts:${timestamp};`).digest('hex');
+  const result = mockResponse();
+  await webhook({ method: 'POST', query: { id }, headers: { 'X-Signature': `v1=${digest},ts=${timestamp}`, 'X-Request-Id': requestId }, body: { type: 'merchant_order', data: { id } } }, result.response);
+  assert.equal(result.read().statusCode, 200);
+  if (before === undefined) delete process.env.MERCADOPAGO_WEBHOOK_SECRET; else process.env.MERCADOPAGO_WEBHOOK_SECRET = before;
 });
 
 test('webhook rejects invalid signature before network/provider work', async () => {

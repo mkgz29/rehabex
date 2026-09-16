@@ -3,6 +3,7 @@ const LEGACY_CART_STORAGE_KEY = 'rehabex.cart';
 const CART_STORAGE_VERSION = 2;
 
 export type CartItem = {
+  lineId: string;
   productId: string;
   name: string;
   price: number;
@@ -12,48 +13,50 @@ export type CartItem = {
   availableStock?: number;
 };
 
-export type AddItemInput = Omit<CartItem, 'quantity'> & { quantity?: number };
+export type AddItemInput = Omit<CartItem, 'lineId' | 'quantity'> & { quantity?: number; lineId?: string };
 export type AddItemResult = 'added' | 'invalid_product' | 'invalid_item' | 'unavailable';
 
 type StoredCart = { version: typeof CART_STORAGE_VERSION; items: CartItem[] };
 
-export function addCartItem(items: CartItem[], input: AddItemInput): { items: CartItem[]; result: AddItemResult } {
+export function addCartItem(items: CartItem[], input: AddItemInput, lockedLineIds: ReadonlySet<string> = new Set()): { items: CartItem[]; result: AddItemResult } {
   const item = normalizeAddItem(input);
   if (!item) return { items, result: 'invalid_item' };
   if (!isUuid(item.productId)) return { items, result: 'invalid_product' };
   if (item.availableStock === 0) return { items, result: 'unavailable' };
 
-  const existing = items.find((current) => current.productId === item.productId);
+  const existing = items.find((current) => current.productId === item.productId && !lockedLineIds.has(current.lineId));
   const availableStock = item.availableStock ?? existing?.availableStock;
+  const totalQuantity = items.filter((current) => current.productId === item.productId).reduce((total, current) => total + current.quantity, 0);
   const requestedQuantity = (existing?.quantity ?? 0) + item.quantity;
-  const quantity = availableStock === undefined ? requestedQuantity : Math.min(requestedQuantity, availableStock);
+  const quantity = availableStock === undefined ? requestedQuantity : Math.min(requestedQuantity, Math.max(0, availableStock - (totalQuantity - (existing?.quantity ?? 0))));
   if (quantity <= (existing?.quantity ?? 0)) return { items, result: 'unavailable' };
   if (!existing) return { items: [...items, { ...item, quantity }], result: 'added' };
 
   return {
-    items: items.map((current) => current.productId === item.productId
-      ? { ...current, ...item, availableStock, quantity }
+    items: items.map((current) => current.lineId === existing.lineId
+      ? { ...current, ...item, lineId: current.lineId, availableStock, quantity }
       : current),
     result: 'added',
   };
 }
 
-export function increaseCartItem(items: CartItem[], productId: string) {
+export function increaseCartItem(items: CartItem[], lineId: string) {
   return items.map((item) => {
-    if (item.productId !== productId) return item;
-    if (item.availableStock !== undefined && item.quantity >= item.availableStock) return item;
+    if (item.lineId !== lineId) return item;
+    const totalForProduct = items.filter((current) => current.productId === item.productId).reduce((total, current) => total + current.quantity, 0);
+    if (item.availableStock !== undefined && totalForProduct >= item.availableStock) return item;
     return { ...item, quantity: item.quantity + 1 };
   });
 }
 
-export function decreaseCartItem(items: CartItem[], productId: string) {
-  return items.map((item) => item.productId === productId
+export function decreaseCartItem(items: CartItem[], lineId: string) {
+  return items.map((item) => item.lineId === lineId
     ? { ...item, quantity: Math.max(1, item.quantity - 1) }
     : item);
 }
 
-export function removeCartItem(items: CartItem[], productId: string) {
-  return items.filter((item) => item.productId !== productId);
+export function removeCartItem(items: CartItem[], lineId: string) {
+  return items.filter((item) => item.lineId !== lineId);
 }
 
 export function serializeCart(items: CartItem[]) {
@@ -72,6 +75,7 @@ export function persistCartItems(storage: Pick<Storage, 'setItem'>, items: CartI
 }
 
 function normalizeAddItem(input: AddItemInput): CartItem | null {
+  const lineId = typeof input.lineId === 'string' && isUuid(input.lineId) ? input.lineId : createLineId();
   const productId = typeof input.productId === 'string' ? input.productId.trim() : '';
   const name = typeof input.name === 'string' ? input.name.trim() : '';
   const price = Number(input.price);
@@ -79,7 +83,7 @@ function normalizeAddItem(input: AddItemInput): CartItem | null {
   const imageUrl = normalizeImageUrl(input.imageUrl);
   const availableStock = normalizeStock(input.availableStock);
   if (!productId || !name || !Number.isFinite(price) || price < 0 || quantity === null || imageUrl === undefined || availableStock === null) return null;
-  return { productId, name, price, imageUrl, quantity, ...(availableStock === undefined ? {} : { availableStock }) };
+  return { lineId, productId, name, price, imageUrl, quantity, ...(availableStock === undefined ? {} : { availableStock }) };
 }
 
 function parseStoredCart(raw: string | null): CartItem[] | null {
@@ -110,6 +114,7 @@ function normalizeStoredItems(rawItems: unknown[]): CartItem[] {
     const legacy = rawItem as Partial<CartItem> & { id?: unknown };
     const productId = typeof legacy.productId === 'string' ? legacy.productId : legacy.id;
     const normalized = normalizeAddItem({
+      lineId: legacy.lineId,
       productId: typeof productId === 'string' ? productId : '',
       name: legacy.name ?? '',
       price: legacy.price ?? Number.NaN,
@@ -123,6 +128,11 @@ function normalizeStoredItems(rawItems: unknown[]): CartItem[] {
     if (merged) byProductId.set(normalized.productId, merged);
   }
   return [...byProductId.values()];
+}
+
+function createLineId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
 }
 
 function normalizeQuantity(value: unknown) {

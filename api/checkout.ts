@@ -198,9 +198,9 @@ export function parseCheckoutPayload(value: unknown): CheckoutPayload | null {
   if (!customerInput || !deliveryInput) return null;
   const email = stringField(customerInput.email, 254);
   const name = stringField(customerInput.name, 120);
-  const phone = optionalString(customerInput.phone, 40);
+  const phone = stringField(customerInput.phone, 40);
   const method = deliveryInput.method === 'pickup' || deliveryInput.method === 'delivery' ? deliveryInput.method : null;
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name || !method) return null;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name || !phone || !method) return null;
   const delivery: CheckoutPayload['delivery'] = {
     method: method as 'pickup' | 'delivery',
     recipientName: optionalString(deliveryInput.recipientName, 120), phone: optionalString(deliveryInput.phone, 40),
@@ -210,7 +210,7 @@ export function parseCheckoutPayload(value: unknown): CheckoutPayload | null {
     pickupLocationLabel: optionalString(deliveryInput.pickupLocationLabel, 120), pickupWindow: optionalString(deliveryInput.pickupWindow, 120),
   };
   if (method === 'delivery' && (!delivery.recipientName || !delivery.addressLine1 || !delivery.city || !delivery.province || !delivery.postalCode)) return null;
-  return { items, customer: { email: email.toLowerCase(), name, ...(phone ? { phone } : {}) }, delivery };
+  return { items, customer: { email: email.toLowerCase(), name, phone }, delivery };
 }
 
 function asObject(value: unknown) { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null; }
