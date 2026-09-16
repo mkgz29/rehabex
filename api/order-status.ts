@@ -11,7 +11,7 @@ import {
   setRetryAfter,
   type ApiRequest,
   type ApiResponse,
-} from './_commerce';
+} from '../server/commerce/commerce.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const STATUS_TOKEN = /^[A-Za-z0-9_-]{43}$/;

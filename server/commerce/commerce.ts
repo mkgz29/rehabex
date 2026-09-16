@@ -1,3 +1,4 @@
+// Server-only shared commerce utilities. This module is intentionally outside api/.
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { isIP } from 'node:net';
 

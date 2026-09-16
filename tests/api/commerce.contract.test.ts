@@ -3,10 +3,11 @@ import { createHmac } from 'node:crypto';
 import test from 'node:test';
 
 import checkout, { parseCheckoutPayload } from '../../api/checkout';
-import { createOrReusePreference } from '../../api/_preference';
+import { createOrReusePreference } from '../../server/commerce/preference.js';
 import webhook, { isValidSignature } from '../../api/mercadopago/webhook';
+import apiNotFound from '../../api/404';
 import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
-import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../api/_commerce';
+import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../server/commerce/commerce.js';
 
 function mockResponse() {
   let statusCode = 0;
@@ -47,6 +48,13 @@ test('CORS fails closed in production without ALLOWED_ORIGINS', () => {
 test('CORS rejects absent Origin for browser-only endpoints', () => {
   const result = mockResponse();
   assert.equal(applyCors({ headers: {} }, result.response), false);
+});
+
+test('unknown API fallback always returns JSON 404', () => {
+  const result = mockResponse();
+  apiNotFound({ method: 'GET' }, result.response);
+  assert.deepEqual(result.read().body, { error: 'API no encontrada.' });
+  assert.equal(result.read().statusCode, 404);
 });
 
 test('webhook HMAC uses Mercado Pago signed manifest and constant-time comparison', () => {

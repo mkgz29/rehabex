@@ -1,3 +1,4 @@
+// Server-only preference coordination helpers.
 export type PreferenceClaim = {
   claim_status?: string;
   preference_id?: string;

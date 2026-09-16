@@ -10,11 +10,18 @@ descuento, envio o estados.
 - `POST /api/order-status`: consulta de invitado con token opaco.
 - `POST /api/mercadopago/webhook`: unico webhook oficial de Mercado Pago.
 - `GET /api/orders`: listado administrativo autenticado.
+- `api/404.ts`: fallback tecnico que responde JSON 404 para rutas `/api/*`
+  inexistentes; no contiene logica comercial.
 
 No existe compatibilidad para `/api/create-preference` ni `/api/webhook`.
 Los contratos viven en `tests/api/commerce.contract.test.ts` y se ejecutan con
 `npm run test:api`; deben permanecer fuera de `api/` para no ser funciones de
 Vercel.
+
+Los helpers server-only viven en `server/commerce/`, fuera de `api/`, y se
+importan con especificadores ESM `.js` que TypeScript resuelve a sus fuentes
+`.ts`. Esto permite que el bundle runtime de cada funcion incluya y resuelva sus
+dependencias sin convertir helpers en endpoints.
 
 ## Variables backend
 

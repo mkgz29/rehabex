@@ -11,7 +11,7 @@ import {
   serviceClient,
   type ApiRequest,
   type ApiResponse,
-} from '../_commerce';
+} from '../../server/commerce/commerce.js';
 
 type WebhookBody = { type?: unknown; data?: { id?: unknown } };
 type Payment = { id?: string | number; status?: string; transaction_amount?: number | string; currency_id?: string; external_reference?: string; preference_id?: string };

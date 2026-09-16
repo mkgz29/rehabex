@@ -1,6 +1,6 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 
-import { createOrReusePreference, type PreferenceClaim } from './_preference';
+import { createOrReusePreference, type PreferenceClaim } from '../server/commerce/preference.js';
 
 import {
   applyCors,
@@ -19,7 +19,7 @@ import {
   setRetryAfter,
   type ApiRequest,
   type ApiResponse,
-} from './_commerce';
+} from '../server/commerce/commerce.js';
 
 type CheckoutItem = { productId: string; quantity: number };
 type CheckoutPayload = {
