@@ -3,11 +3,13 @@ import { createHmac } from 'node:crypto';
 import test from 'node:test';
 
 import checkout, { parseCheckoutPayload } from '../../api/checkout';
+import reconcilePayment, { createReconcilePaymentHandler, parseReconcilePaymentPayload } from '../../api/admin/reconcile-payment';
 import { createOrReusePreference } from '../../server/commerce/preference.js';
 import webhook, { diagnoseSignature, isValidSignature, normalizeWebhookResourceId, parseSignature, webhookResource } from '../../api/mercadopago/webhook';
 import apiNotFound from '../../api/404';
 import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
 import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../server/commerce/commerce.js';
+import { processMercadoPagoPayment, type CommerceOrder, type MercadoPagoPayment, type PaymentRepository } from '../../server/commerce/paymentProcessing.js';
 
 function mockResponse() {
   let statusCode = 0;
@@ -271,3 +273,177 @@ async function* chunked(value: string) {
   yield value.slice(0, 200);
   yield value.slice(200);
 }
+
+const reconcileOrderId = '0f7268a7-2559-4d78-a491-4a6cb126a3c3';
+
+function providerPayment(overrides: Partial<MercadoPagoPayment> = {}): MercadoPagoPayment {
+  return {
+    id: '179368065874',
+    status: 'approved',
+    transaction_amount: 100,
+    currency_id: 'ARS',
+    external_reference: reconcileOrderId,
+    preference_id: 'pref-test',
+    live_mode: false,
+    ...overrides,
+  };
+}
+
+function expectedOrder(overrides: Partial<CommerceOrder> = {}): CommerceOrder {
+  return {
+    id: reconcileOrderId,
+    external_reference: reconcileOrderId,
+    total_amount: 100,
+    currency: 'ARS',
+    mercadopago_preference_id: 'pref-test',
+    mercadopago_payment_id: null,
+    ...overrides,
+  };
+}
+
+function paymentRepository(order = expectedOrder(), options: { duplicate?: boolean; transition?: string | null } = {}) {
+  const calls = { record: 0, transition: 0 };
+  const repository: PaymentRepository = {
+    async findOrdersByExternalReference() { return { orders: [order], error: false }; },
+    async recordEvent() { calls.record++; return { eventId: '11111111-1111-4111-8111-111111111111', duplicate: Boolean(options.duplicate), error: false }; },
+    async applyTransition() { calls.transition++; return { result: options.transition ?? 'approved', error: false }; },
+  };
+  return { repository, calls };
+}
+
+function reconcileHeaders(extra: Record<string, string> = {}) {
+  return {
+    origin: 'http://localhost:5173',
+    'content-type': 'application/json',
+    authorization: 'Bearer valid-session-token',
+    'x-vercel-forwarded-for': '203.0.113.10',
+    ...extra,
+  };
+}
+
+function reconcileHandler(overrides: Record<string, unknown> = {}) {
+  return createReconcilePaymentHandler({
+    serviceClient: () => ({}) as never,
+    authorize: async () => ({ kind: 'admin', userId: '11111111-1111-4111-8111-111111111111' }),
+    consumeRateLimit: async () => ({ ok: true, retryAfter: 0, unavailable: false }),
+    fetchPayment: async () => ({ kind: 'ok', payment: providerPayment() }),
+    processPayment: async () => ({ kind: 'processed', status: 'approved', transition: 'approved' }),
+    ...overrides,
+  });
+}
+
+async function withAccessToken(run: () => Promise<void>) {
+  const before = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  process.env.MERCADOPAGO_ACCESS_TOKEN = 'synthetic-access-token';
+  try { await run(); } finally {
+    if (before === undefined) delete process.env.MERCADOPAGO_ACCESS_TOKEN; else process.env.MERCADOPAGO_ACCESS_TOKEN = before;
+  }
+}
+
+test('admin reconciliation requires a valid admin session and strict small payload', async () => {
+  assert.deepEqual(parseReconcilePaymentPayload({ paymentId: '179368065874' }), { paymentId: '179368065874' });
+  assert.equal(parseReconcilePaymentPayload({ paymentId: '179368065874', orderId: reconcileOrderId }), null);
+  assert.equal(parseReconcilePaymentPayload({ paymentId: ' 179368065874' }), null);
+
+  const missing = mockResponse();
+  await reconcilePayment({ method: 'POST', headers: { origin: 'http://localhost:5173', 'content-type': 'application/json' }, body: { paymentId: '179368065874' } }, missing.response);
+  assert.equal(missing.read().statusCode, 401);
+
+  await withAccessToken(async () => {
+    const invalidHandler = reconcileHandler({ authorize: async () => ({ kind: 'unauthorized' }) });
+    const invalid = mockResponse();
+    await invalidHandler({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874' } }, invalid.response);
+    assert.equal(invalid.read().statusCode, 401);
+
+    const nonAdminHandler = reconcileHandler({ authorize: async () => ({ kind: 'forbidden' }) });
+    const nonAdmin = mockResponse();
+    await nonAdminHandler({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874' } }, nonAdmin.response);
+    assert.equal(nonAdmin.read().statusCode, 403);
+
+    const invalidBody = mockResponse();
+    await reconcileHandler()({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874', status: 'approved' } }, invalidBody.response);
+    assert.equal(invalidBody.read().statusCode, 400);
+  });
+});
+
+test('admin reconciliation keeps provider failures generic and applies CORS/rate limits', async () => {
+  await withAccessToken(async () => {
+    const notFound = mockResponse();
+    await reconcileHandler({ fetchPayment: async () => ({ kind: 'not_found' }) })({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874' } }, notFound.response);
+    assert.equal(notFound.read().statusCode, 404);
+
+    const limited = mockResponse();
+    await reconcileHandler({ consumeRateLimit: async () => ({ ok: false, retryAfter: 9, unavailable: false }) })({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874' } }, limited.response);
+    assert.equal(limited.read().statusCode, 429);
+    assert.equal(limited.read().headers.get('Retry-After'), '9');
+
+    const preflight = mockResponse();
+    await reconcileHandler()({ method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } }, preflight.response);
+    assert.equal(preflight.read().statusCode, 204);
+    assert.equal(preflight.read().headers.get('Access-Control-Allow-Headers'), 'Content-Type, Authorization');
+  });
+});
+
+test('shared reconciliation rejects live mode and provider/order mismatches before any event or transition', async () => {
+  const cases: Array<[MercadoPagoPayment, CommerceOrder, string]> = [
+    [providerPayment({ live_mode: true }), expectedOrder(), 'test_mode_required'],
+    [providerPayment({ external_reference: '11111111-1111-4111-8111-111111111111' }), expectedOrder(), 'order_not_found'],
+    [providerPayment({ preference_id: 'other' }), expectedOrder(), 'preference_mismatch'],
+    [providerPayment({ transaction_amount: 101 }), expectedOrder(), 'amount_mismatch'],
+    [providerPayment({ currency_id: 'USD' }), expectedOrder(), 'currency_mismatch'],
+    [providerPayment(), expectedOrder({ mercadopago_payment_id: 'other-payment' }), 'payment_id_mismatch'],
+  ];
+  for (const [payment, order, reason] of cases) {
+    const { repository, calls } = paymentRepository(order);
+    const result = await processMercadoPagoPayment(repository, payment, { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+    assert.deepEqual(result, { kind: 'rejected', reason });
+    assert.deepEqual(calls, { record: 0, transition: 0 });
+  }
+});
+
+test('shared reconciliation applies approved and pending provider states exactly once', async () => {
+  const approved = paymentRepository();
+  const approvedResult = await processMercadoPagoPayment(approved.repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  assert.deepEqual(approvedResult, { kind: 'processed', status: 'approved', transition: 'approved' });
+  assert.deepEqual(approved.calls, { record: 1, transition: 1 });
+
+  const pending = paymentRepository(expectedOrder(), { transition: 'pending' });
+  const pendingResult = await processMercadoPagoPayment(pending.repository, providerPayment({ status: 'pending' }), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  assert.deepEqual(pendingResult, { kind: 'processed', status: 'pending', transition: 'pending' });
+  assert.deepEqual(pending.calls, { record: 1, transition: 1 });
+});
+
+test('shared reconciliation is idempotent and preserves out-of-order transition authority', async () => {
+  const duplicate = paymentRepository(expectedOrder(), { duplicate: true });
+  const duplicateResult = await processMercadoPagoPayment(duplicate.repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  assert.deepEqual(duplicateResult, { kind: 'duplicate', status: 'approved' });
+  assert.deepEqual(duplicate.calls, { record: 1, transition: 0 });
+
+  const outOfOrder = paymentRepository(expectedOrder(), { transition: 'ignored_out_of_order' });
+  const outOfOrderResult = await processMercadoPagoPayment(outOfOrder.repository, providerPayment({ status: 'pending' }), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  assert.deepEqual(outOfOrderResult, { kind: 'processed', status: 'pending', transition: 'ignored_out_of_order' });
+  assert.deepEqual(outOfOrder.calls, { record: 1, transition: 1 });
+});
+
+test('duplicate reconciliation never invokes a second stock-affecting transition', async () => {
+  let recorded = false;
+  let stock = 1;
+  const repository: PaymentRepository = {
+    async findOrdersByExternalReference() { return { orders: [expectedOrder()], error: false }; },
+    async recordEvent() {
+      if (recorded) return { eventId: '11111111-1111-4111-8111-111111111111', duplicate: true, error: false };
+      recorded = true;
+      return { eventId: '11111111-1111-4111-8111-111111111111', duplicate: false, error: false };
+    },
+    async applyTransition() {
+      assert.ok(stock > 0);
+      stock--;
+      return { result: 'approved', error: false };
+    },
+  };
+  const first = await processMercadoPagoPayment(repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  const second = await processMercadoPagoPayment(repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  assert.equal(first.kind, 'processed');
+  assert.equal(second.kind, 'duplicate');
+  assert.equal(stock, 0);
+});

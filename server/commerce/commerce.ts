@@ -194,6 +194,23 @@ export function applyCors(request: ApiRequest, response: ApiResponse) {
   return true;
 }
 
+/** Admin browser endpoint CORS. Authorization is intentionally not allowed on public commerce routes. */
+export function applyAdminCors(request: ApiRequest, response: ApiResponse) {
+  const origin = header(request, 'origin');
+  const production = process.env.NODE_ENV === 'production';
+  const allowed = new Set((process.env.ALLOWED_ORIGINS ?? '').split(',').map((item) => item.trim()).filter(Boolean));
+  if (!production) {
+    allowed.add('http://localhost:5173');
+    allowed.add('http://127.0.0.1:5173');
+  }
+  if ((production && allowed.size === 0) || !origin || !allowed.has(origin)) return false;
+  response.setHeader?.('Access-Control-Allow-Origin', origin);
+  response.setHeader?.('Vary', 'Origin');
+  response.setHeader?.('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader?.('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return true;
+}
+
 export function trustedClientIp(request: ApiRequest) {
   // Vercel overwrites this header at its edge. Deliberately ignore
   // X-Forwarded-For, which is user-controlled before a proxy is configured.
@@ -204,16 +221,24 @@ export function trustedClientIp(request: ApiRequest) {
 
 export async function consumeRateLimit(
   supabase: NonNullable<ReturnType<typeof serviceClient>>,
-  scope: 'checkout' | 'order_status',
+  scope: 'checkout' | 'order_status' | 'admin_reconcile',
   request: ApiRequest,
   idempotencyKey?: string,
+  actorId?: string,
 ) {
   const secret = process.env.COMMERCE_RATE_LIMIT_HASH_SECRET;
   const ip = trustedClientIp(request);
   if (!secret || !ip) return { ok: false as const, retryAfter: 0, unavailable: true };
   const subjects = [keyedHash(`ip:${ip}`, secret)];
   if (scope === 'checkout' && idempotencyKey) subjects.push(keyedHash(`idempotency:${idempotencyKey}`, secret));
-  const { data, error } = await supabase.rpc('consume_commerce_rate_limit', { p_scope: scope, p_subject_hashes: subjects });
+  if (scope === 'admin_reconcile') {
+    if (!actorId) return { ok: false as const, retryAfter: 0, unavailable: true };
+    subjects.push(keyedHash(`admin:${actorId}`, secret));
+  }
+  // Migration 105 has no admin-specific scope. Reuse its bounded 60-second
+  // order-status window with both IP and verified-admin dimensions.
+  const databaseScope = scope === 'admin_reconcile' ? 'order_status' : scope;
+  const { data, error } = await supabase.rpc('consume_commerce_rate_limit', { p_scope: databaseScope, p_subject_hashes: subjects });
   if (error || !Array.isArray(data) || data.length !== 1) return { ok: false as const, retryAfter: 0, unavailable: true };
   return { ok: Boolean(data[0].allowed), retryAfter: Number(data[0].retry_after_seconds) || 1, unavailable: false };
 }

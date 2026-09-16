@@ -1,8 +1,6 @@
 import { createHmac } from 'node:crypto';
 
 import {
-  hash,
-  header,
   logEvent,
   MAX_WEBHOOK_BODY_BYTES,
   parseJsonBody,
@@ -13,10 +11,9 @@ import {
   type ApiRequest,
   type ApiResponse,
 } from '../../server/commerce/commerce.js';
+import { createSupabasePaymentRepository, processMercadoPagoPayment, type MercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
 
 type WebhookBody = { type?: unknown; data?: { id?: unknown } };
-type Payment = { id?: string | number; status?: string; transaction_amount?: number | string; currency_id?: string; external_reference?: string; preference_id?: string };
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RESOURCE_ID = /^[A-Za-z0-9_-]{1,256}$/;
 
 type WebhookResource =
@@ -71,7 +68,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return response.status(503).json({ error: 'No disponible.' });
   }
 
-  let payment: Payment;
+  let payment: MercadoPagoPayment;
   try {
     const providerResponse = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(resource.resourceId)}`, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
@@ -80,45 +77,27 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       logEvent('webhook_payment_lookup_failed', { status: providerResponse.status });
       return response.status(502).json({ error: 'No disponible.' });
     }
-    payment = await providerResponse.json() as Payment;
+    payment = await providerResponse.json() as MercadoPagoPayment;
   } catch {
     logEvent('webhook_payment_lookup_error');
     return response.status(502).json({ error: 'No disponible.' });
   }
 
-  const orderId = typeof payment.external_reference === 'string' ? payment.external_reference : '';
-  const preferenceId = typeof payment.preference_id === 'string' ? payment.preference_id : '';
-  const amount = Number(payment.transaction_amount);
-  const providerPaymentId = String(payment.id ?? '');
-  const status = typeof payment.status === 'string' ? payment.status : '';
-  if (!UUID.test(orderId) || !providerPaymentId || !status || !Number.isFinite(amount) || !payment.currency_id) {
-    logEvent('webhook_payment_shape_invalid');
+  const result = await processMercadoPagoPayment(createSupabasePaymentRepository(supabase), payment, {
+    dedupeSeed: requestId,
+    requestId,
+    requireTestMode: false,
+  });
+  if (result.kind === 'unavailable') {
+    logEvent('webhook_payment_processing_unavailable');
+    return response.status(503).json({ error: 'No disponible.' });
+  }
+  if (result.kind === 'rejected') {
+    logEvent('webhook_payment_rejected', { reason: result.reason });
     return response.status(200).json({ received: true });
   }
-
-  const dedupeKey = hash(`${requestId}:${providerPaymentId}:${status}`);
-  const payloadHash = hash(`${resource.resourceId}:${status}:${payment.external_reference}:${payment.preference_id ?? ''}:${amount}:${payment.currency_id}`);
-  const { data: eventRows, error: eventError } = await supabase.rpc('record_mercadopago_payment_event', {
-    p_dedupe_key: dedupeKey, p_request_id: requestId, p_provider_event_id: null,
-    p_provider_payment_id: providerPaymentId, p_order_id: orderId, p_external_reference: orderId,
-    p_payload_hash: payloadHash, p_provider_status: status,
-  });
-  if (eventError || !Array.isArray(eventRows) || eventRows.length !== 1) {
-    logEvent('webhook_event_record_failed');
-    return response.status(503).json({ error: 'No disponible.' });
-  }
-  if (eventRows[0].is_duplicate) return response.status(200).json({ received: true });
-
-  const { error: transitionError } = await supabase.rpc('apply_mercadopago_payment_transition', {
-    p_event_id: eventRows[0].event_id, p_order_id: orderId, p_payment_id: providerPaymentId,
-    p_payment_status: status, p_amount: amount, p_currency: payment.currency_id,
-    p_external_reference: orderId, p_preference_id: preferenceId,
-  });
-  if (transitionError) {
-    logEvent('webhook_transition_failed');
-    return response.status(503).json({ error: 'No disponible.' });
-  }
-  logEvent('webhook_processed', { paymentStatus: status });
+  if (result.kind === 'duplicate') return response.status(200).json({ received: true });
+  logEvent('webhook_processed', { paymentStatus: result.status });
   return response.status(200).json({ received: true });
 }
 
