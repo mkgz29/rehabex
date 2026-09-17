@@ -16,6 +16,7 @@ import {
   type MercadoPagoPayment,
   type PaymentProcessResult,
 } from '../../server/commerce/paymentProcessing.js';
+import { fetchMercadoPagoPayment, type MercadoPagoProviderResult } from '../../server/commerce/mercadoPagoPayment.js';
 
 const PAYMENT_ID = /^[A-Za-z0-9_-]{1,256}$/;
 
@@ -28,13 +29,11 @@ type AdminServiceClient = {
 };
 
 type AuthorizationResult = { kind: 'admin'; userId: string } | { kind: 'unauthorized' | 'forbidden' };
-type ProviderResult = { kind: 'ok'; payment: MercadoPagoPayment } | { kind: 'not_found' | 'unavailable' };
-
 type ReconcileDependencies = {
   serviceClient: () => AdminServiceClient | null;
   authorize: (supabase: AdminServiceClient, token: string) => Promise<AuthorizationResult>;
   consumeRateLimit: (supabase: AdminServiceClient, request: ApiRequest, userId: string) => Promise<{ ok: boolean; retryAfter: number; unavailable: boolean }>;
-  fetchPayment: (paymentId: string, accessToken: string) => Promise<ProviderResult>;
+  fetchPayment: (paymentId: string, accessToken: string) => Promise<MercadoPagoProviderResult>;
   processPayment: (supabase: AdminServiceClient, payment: MercadoPagoPayment) => Promise<PaymentProcessResult>;
 };
 
@@ -116,19 +115,6 @@ async function authenticateAdmin(supabase: AdminServiceClient, token: string): P
     .maybeSingle();
   if (profileError || !profile) return { kind: 'forbidden' };
   return profile.role === 'admin' ? { kind: 'admin', userId: user.id } : { kind: 'forbidden' };
-}
-
-async function fetchMercadoPagoPayment(paymentId: string, accessToken: string): Promise<ProviderResult> {
-  try {
-    const response = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-    });
-    if (response.status === 404) return { kind: 'not_found' };
-    if (!response.ok) return { kind: 'unavailable' };
-    return { kind: 'ok', payment: await response.json() as MercadoPagoPayment };
-  } catch {
-    return { kind: 'unavailable' };
-  }
 }
 
 function bearerToken(value: string | string[] | undefined) {

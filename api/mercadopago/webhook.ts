@@ -11,7 +11,8 @@ import {
   type ApiRequest,
   type ApiResponse,
 } from '../../server/commerce/commerce.js';
-import { createSupabasePaymentRepository, processMercadoPagoPayment, type MercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
+import { createSupabasePaymentRepository, processMercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
+import { fetchMercadoPagoPayment } from '../../server/commerce/mercadoPagoPayment.js';
 
 type WebhookBody = { type?: unknown; data?: { id?: unknown } };
 const RESOURCE_ID = /^[A-Za-z0-9_-]{1,256}$/;
@@ -71,22 +72,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return response.status(503).json({ error: 'No disponible.' });
   }
 
-  let payment: MercadoPagoPayment;
-  try {
-    const providerResponse = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(signedDataIdResource.resourceId)}`, {
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-    });
-    if (!providerResponse.ok) {
-      logEvent('webhook_payment_lookup_failed', { status: providerResponse.status });
-      return response.status(502).json({ error: 'No disponible.' });
-    }
-    payment = await providerResponse.json() as MercadoPagoPayment;
-  } catch {
-    logEvent('webhook_payment_lookup_error');
+  const provider = await fetchMercadoPagoPayment(signedDataIdResource.resourceId, accessToken);
+  if (provider.kind !== 'ok') {
+    if (provider.httpStatus) logEvent('webhook_payment_lookup_failed', { status: provider.httpStatus });
+    else logEvent('webhook_payment_lookup_error');
     return response.status(502).json({ error: 'No disponible.' });
   }
 
-  const result = await processMercadoPagoPayment(createSupabasePaymentRepository(supabase), payment, {
+  const result = await processMercadoPagoPayment(createSupabasePaymentRepository(supabase), provider.payment, {
     requestId,
   });
   if (result.kind === 'unavailable') {

@@ -10,6 +10,7 @@ import apiNotFound from '../../api/404';
 import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
 import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../server/commerce/commerce.js';
 import { processMercadoPagoPayment, type MercadoPagoPayment, type PaymentRepository } from '../../server/commerce/paymentProcessing.js';
+import { adaptMercadoPagoPayment, fetchMercadoPagoPayment } from '../../server/commerce/mercadoPagoPayment.js';
 
 function mockResponse() {
   let statusCode = 0;
@@ -426,6 +427,81 @@ test('authenticated reconciliation parses exactly paymentId from a raw JSON stre
     assert.equal(result.read().statusCode, 404);
     assert.equal(receivedPaymentId, '179368065874');
   });
+});
+
+test('Checkout Pro payment DTO resolves a missing preference through its merchant order', async () => {
+  const fixturePaymentId = '987654321012';
+  const fixtureOrderId = '11111111-1111-4111-8111-111111111111';
+  const fixtureMerchantOrderId = 40472643708;
+  const requests: string[] = [];
+  const result = await fetchMercadoPagoPayment(fixturePaymentId, 'synthetic-access-token', async (url) => {
+    requests.push(url);
+    if (url.includes('/v1/payments/')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: fixturePaymentId,
+          status: 'approved',
+          external_reference: fixtureOrderId,
+          transaction_amount: 300,
+          currency_id: 'ARS',
+          live_mode: false,
+          order: { id: fixtureMerchantOrderId },
+          payment_method_id: 'account_money',
+          additional_info: { items: [{ quantity: 3 }] },
+        }),
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ preference_id: 'pref-checkout-pro' }),
+    };
+  });
+  assert.deepEqual(requests, [
+    `https://api.mercadopago.com/v1/payments/${fixturePaymentId}`,
+    `https://api.mercadopago.com/merchant_orders/${fixtureMerchantOrderId}`,
+  ]);
+  assert.deepEqual(result, {
+    kind: 'ok',
+    payment: {
+      id: fixturePaymentId, status: 'approved', external_reference: fixtureOrderId,
+      transaction_amount: 300, currency_id: 'ARS', preference_id: 'pref-checkout-pro', live_mode: false,
+    },
+  });
+});
+
+test('Checkout Pro payment DTO preserves only official fields and rejects absent or invalid required fields', async () => {
+  const fixtureOrderId = '11111111-1111-4111-8111-111111111111';
+  const raw = {
+    id: '987654321012',
+    status: 'approved',
+    external_reference: fixtureOrderId,
+    transaction_amount: 100,
+    currency_id: 'ARS',
+    live_mode: false,
+    order: { id: 40472643708 },
+  };
+  assert.deepEqual(adaptMercadoPagoPayment(raw, 'pref-checkout-pro'), {
+    id: '987654321012', status: 'approved', external_reference: fixtureOrderId,
+    transaction_amount: 100, currency_id: 'ARS', preference_id: 'pref-checkout-pro', live_mode: false,
+  });
+
+  for (const invalid of [
+    { ...raw, status: undefined },
+    { ...raw, external_reference: undefined },
+    { ...raw, transaction_amount: undefined },
+    { ...raw, currency_id: undefined },
+    { ...raw, transaction_amount: Number.NaN },
+    { ...raw, preference_id: undefined, order: undefined },
+    { ...raw, preference_id: { invalid: true }, order: undefined },
+  ]) {
+    const { repository, calls } = paymentRepository();
+    const result = await processMercadoPagoPayment(repository, adaptMercadoPagoPayment(invalid), { requestId: null });
+    assert.deepEqual(result, { kind: 'rejected', reason: 'payment_shape_invalid' });
+    assert.deepEqual(calls, { atomic: 0 });
+  }
 });
 
 test('shared atomic processor maps database validation outcomes and always enforces TEST mode', async () => {
