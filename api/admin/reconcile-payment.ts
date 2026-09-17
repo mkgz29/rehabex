@@ -64,7 +64,7 @@ export function createReconcilePaymentHandler(overrides: Partial<ReconcileDepend
     if (!applyAdminCors(request, response)) return response.status(403).json({ error: 'No autorizado.' });
     if (!isJsonContentType(request)) return response.status(415).json({ error: 'Solicitud invalida.' });
     const body = await readJsonBody(request, MAX_ORDER_STATUS_BODY_BYTES);
-    if (!body.ok) return response.status(body.reason === 'invalid' ? 400 : 413).json({ error: 'Solicitud invalida.' });
+    if (body.ok === false) return response.status(body.reason === 'invalid' ? 400 : 413).json({ error: 'Solicitud invalida.' });
     const payload = parseReconcilePaymentPayload(body.value);
     if (!payload) return response.status(400).json({ error: 'Solicitud invalida.' });
 

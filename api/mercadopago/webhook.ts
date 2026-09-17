@@ -16,8 +16,10 @@ import { createSupabasePaymentRepository, processMercadoPagoPayment, type Mercad
 type WebhookBody = { type?: unknown; data?: { id?: unknown } };
 const RESOURCE_ID = /^[A-Za-z0-9_-]{1,256}$/;
 
+type SignedWebhookResource = { resourceId: string; rawResourceId: string; source: 'data.id' | 'id'; reason: null };
+type SignedDataIdWebhookResource = SignedWebhookResource & { source: 'data.id' };
 type WebhookResource =
-  | { resourceId: string; rawResourceId: string; source: 'data.id' | 'id'; reason: null }
+  | SignedWebhookResource
   | { resourceId: null; source: null; reason: 'resource_id_missing' | 'resource_id_ambiguous' | 'resource_id_invalid' };
 
 type SignatureParts = { timestamp: string | null; digest: string | null; reason: 'ok' | 'signature_malformed' | 'signature_timestamp_missing' | 'signature_digest_missing' };
@@ -33,14 +35,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   const body = parseJsonBody(request.body, MAX_WEBHOOK_BODY_BYTES) as WebhookBody | null;
   // Mercado Pago signs the query parameter, never a re-serialized body.
   const resource = webhookResource(request);
+  const signedDataIdResource = isSignedDataIdWebhookResource(resource) ? resource : null;
   const signatureHeader = requestHeaderExact(request, 'x-signature');
   const requestIdHeader = requestHeaderExact(request, 'x-request-id');
   const signature = signatureHeader.value;
   const requestId = requestIdHeader.value;
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
   const signatureParts = signature ? parseSignature(signature) : null;
-  const signatureDiagnostics = signature && requestId && secret && signatureParts?.reason === 'ok' && resource.resourceId
-    ? diagnoseSignature(signature, requestId, resource, secret)
+  const signatureDiagnostics = signature && requestId && secret && signatureParts?.reason === 'ok' && signedDataIdResource
+    ? diagnoseSignature(signature, requestId, signedDataIdResource, secret)
     : { ...secretDiagnostics(secret), canonicalVariantMatch: 'none' as const, officialValid: false };
   if (!resource.resourceId || !signature || !requestId || !secret || signatureHeader.ambiguous || requestIdHeader.ambiguous || signatureParts?.reason !== 'ok') {
     logWebhookRejection('unsigned_or_malformed', resource, body, {
@@ -53,7 +56,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   // Only data.id is part of Mercado Pago's documented signed-webhook contract.
   // The id alias is retained strictly for diagnostics and always fails closed.
-  if (resource.source !== 'data.id' || !signatureDiagnostics.officialValid) {
+  if (resource.source !== 'data.id' || !signedDataIdResource || !signatureDiagnostics.officialValid) {
     logWebhookRejection(resource.source === 'id' ? 'legacy_notification_rejected' : 'signature_invalid', resource, body, {
       hasSignature: true, hasRequestId: true, hasTimestamp: true, hasDigest: true,
     }, signatureDiagnostics);
@@ -70,7 +73,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   let payment: MercadoPagoPayment;
   try {
-    const providerResponse = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(resource.resourceId)}`, {
+    const providerResponse = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(signedDataIdResource.resourceId)}`, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     });
     if (!providerResponse.ok) {
@@ -125,7 +128,7 @@ export function normalizeWebhookResourceId(value: string) {
   return value.toLowerCase();
 }
 
-export function diagnoseSignature(signature: string, requestId: string, resource: Extract<WebhookResource, { reason: null }>, secret: string): SignatureDiagnostics & { officialValid: boolean } {
+export function diagnoseSignature(signature: string, requestId: string, resource: SignedWebhookResource, secret: string): SignatureDiagnostics & { officialValid: boolean } {
   const parts = parseSignature(signature);
   const base = secretDiagnostics(secret);
   if (parts.reason !== 'ok' || !parts.timestamp || !parts.digest) return { ...base, canonicalVariantMatch: 'none', officialValid: false };
@@ -150,6 +153,10 @@ export function diagnoseSignature(signature: string, requestId: string, resource
   ];
   const match = candidates.find((candidate) => safeEqualHex(digest, createHmac('sha256', secret).update(candidate.manifest, 'utf8').digest('hex')));
   return { ...base, canonicalVariantMatch: match?.name ?? 'none', officialValid: Boolean(match?.official) };
+}
+
+function isSignedDataIdWebhookResource(resource: WebhookResource): resource is SignedDataIdWebhookResource {
+  return resource.reason === null && resource.source === 'data.id';
 }
 
 function signedManifest(resourceId: string, requestId: string, timestamp: string, finalSemicolon: boolean) {
