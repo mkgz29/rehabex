@@ -9,7 +9,7 @@ import webhook, { diagnoseSignature, isValidSignature, normalizeWebhookResourceI
 import apiNotFound from '../../api/404';
 import orderStatus, { createOrderStatusHandler, parseOrderStatusPayload } from '../../api/order-status';
 import { applyCors, canonicalJson, parseJsonBody, safeEqualHex, type ApiRequest, type ApiResponse } from '../../server/commerce/commerce.js';
-import { processMercadoPagoPayment, type CommerceOrder, type MercadoPagoPayment, type PaymentRepository } from '../../server/commerce/paymentProcessing.js';
+import { processMercadoPagoPayment, type MercadoPagoPayment, type PaymentRepository } from '../../server/commerce/paymentProcessing.js';
 
 function mockResponse() {
   let statusCode = 0;
@@ -289,24 +289,18 @@ function providerPayment(overrides: Partial<MercadoPagoPayment> = {}): MercadoPa
   };
 }
 
-function expectedOrder(overrides: Partial<CommerceOrder> = {}): CommerceOrder {
-  return {
-    id: reconcileOrderId,
-    external_reference: reconcileOrderId,
-    total_amount: 100,
-    currency: 'ARS',
-    mercadopago_preference_id: 'pref-test',
-    mercadopago_payment_id: null,
-    ...overrides,
-  };
-}
-
-function paymentRepository(order = expectedOrder(), options: { duplicate?: boolean; transition?: string | null } = {}) {
-  const calls = { record: 0, transition: 0 };
+function paymentRepository(options: { duplicate?: boolean; outcome?: string | null; error?: boolean } = {}) {
+  const calls = { atomic: 0 };
   const repository: PaymentRepository = {
-    async findOrdersByExternalReference() { return { orders: [order], error: false }; },
-    async recordEvent() { calls.record++; return { eventId: '11111111-1111-4111-8111-111111111111', duplicate: Boolean(options.duplicate), error: false }; },
-    async applyTransition() { calls.transition++; return { result: options.transition ?? 'approved', error: false }; },
+    async processAtomic() {
+      calls.atomic++;
+      return {
+        eventId: '11111111-1111-4111-8111-111111111111',
+        outcome: options.outcome ?? (options.duplicate ? 'duplicate' : 'approved'),
+        duplicate: Boolean(options.duplicate),
+        error: Boolean(options.error),
+      };
+    },
   };
   return { repository, calls };
 }
@@ -434,65 +428,65 @@ test('authenticated reconciliation parses exactly paymentId from a raw JSON stre
   });
 });
 
-test('shared reconciliation rejects live mode and provider/order mismatches before any event or transition', async () => {
-  const cases: Array<[MercadoPagoPayment, CommerceOrder, string]> = [
-    [providerPayment({ live_mode: true }), expectedOrder(), 'test_mode_required'],
-    [providerPayment({ external_reference: '11111111-1111-4111-8111-111111111111' }), expectedOrder(), 'order_not_found'],
-    [providerPayment({ preference_id: 'other' }), expectedOrder(), 'preference_mismatch'],
-    [providerPayment({ transaction_amount: 101 }), expectedOrder(), 'amount_mismatch'],
-    [providerPayment({ currency_id: 'USD' }), expectedOrder(), 'currency_mismatch'],
-    [providerPayment(), expectedOrder({ mercadopago_payment_id: 'other-payment' }), 'payment_id_mismatch'],
+test('shared atomic processor maps database validation outcomes and always enforces TEST mode', async () => {
+  const cases: Array<[MercadoPagoPayment, string, string]> = [
+    [providerPayment({ live_mode: true }), 'rejected_test_mode', 'test_mode_required'],
+    [providerPayment({ external_reference: '11111111-1111-4111-8111-111111111111' }), 'rejected_order_not_found', 'order_not_found'],
+    [providerPayment({ preference_id: 'other' }), 'rejected_preference_mismatch', 'preference_mismatch'],
+    [providerPayment({ transaction_amount: 101 }), 'rejected_amount_mismatch', 'amount_mismatch'],
+    [providerPayment({ currency_id: 'USD' }), 'rejected_currency_mismatch', 'currency_mismatch'],
+    [providerPayment(), 'rejected_payment_id_mismatch', 'payment_id_mismatch'],
   ];
-  for (const [payment, order, reason] of cases) {
-    const { repository, calls } = paymentRepository(order);
-    const result = await processMercadoPagoPayment(repository, payment, { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  for (const [payment, outcome, reason] of cases) {
+    const { repository, calls } = paymentRepository({ outcome });
+    const result = await processMercadoPagoPayment(repository, payment, { requestId: null });
     assert.deepEqual(result, { kind: 'rejected', reason });
-    assert.deepEqual(calls, { record: 0, transition: 0 });
+    assert.deepEqual(calls, { atomic: 1 });
   }
+
+  const invalid = paymentRepository();
+  assert.deepEqual(await processMercadoPagoPayment(invalid.repository, providerPayment({ id: '' }), { requestId: null }), { kind: 'rejected', reason: 'payment_shape_invalid' });
+  assert.deepEqual(invalid.calls, { atomic: 0 });
 });
 
-test('shared reconciliation applies approved and pending provider states exactly once', async () => {
+test('shared atomic processor applies approved and pending provider states through one call', async () => {
   const approved = paymentRepository();
-  const approvedResult = await processMercadoPagoPayment(approved.repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  const approvedResult = await processMercadoPagoPayment(approved.repository, providerPayment(), { requestId: null });
   assert.deepEqual(approvedResult, { kind: 'processed', status: 'approved', transition: 'approved' });
-  assert.deepEqual(approved.calls, { record: 1, transition: 1 });
+  assert.deepEqual(approved.calls, { atomic: 1 });
 
-  const pending = paymentRepository(expectedOrder(), { transition: 'pending' });
-  const pendingResult = await processMercadoPagoPayment(pending.repository, providerPayment({ status: 'pending' }), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  const pending = paymentRepository({ outcome: 'pending' });
+  const pendingResult = await processMercadoPagoPayment(pending.repository, providerPayment({ status: 'pending' }), { requestId: null });
   assert.deepEqual(pendingResult, { kind: 'processed', status: 'pending', transition: 'pending' });
-  assert.deepEqual(pending.calls, { record: 1, transition: 1 });
+  assert.deepEqual(pending.calls, { atomic: 1 });
 });
 
 test('shared reconciliation is idempotent and preserves out-of-order transition authority', async () => {
-  const duplicate = paymentRepository(expectedOrder(), { duplicate: true });
-  const duplicateResult = await processMercadoPagoPayment(duplicate.repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  const duplicate = paymentRepository({ duplicate: true });
+  const duplicateResult = await processMercadoPagoPayment(duplicate.repository, providerPayment(), { requestId: null });
   assert.deepEqual(duplicateResult, { kind: 'duplicate', status: 'approved' });
-  assert.deepEqual(duplicate.calls, { record: 1, transition: 0 });
+  assert.deepEqual(duplicate.calls, { atomic: 1 });
 
-  const outOfOrder = paymentRepository(expectedOrder(), { transition: 'ignored_out_of_order' });
-  const outOfOrderResult = await processMercadoPagoPayment(outOfOrder.repository, providerPayment({ status: 'pending' }), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
-  assert.deepEqual(outOfOrderResult, { kind: 'processed', status: 'pending', transition: 'ignored_out_of_order' });
-  assert.deepEqual(outOfOrder.calls, { record: 1, transition: 1 });
+  const outOfOrder = paymentRepository({ outcome: 'ignored_invalid_transition' });
+  const outOfOrderResult = await processMercadoPagoPayment(outOfOrder.repository, providerPayment({ status: 'pending' }), { requestId: null });
+  assert.deepEqual(outOfOrderResult, { kind: 'rejected', reason: 'transition_invalid' });
+  assert.deepEqual(outOfOrder.calls, { atomic: 1 });
 });
 
 test('duplicate reconciliation never invokes a second stock-affecting transition', async () => {
-  let recorded = false;
+  let processed = false;
   let stock = 1;
   const repository: PaymentRepository = {
-    async findOrdersByExternalReference() { return { orders: [expectedOrder()], error: false }; },
-    async recordEvent() {
-      if (recorded) return { eventId: '11111111-1111-4111-8111-111111111111', duplicate: true, error: false };
-      recorded = true;
-      return { eventId: '11111111-1111-4111-8111-111111111111', duplicate: false, error: false };
-    },
-    async applyTransition() {
+    async processAtomic() {
+      if (processed) return { eventId: '11111111-1111-4111-8111-111111111111', outcome: 'duplicate', duplicate: true, error: false };
+      processed = true;
       assert.ok(stock > 0);
       stock--;
-      return { result: 'approved', error: false };
+      return { eventId: '11111111-1111-4111-8111-111111111111', outcome: 'approved', duplicate: false, error: false };
     },
   };
-  const first = await processMercadoPagoPayment(repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
-  const second = await processMercadoPagoPayment(repository, providerPayment(), { dedupeSeed: 'test', requestId: null, requireTestMode: true });
+  const first = await processMercadoPagoPayment(repository, providerPayment(), { requestId: 'webhook-request' });
+  const second = await processMercadoPagoPayment(repository, providerPayment(), { requestId: null });
   assert.equal(first.kind, 'processed');
   assert.equal(second.kind, 'duplicate');
   assert.equal(stock, 0);

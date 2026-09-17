@@ -84,9 +84,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   const result = await processMercadoPagoPayment(createSupabasePaymentRepository(supabase), payment, {
-    dedupeSeed: requestId,
     requestId,
-    requireTestMode: false,
   });
   if (result.kind === 'unavailable') {
     logEvent('webhook_payment_processing_unavailable');

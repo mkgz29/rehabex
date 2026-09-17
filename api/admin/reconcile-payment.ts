@@ -47,9 +47,7 @@ export function createReconcilePaymentHandler(overrides: Partial<ReconcileDepend
     consumeRateLimit: (supabase, request, userId) => consumeRateLimit(supabase as never, 'admin_reconcile', request, undefined, userId),
     fetchPayment: fetchMercadoPagoPayment,
     processPayment: (supabase, payment) => processMercadoPagoPayment(createSupabasePaymentRepository(supabase), payment, {
-      dedupeSeed: 'admin-reconcile',
       requestId: null,
-      requireTestMode: true,
     }),
     ...overrides,
   };

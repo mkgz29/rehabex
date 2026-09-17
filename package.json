@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test:api": "tsx --test tests/api/commerce.contract.test.ts",
     "test:cart": "tsx --test tests/cart/cartState.test.ts",
+    "test:db:concurrency": "tsx --test tests/db/paymentAtomicConcurrency.test.ts",
     "check:api": "tsc -p tsconfig.api.json"
   },
   "dependencies": {
