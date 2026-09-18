@@ -1,5 +1,5 @@
 // Server-only shared commerce utilities. This module is intentionally outside api/.
-import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 
 import { createClient } from '@supabase/supabase-js';
@@ -147,12 +147,6 @@ export function newLeaseToken() {
   return randomUUID();
 }
 
-export function safeEqualHex(actual: string, expected: string) {
-  const a = Buffer.from(actual, 'hex');
-  const b = Buffer.from(expected, 'hex');
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export function serviceClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -160,10 +154,12 @@ export function serviceClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+// Checkout Pro preferences deliberately carry no notification_url: Mercado Pago
+// documents that a URL sent at payment creation takes priority over the one in
+// "Tus integraciones", which would displace the single signed webhook channel.
 export function backendUrls() {
   const site = requiredHttpsUrl('PUBLIC_SITE_URL');
-  const notification = requiredHttpsUrl('MERCADOPAGO_WEBHOOK_URL');
-  return { site, notification };
+  return { site };
 }
 
 function requiredHttpsUrl(name: string) {

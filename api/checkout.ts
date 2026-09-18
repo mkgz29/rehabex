@@ -28,6 +28,15 @@ type CheckoutPayload = {
   delivery: { method: 'pickup' | 'delivery'; recipientName?: string; phone?: string; addressLine1?: string; addressLine2?: string; city?: string; province?: string; postalCode?: string; notes?: string; pickupLocationLabel?: string; pickupWindow?: string };
 };
 
+type PreferenceItemRow = { product_id: string; product_name: string; quantity: number; unit_price: number | string };
+type PreferenceBodyInput = {
+  orderId: string;
+  siteUrl: string;
+  items: PreferenceItemRow[];
+  reservationExpiresAt: string;
+  createdAt?: Date;
+};
+
 export const config = { api: { bodyParser: false } };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -64,7 +73,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return response.status(429).json({ error: 'Demasiadas solicitudes.' });
   }
 
-  let urls: { site: string; notification: string };
+  let urls: { site: string };
   try {
     urls = backendUrls();
   } catch {
@@ -145,18 +154,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     async create() {
       const preference = new Preference(new MercadoPagoConfig({ accessToken }));
       const response = await preference.create({
-        body: {
-          external_reference: orderId,
-          notification_url: urls.notification,
-          items: (order.order_items ?? []).map((item) => ({
-            id: item.product_id, title: item.product_name, quantity: item.quantity,
-            unit_price: Number(item.unit_price), currency_id: 'ARS',
-          })),
-          back_urls: { success: `${urls.site}/success`, failure: `${urls.site}/failure`, pending: `${urls.site}/pending` },
-          auto_return: 'approved', expires: true, expiration_date_from: new Date().toISOString(),
-          expiration_date_to: new Date(order.reservation_expires_at).toISOString(),
-          payment_methods: { excluded_payment_types: [{ id: 'ticket' }] },
-        },
+        body: buildPreferenceBody({
+          orderId,
+          siteUrl: urls.site,
+          items: order.order_items ?? [],
+          reservationExpiresAt: order.reservation_expires_at,
+        }),
       });
       return { id: response.id, checkoutUrl: response.init_point ?? response.sandbox_init_point };
     },
@@ -176,6 +179,30 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   logEvent('checkout_preference_failed', { orderId });
   return response.status(502).json({ error: 'No se pudo iniciar el checkout.' });
+}
+
+/**
+ * Body of a Checkout Pro preference.
+ *
+ * It intentionally carries no notification_url: Mercado Pago documents that a URL
+ * sent at payment creation takes priority over the one configured in "Tus
+ * integraciones", and only that panel channel delivers webhooks signed with the
+ * panel secret. Sending one here downgrades the integration to the IPN channel,
+ * whose x-signature cannot be validated with that secret.
+ */
+export function buildPreferenceBody(input: PreferenceBodyInput) {
+  return {
+    external_reference: input.orderId,
+    items: input.items.map((item) => ({
+      id: item.product_id, title: item.product_name, quantity: item.quantity,
+      unit_price: Number(item.unit_price), currency_id: 'ARS',
+    })),
+    back_urls: { success: `${input.siteUrl}/success`, failure: `${input.siteUrl}/failure`, pending: `${input.siteUrl}/pending` },
+    auto_return: 'approved', expires: true,
+    expiration_date_from: (input.createdAt ?? new Date()).toISOString(),
+    expiration_date_to: new Date(input.reservationExpiresAt).toISOString(),
+    payment_methods: { excluded_payment_types: [{ id: 'ticket' }] },
+  };
 }
 
 export function parseCheckoutPayload(value: unknown): CheckoutPayload | null {
