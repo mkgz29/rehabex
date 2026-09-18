@@ -75,8 +75,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   const provider = await fetchMercadoPagoPayment(resource.resourceId, accessToken);
   if (provider.kind !== 'ok') {
-    if (provider.httpStatus) logEvent('webhook_payment_lookup_failed', { status: provider.httpStatus });
-    else logEvent('webhook_payment_lookup_error');
+    // resourceId is the data.id the notification carried: an opaque Mercado Pago
+    // payment reference. Never headers, signature material, credentials, body or PII.
+    if (provider.httpStatus) logEvent('webhook_payment_lookup_failed', { resourceId: resource.resourceId, providerHttpStatus: provider.httpStatus });
+    else logEvent('webhook_payment_lookup_error', { resourceId: resource.resourceId });
     return response.status(502).json({ error: 'No disponible.' });
   }
 

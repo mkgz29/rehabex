@@ -230,6 +230,61 @@ test('webhook telemetry reports a sanitized SDK reason and never signature mater
   });
 });
 
+test('webhook lookup failure records the resource id and no sensitive material', async () => {
+  const dataId = '178630749617';
+  const requestId = 'req-lookup-404';
+  const signature = officialSignature(dataId, requestId, '1704908010');
+  const accessToken = 'synthetic-access-token-value';
+  const serviceRoleKey = 'synthetic-service-role-key';
+  const payerEmail = 'comprador@example.test';
+  const originalFetch = globalThis.fetch;
+  const before = {
+    supabaseUrl: process.env.SUPABASE_URL,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
+  };
+  process.env.SUPABASE_URL = 'https://synthetic.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRoleKey;
+  process.env.MERCADOPAGO_ACCESS_TOKEN = accessToken;
+  let providerCalls = 0;
+  globalThis.fetch = (async () => {
+    providerCalls++;
+    return { ok: false, status: 404, json: async () => ({}) };
+  }) as never;
+
+  try {
+    await withWebhookSecret(OFFICIAL_SECRET, async () => {
+      const entries = await captureConsoleInfo(async () => {
+        assert.equal(await webhookStatus({
+          method: 'POST',
+          query: { 'data.id': dataId },
+          headers: { 'x-signature': signature, 'x-request-id': requestId },
+          body: { type: 'payment', data: { id: dataId }, payer: { email: payerEmail } },
+        }), 502);
+      });
+      const logged = entries.map(([, value]) => value as Record<string, unknown>);
+      const failure = logged.find((entry) => entry.code === 'webhook_payment_lookup_failed');
+      assert.ok(failure, 'expected a webhook_payment_lookup_failed event');
+      // The whole point of this event: it must say which data.id could not be resolved.
+      assert.equal(failure?.resourceId, dataId);
+      assert.equal(failure?.providerHttpStatus, 404);
+      assert.equal(providerCalls, 1);
+
+      // Nothing else may reach the log: no headers, signature, secret, token, body or PII.
+      const serialized = JSON.stringify(logged);
+      for (const forbidden of [OFFICIAL_SECRET, signature, digestOf(signature), requestId, accessToken, serviceRoleKey, payerEmail]) {
+        assert.equal(serialized.includes(forbidden), false, `leaked sensitive value in telemetry`);
+      }
+      assert.deepEqual(Object.keys(failure ?? {}).sort(), ['code', 'providerHttpStatus', 'resourceId']);
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (before.supabaseUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = before.supabaseUrl;
+    if (before.serviceRoleKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = before.serviceRoleKey;
+    if (before.accessToken === undefined) delete process.env.MERCADOPAGO_ACCESS_TOKEN; else process.env.MERCADOPAGO_ACCESS_TOKEN = before.accessToken;
+  }
+});
+
 test('one signed channel keeps a single payment from being processed twice', async () => {
   await withWebhookSecret(OFFICIAL_SECRET, async () => {
     const dataId = '178629538119';
