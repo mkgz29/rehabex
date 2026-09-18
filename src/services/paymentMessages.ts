@@ -14,6 +14,8 @@ export function recoveryNotice(recovery: RecoveryOutcome | null, retryAfterSecon
       return `Ya consultamos a Mercado Pago hace instantes.${wait}`;
     case 'rate_limited':
       return `Hiciste muchas consultas seguidas.${wait}`;
+    case 'payment_mismatch':
+      return 'Encontramos un pago para esta orden pero sus datos no coinciden con el pedido. No lo aplicamos automaticamente: un operador lo revisa.';
     case 'provider_unavailable':
     case 'unreachable':
       return 'No pudimos consultar a Mercado Pago en este momento. Tu pedido queda igual y podes reintentar.';

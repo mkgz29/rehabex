@@ -17,6 +17,7 @@ export type RecoveryOutcome =
   | 'not_applicable'
   | 'provider_unavailable'
   | 'cooldown'
+  | 'payment_mismatch'
   | 'rejected'
   | 'rate_limited'
   | 'unreachable';

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createOrderPaymentSyncHandler, parseOrderPaymentSyncPayload } from '../../api/order-payment-sync';
-import { confirmMercadoPagoPayment, selectOrderPayment } from '../../server/commerce/paymentConfirmation.js';
+import { confirmMercadoPagoPayment, selectOrderPayment, verifyPaymentMatchesOrder } from '../../server/commerce/paymentConfirmation.js';
 import { fetchMercadoPagoPayment, searchMercadoPagoPaymentsByExternalReference } from '../../server/commerce/mercadoPagoPayment.js';
 import type { ApiRequest, ApiResponse } from '../../server/commerce/commerce.js';
 import type { MercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
@@ -417,5 +417,98 @@ test('recovery telemetry carries no token, order contents or buyer data', async 
     for (const forbidden of [STATUS_TOKEN, ACCESS_TOKEN, PREFERENCE_ID, 'RHB-202609-000013']) {
       assert.equal(serialized.includes(forbidden), false, 'leaked sensitive value in telemetry');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real search-envelope shape
+// ---------------------------------------------------------------------------
+
+test('a search summary that omits the optional money fields still selects the payment', () => {
+  // PaymentSearchResult declares live_mode, currency_id and transaction_amount
+  // as optional. Requiring them at selection time discarded every real
+  // candidate and reported "no payment found" for payments that existed.
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  const summaryOnly: MercadoPagoPayment = { id: '179618368506', status: 'approved', external_reference: ORDER_ID };
+  const selection = selectOrderPayment([summaryOnly], order);
+  assert.equal(selection.kind, 'selected');
+  assert.equal(selection.kind === 'selected' ? selection.payment.id : null, '179618368506');
+
+  // A partially populated summary is accepted on the fields it does carry.
+  const partial: MercadoPagoPayment = { id: '179618368506', status: 'approved', external_reference: ORDER_ID, currency_id: 'ARS' };
+  assert.equal(selectOrderPayment([partial], order).kind, 'selected');
+});
+
+test('a search summary whose present fields disagree is still refused', () => {
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: ORDER_ID, live_mode: true }], order).kind, 'none');
+  assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: ORDER_ID, currency_id: 'USD' }], order).kind, 'none');
+  assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: ORDER_ID, transaction_amount: 99 }], order).kind, 'none');
+  assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: '00000000-0000-4000-8000-000000000000' }], order).kind, 'none');
+});
+
+test('the full payment is the authority for TEST mode, currency and amount', () => {
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  assert.equal(verifyPaymentMatchesOrder(providerPayment(), order), null);
+  assert.equal(verifyPaymentMatchesOrder(providerPayment({ live_mode: true }), order), 'live_mode');
+  assert.equal(verifyPaymentMatchesOrder(providerPayment({ currency_id: 'USD' }), order), 'currency');
+  assert.equal(verifyPaymentMatchesOrder(providerPayment({ transaction_amount: 99.99 }), order), 'amount');
+  assert.equal(verifyPaymentMatchesOrder(providerPayment({ external_reference: '00000000-0000-4000-8000-000000000000' }), order), 'external_reference');
+  // A summary that never carried live_mode must not be treated as TEST by default.
+  assert.equal(verifyPaymentMatchesOrder({ id: '1', status: 'approved', external_reference: ORDER_ID, currency_id: 'ARS', transaction_amount: 100 }, order), 'live_mode');
+});
+
+test('recovery refuses a payment that the full lookup contradicts, before the atomic RPC', async () => {
+  await withAccessToken(async () => {
+    const mock = supabaseMock();
+    const handler = handlerWith({
+      searchPayments: (async () => ({ kind: 'ok', payments: [{ id: '179618368506', status: 'approved', external_reference: ORDER_ID }] })) as never,
+      fetchPayment: (async () => ({ kind: 'ok', payment: providerPayment({ live_mode: true }), preferenceBinding: 'unresolved' })) as never,
+    }, mock);
+    const entries = await captureConsoleInfo(async () => {
+      const result = mockResponse();
+      await handler(syncRequest(), result.response);
+      assert.equal(result.read().body.recovery, 'payment_mismatch');
+    });
+    assert.equal(mock.calls.rpc.includes('process_mercadopago_payment_atomic'), false);
+    const logged = entries.map(([, value]) => value as Record<string, unknown>);
+    const mismatch = logged.find((entry) => entry.code === 'payment_sync_mismatch');
+    assert.ok(mismatch);
+    assert.equal(mismatch?.reason, 'live_mode');
+  });
+});
+
+test('an empty search and a filtered-out search are distinguishable in telemetry', async () => {
+  await withAccessToken(async () => {
+    const empty = await captureConsoleInfo(async () => {
+      const handler = handlerWith({ searchPayments: (async () => ({ kind: 'ok', payments: [] })) as never }, supabaseMock());
+      const result = mockResponse();
+      await handler(syncRequest(), result.response);
+      assert.equal(result.read().body.recovery, 'no_payment_found');
+    });
+    const emptyEvent = empty.map(([, v]) => v as Record<string, unknown>).find((e) => e.code === 'payment_sync_no_match');
+    assert.equal(emptyEvent?.searchResults, 0);
+
+    const filtered = await captureConsoleInfo(async () => {
+      const handler = handlerWith({
+        searchPayments: (async () => ({
+          kind: 'ok',
+          payments: [{ id: '179618368506', status: 'approved', external_reference: 'otra-referencia', live_mode: true, currency_id: 'USD', transaction_amount: 7 }],
+        })) as never,
+      }, supabaseMock());
+      const result = mockResponse();
+      await handler(syncRequest(), result.response);
+      assert.equal(result.read().body.recovery, 'no_payment_found');
+    });
+    const events = filtered.map(([, v]) => v as Record<string, unknown>);
+    assert.equal(events.find((e) => e.code === 'payment_sync_no_match')?.searchResults, 1);
+    const candidate = events.find((e) => e.code === 'payment_sync_candidate');
+    assert.ok(candidate, 'expected a sanitized candidate line');
+    assert.deepEqual(
+      { resourceId: candidate?.resourceId, status: candidate?.status, liveMode: candidate?.liveMode, currency: candidate?.currency, amount: candidate?.amount, referenceMatches: candidate?.referenceMatches },
+      { resourceId: '179618368506', status: 'approved', liveMode: true, currency: 'USD', amount: 7, referenceMatches: false },
+    );
+    // Only provider identifiers and money shape. Never payer data or a token.
+    assert.deepEqual(Object.keys(candidate ?? {}).sort(), ['amount', 'code', 'currency', 'liveMode', 'orderId', 'referenceMatches', 'resourceId', 'status']);
   });
 });

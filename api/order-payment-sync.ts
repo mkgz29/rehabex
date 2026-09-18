@@ -12,7 +12,8 @@ import {
   type ApiRequest,
   type ApiResponse,
 } from '../server/commerce/commerce.js';
-import { confirmMercadoPagoPayment, selectOrderPayment } from '../server/commerce/paymentConfirmation.js';
+import { confirmMercadoPagoPayment, selectOrderPayment, verifyPaymentMatchesOrder } from '../server/commerce/paymentConfirmation.js';
+import type { MercadoPagoPayment } from '../server/commerce/paymentProcessing.js';
 import {
   fetchMercadoPagoPayment,
   searchMercadoPagoPaymentsByExternalReference,
@@ -37,6 +38,7 @@ export type RecoveryOutcome =
   | 'not_applicable'
   | 'provider_unavailable'
   | 'cooldown'
+  | 'payment_mismatch'
   | 'rejected';
 
 type OrderRow = {
@@ -140,9 +142,13 @@ export function createOrderPaymentSyncHandler(dependencies: SyncDependencies = {
       return respond(response, supabase, orderId, 'provider_unavailable');
     }
 
+    // The search envelope is what the provider actually returned. Recording its
+    // size and the sanitized shape of each row is the only way to tell "Mercado
+    // Pago knows of no payment" apart from "our filter discarded them all".
     const selection = selectOrderPayment(search.payments, current);
     if (selection.kind === 'none') {
-      logEvent('payment_sync_no_match', { orderId });
+      logEvent('payment_sync_no_match', { orderId, searchResults: search.payments.length });
+      logSearchCandidates(orderId, search.payments);
       return respond(response, supabase, orderId, 'no_payment_found');
     }
     if (selection.kind === 'ambiguous') {
@@ -163,6 +169,13 @@ export function createOrderPaymentSyncHandler(dependencies: SyncDependencies = {
     if (provider.kind !== 'ok') {
       logSyncFailure(orderId, provider.stage, provider.errorCode, provider.httpStatus, resourceId);
       return respond(response, supabase, orderId, 'provider_unavailable');
+    }
+
+    // Authoritative gate on the full payment, which always carries these fields.
+    const mismatch = verifyPaymentMatchesOrder(provider.payment, current);
+    if (mismatch) {
+      logEvent('payment_sync_mismatch', { orderId, resourceId, reason: mismatch });
+      return respond(response, supabase, orderId, 'payment_mismatch');
     }
 
     let outcome: RecoveryOutcome;
@@ -241,6 +254,22 @@ function logSyncFailure(orderId: string, stage: string, errorCode: string, provi
   // Stage, allowlisted code, HTTP status and opaque provider ids only. Never
   // tokens, signatures, provider payloads, buyer data or order contents.
   logEvent('payment_sync_failed', context);
+}
+
+/** Opaque provider identifiers and money shape only. Never payer data. */
+function logSearchCandidates(orderId: string, payments: MercadoPagoPayment[]) {
+  for (const payment of payments.slice(0, 5)) {
+    const id = String(payment.id ?? '');
+    logEvent('payment_sync_candidate', {
+      orderId,
+      resourceId: /^[A-Za-z0-9_-]{1,256}$/.test(id) ? id : undefined,
+      status: typeof payment.status === 'string' ? safeCode(payment.status.toLowerCase()) : undefined,
+      liveMode: typeof payment.live_mode === 'boolean' ? payment.live_mode : undefined,
+      currency: typeof payment.currency_id === 'string' ? payment.currency_id.toUpperCase().slice(0, 8) : undefined,
+      amount: Number.isFinite(Number(payment.transaction_amount)) ? Number(payment.transaction_amount) : undefined,
+      referenceMatches: payment.external_reference === orderId,
+    });
+  }
 }
 
 function safeCode(value: unknown) {

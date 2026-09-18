@@ -74,6 +74,9 @@ export type PaymentSelection =
   | { kind: 'none' }
   | { kind: 'ambiguous'; candidates: number };
 
+/** null means the payment matches the order. */
+export type PaymentMismatchReason = 'external_reference' | 'live_mode' | 'currency' | 'amount';
+
 // Terminal money states outrank provisional ones, so a rejected first attempt
 // never masks the approved retry that actually paid the order.
 const STATUS_RANK: Record<string, number> = {
@@ -86,28 +89,31 @@ const STATUS_RANK: Record<string, number> = {
   rejected: 2,
 };
 
+function sameAmount(amount: unknown, total: number) {
+  const value = Number(amount);
+  return Number.isFinite(value) && Number.isFinite(total) && Math.round(value * 100) === Math.round(total * 100);
+}
+
 /**
  * Picks exactly one payment for an order out of a provider search.
  *
- * Candidates must match the order on external reference, TEST mode, currency
- * and total. Two payments tied at the highest rank (for example two approved
- * charges) are reported as ambiguous and never processed automatically.
+ * The search envelope is a *summary*: `live_mode`, `currency_id` and
+ * `transaction_amount` are all optional in the official contract. Requiring
+ * them here silently discarded every real candidate, so selection binds on what
+ * the summary always carries — the external reference and the status — and only
+ * rejects the optional fields when they are present and disagree. The full
+ * payment is then fetched and checked by {@link verifyPaymentMatchesOrder}.
  */
 export function selectOrderPayment(payments: MercadoPagoPayment[], order: { id: string; total_amount: number | string; currency: string }): PaymentSelection {
   const total = Number(order.total_amount);
   const currency = typeof order.currency === 'string' ? order.currency.toUpperCase() : '';
   const candidates = payments.filter((payment) => {
     const status = typeof payment.status === 'string' ? payment.status.toLowerCase() : '';
-    const amount = Number(payment.transaction_amount);
-    return payment.external_reference === order.id
-      && payment.live_mode === false
-      && typeof payment.currency_id === 'string'
-      && payment.currency_id.toUpperCase() === currency
-      && currency === 'ARS'
-      && Number.isFinite(total)
-      && Number.isFinite(amount)
-      && Math.round(amount * 100) === Math.round(total * 100)
-      && STATUS_RANK[status] !== undefined;
+    if (payment.external_reference !== order.id || STATUS_RANK[status] === undefined) return false;
+    if (payment.live_mode !== undefined && payment.live_mode !== false) return false;
+    if (payment.currency_id !== undefined && String(payment.currency_id).toUpperCase() !== currency) return false;
+    if (payment.transaction_amount !== undefined && !sameAmount(payment.transaction_amount, total)) return false;
+    return true;
   });
   if (candidates.length === 0) return { kind: 'none' };
 
@@ -121,4 +127,18 @@ export function selectOrderPayment(payments: MercadoPagoPayment[], order: { id: 
   const distinct = new Set(tied.map((entry) => String(entry.payment.id)));
   if (distinct.size > 1) return { kind: 'ambiguous', candidates: distinct.size };
   return { kind: 'selected', payment: best.payment };
+}
+
+/**
+ * Authoritative check against the full payment returned by GET /v1/payments/{id},
+ * which — unlike the search summary — always carries these fields. The atomic
+ * RPC enforces the same invariants again; this fails closed earlier and says why.
+ */
+export function verifyPaymentMatchesOrder(payment: MercadoPagoPayment, order: { id: string; total_amount: number | string; currency: string }): PaymentMismatchReason | null {
+  if (payment.external_reference !== order.id) return 'external_reference';
+  if (payment.live_mode !== false) return 'live_mode';
+  const currency = typeof order.currency === 'string' ? order.currency.toUpperCase() : '';
+  if (currency !== 'ARS' || String(payment.currency_id ?? '').toUpperCase() !== 'ARS') return 'currency';
+  if (!sameAmount(payment.transaction_amount, Number(order.total_amount))) return 'amount';
+  return null;
 }

@@ -48,6 +48,7 @@ test('the buyer is told what the recovery attempt actually found', () => {
   assert.match(String(recoveryNotice('cooldown', 17)), /17 segundos/);
   assert.match(String(recoveryNotice('rate_limited', 42)), /42 segundos/);
   assert.match(String(recoveryNotice('provider_unavailable', null)), /No pudimos consultar/);
+  assert.match(String(recoveryNotice('payment_mismatch', null)), /no coinciden con el pedido/);
   assert.equal(recoveryNotice(null, null), null);
   assert.equal(recoveryNotice('already_settled', null), null);
 });
