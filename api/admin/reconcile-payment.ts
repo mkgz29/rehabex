@@ -10,13 +10,9 @@ import {
   type ApiRequest,
   type ApiResponse,
 } from '../../server/commerce/commerce.js';
-import {
-  createSupabasePaymentRepository,
-  processMercadoPagoPayment,
-  type MercadoPagoPayment,
-  type PaymentProcessResult,
-} from '../../server/commerce/paymentProcessing.js';
-import { fetchMercadoPagoPayment, type MercadoPagoProviderResult } from '../../server/commerce/mercadoPagoPayment.js';
+import { type MercadoPagoPayment, type PaymentProcessResult } from '../../server/commerce/paymentProcessing.js';
+import { confirmMercadoPagoPayment } from '../../server/commerce/paymentConfirmation.js';
+import { fetchMercadoPagoPayment, type MercadoPagoProviderResult, type PreferenceBinding } from '../../server/commerce/mercadoPagoPayment.js';
 
 const PAYMENT_ID = /^[A-Za-z0-9_-]{1,256}$/;
 
@@ -35,7 +31,7 @@ type ReconcileDependencies = {
   authorize: (supabase: AdminServiceClient, token: string) => Promise<AuthorizationResult>;
   consumeRateLimit: (supabase: AdminServiceClient, request: ApiRequest, userId: string) => Promise<{ ok: boolean; retryAfter: number; unavailable: boolean }>;
   fetchPayment: (paymentId: string, accessToken: string) => Promise<MercadoPagoProviderResult>;
-  processPayment: (supabase: AdminServiceClient, payment: MercadoPagoPayment) => Promise<PaymentProcessResult>;
+  processPayment: (supabase: AdminServiceClient, payment: MercadoPagoPayment, binding: PreferenceBinding) => Promise<PaymentProcessResult>;
 };
 
 export default createReconcilePaymentHandler();
@@ -46,9 +42,8 @@ export function createReconcilePaymentHandler(overrides: Partial<ReconcileDepend
     authorize: authenticateAdmin,
     consumeRateLimit: (supabase, request, userId) => consumeRateLimit(supabase as never, 'admin_reconcile', request, undefined, userId),
     fetchPayment: fetchMercadoPagoPayment,
-    processPayment: (supabase, payment) => processMercadoPagoPayment(createSupabasePaymentRepository(supabase), payment, {
-      requestId: null,
-    }),
+    // Admin reconciliation shares the webhook's confirmation path verbatim.
+    processPayment: async (supabase, payment, binding) => (await confirmMercadoPagoPayment(supabase, payment, { requestId: null, binding })).result,
     ...overrides,
   };
 
@@ -115,7 +110,7 @@ export function createReconcilePaymentHandler(overrides: Partial<ReconcileDepend
 
     let result: PaymentProcessResult;
     try {
-      result = await dependencies.processPayment(supabase, provider.payment);
+      result = await dependencies.processPayment(supabase, provider.payment, provider.preferenceBinding);
     } catch {
       logReconciliationFailure('atomic_rpc', 'atomic_rpc_error', true);
       return response.status(503).json({ error: 'No disponible.' });

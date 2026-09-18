@@ -10,7 +10,7 @@ import {
   type ApiRequest,
   type ApiResponse,
 } from '../../server/commerce/commerce.js';
-import { createSupabasePaymentRepository, processMercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
+import { confirmMercadoPagoPayment } from '../../server/commerce/paymentConfirmation.js';
 import { fetchMercadoPagoPayment } from '../../server/commerce/mercadoPagoPayment.js';
 
 type WebhookBody = { type?: unknown; data?: { id?: unknown } };
@@ -82,19 +82,22 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return response.status(502).json({ error: 'No disponible.' });
   }
 
-  const result = await processMercadoPagoPayment(createSupabasePaymentRepository(supabase), provider.payment, {
+  // Same atomic RPC as the recovery and admin channels, so one payment can be
+  // delivered through any of them and still transition the order exactly once.
+  const { result, binding } = await confirmMercadoPagoPayment(supabase, provider.payment, {
     requestId: requestId.value,
+    binding: provider.preferenceBinding,
   });
   if (result.kind === 'unavailable') {
     logEvent('webhook_payment_processing_unavailable');
     return response.status(503).json({ error: 'No disponible.' });
   }
   if (result.kind === 'rejected') {
-    logEvent('webhook_payment_rejected', { reason: result.reason });
+    logEvent('webhook_payment_rejected', { resourceId: resource.resourceId, reason: result.reason, preferenceBinding: binding });
     return response.status(200).json({ received: true });
   }
   if (result.kind === 'duplicate') return response.status(200).json({ received: true });
-  logEvent('webhook_processed', { paymentStatus: result.status });
+  logEvent('webhook_processed', { resourceId: resource.resourceId, paymentStatus: result.status, preferenceBinding: binding });
   return response.status(200).json({ received: true });
 }
 

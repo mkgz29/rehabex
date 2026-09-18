@@ -12,15 +12,27 @@ type MercadoPagoPaymentResponse = {
 };
 
 type MercadoPagoMerchantOrderResponse = { preference_id?: unknown };
+type MercadoPagoSearchResponse = { paging?: { total?: unknown } | null; results?: unknown };
 
 type FetchResponse = { ok: boolean; status: number; json: () => Promise<unknown> };
 type FetchPayment = (input: string, init: { headers: Record<string, string> }) => Promise<FetchResponse>;
 
+/**
+ * How `preference_id` was obtained for a payment.
+ *
+ * The official Payment contract does not declare `preference_id` (the SDK's
+ * `PaymentResponse` exposes only `order` and `external_reference`), and this
+ * integration's access token is not authorized for `/merchant_orders`
+ * (observed HTTP 403). `unresolved` is therefore an expected outcome, and the
+ * caller binds the payment to the order through `external_reference` instead.
+ */
+export type PreferenceBinding = 'payment' | 'merchant_order' | 'unresolved';
+
 export type MercadoPagoProviderResult =
-  | { kind: 'ok'; payment: MercadoPagoPayment }
+  | { kind: 'ok'; payment: MercadoPagoPayment; preferenceBinding: PreferenceBinding }
   | MercadoPagoProviderFailure;
 
-export type MercadoPagoProviderStage = 'payment_fetch' | 'payment_parse' | 'merchant_order_fetch' | 'merchant_order_parse';
+export type MercadoPagoProviderStage = 'payment_fetch' | 'payment_parse' | 'merchant_order_fetch' | 'merchant_order_parse' | 'payment_search' | 'payment_search_parse';
 
 export type MercadoPagoProviderFailure = {
   kind: 'not_found' | 'unavailable';
@@ -29,10 +41,18 @@ export type MercadoPagoProviderFailure = {
   httpStatus?: number;
 };
 
+export type MercadoPagoSearchResult =
+  | { kind: 'ok'; payments: MercadoPagoPayment[] }
+  | MercadoPagoProviderFailure;
+
 /**
  * Keeps the provider payload at the boundary and passes the payment processor
- * one canonical DTO only. Checkout Pro Payment does not guarantee a
- * preference_id, so it is read from the documented merchant order when needed.
+ * one canonical DTO only.
+ *
+ * `preference_id` is best effort: it is read from the payment when present,
+ * then from the documented merchant order, and is left undefined when neither
+ * is available. Merchant-order failures are never fatal — a 403 there used to
+ * fail every real Checkout Pro notification with HTTP 502.
  */
 export async function fetchMercadoPagoPayment(
   paymentId: string,
@@ -54,26 +74,61 @@ export async function fetchMercadoPagoPayment(
   } catch {
     return providerUnavailable('payment_parse', 'provider_payment_parse_error', paymentResponse.status);
   }
+
   let preferenceId = nonEmptyString(payment.preference_id);
+  let preferenceBinding: PreferenceBinding = preferenceId ? 'payment' : 'unresolved';
   if (!preferenceId) {
     const merchantOrderId = merchantOrderIdFor(payment);
-    if (!merchantOrderId) return providerUnavailable('payment_parse', 'provider_payment_preference_missing', paymentResponse.status);
-
-    let merchantOrderResponse: FetchResponse;
-    try {
-      merchantOrderResponse = await fetchPayment(`https://api.mercadopago.com/merchant_orders/${encodeURIComponent(merchantOrderId)}`, requestOptions(accessToken));
-    } catch {
-      return providerUnavailable('merchant_order_fetch', 'provider_merchant_order_network_error');
-    }
-    if (!merchantOrderResponse.ok) return providerUnavailable('merchant_order_fetch', 'provider_merchant_order_http_error', merchantOrderResponse.status);
-    try {
-      preferenceId = requiredMerchantOrderPreference(await merchantOrderResponse.json());
-    } catch {
-      return providerUnavailable('merchant_order_parse', 'provider_merchant_order_parse_error', merchantOrderResponse.status);
+    if (merchantOrderId) {
+      const resolved = await merchantOrderPreference(merchantOrderId, accessToken, fetchPayment);
+      if (resolved) {
+        preferenceId = resolved;
+        preferenceBinding = 'merchant_order';
+      }
     }
   }
 
-  return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, preferenceId) };
+  return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, preferenceId), preferenceBinding };
+}
+
+/**
+ * Official payment search (`GET /v1/payments/search`, SDK `Payment.search`).
+ *
+ * The access token scopes the search to this collector, so a result carrying
+ * our own order UUID as `external_reference` is an authoritative match. Used by
+ * the recovery path when a signed webhook never arrives.
+ */
+export async function searchMercadoPagoPaymentsByExternalReference(
+  externalReference: string,
+  accessToken: string,
+  fetchPayment: FetchPayment = fetch,
+): Promise<MercadoPagoSearchResult> {
+  const url = `https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&external_reference=${encodeURIComponent(externalReference)}`;
+  let searchResponse: FetchResponse;
+  try {
+    searchResponse = await fetchPayment(url, requestOptions(accessToken));
+  } catch {
+    return providerUnavailable('payment_search', 'provider_payment_search_network_error');
+  }
+  if (!searchResponse.ok) return providerUnavailable('payment_search', 'provider_payment_search_http_error', searchResponse.status);
+
+  let body: MercadoPagoSearchResponse;
+  try {
+    body = asSearchResponse(await searchResponse.json());
+  } catch {
+    return providerUnavailable('payment_search_parse', 'provider_payment_search_parse_error', searchResponse.status);
+  }
+  if (!Array.isArray(body.results)) return providerUnavailable('payment_search_parse', 'provider_payment_search_shape_invalid', searchResponse.status);
+
+  const payments: MercadoPagoPayment[] = [];
+  for (const entry of body.results) {
+    const candidate = asPaymentResponse(entry);
+    // Summaries missing a required field can never be validated; drop them here
+    // rather than letting an incomplete DTO reach the atomic processor.
+    if (!identifier(candidate.id) || typeof candidate.status !== 'string' || typeof candidate.external_reference !== 'string') continue;
+    payments.push(adaptMercadoPagoPayment(candidate, nonEmptyString(candidate.preference_id)));
+  }
+  return { kind: 'ok', payments };
 }
 
 export function adaptMercadoPagoPayment(payload: unknown, resolvedPreferenceId?: string): MercadoPagoPayment {
@@ -89,6 +144,21 @@ export function adaptMercadoPagoPayment(payload: unknown, resolvedPreferenceId?:
   };
 }
 
+async function merchantOrderPreference(merchantOrderId: string, accessToken: string, fetchPayment: FetchPayment) {
+  let response: FetchResponse;
+  try {
+    response = await fetchPayment(`https://api.mercadopago.com/merchant_orders/${encodeURIComponent(merchantOrderId)}`, requestOptions(accessToken));
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+  try {
+    return nonEmptyString(asMerchantOrderResponse(await response.json()).preference_id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function requestOptions(accessToken: string) {
   return { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } };
 }
@@ -101,6 +171,10 @@ function asMerchantOrderResponse(value: unknown): MercadoPagoMerchantOrderRespon
   return value && typeof value === 'object' && !Array.isArray(value) ? value as MercadoPagoMerchantOrderResponse : {};
 }
 
+function asSearchResponse(value: unknown): MercadoPagoSearchResponse {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as MercadoPagoSearchResponse : {};
+}
+
 function requiredPaymentResponse(value: unknown) {
   const payment = asPaymentResponse(value);
   if (!identifier(payment.id)
@@ -111,12 +185,6 @@ function requiredPaymentResponse(value: unknown) {
     throw new Error('invalid provider payment response');
   }
   return payment;
-}
-
-function requiredMerchantOrderPreference(value: unknown) {
-  const preferenceId = nonEmptyString(asMerchantOrderResponse(value).preference_id);
-  if (!preferenceId) throw new Error('invalid provider merchant order response');
-  return preferenceId;
 }
 
 function providerUnavailable(stage: MercadoPagoProviderStage, errorCode: string, httpStatus?: number): MercadoPagoProviderFailure {

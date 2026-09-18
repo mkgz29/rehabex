@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:api": "tsx --test tests/api/commerce.contract.test.ts",
-    "test:cart": "tsx --test tests/cart/cartState.test.ts",
+    "test:api": "tsx --test tests/api/commerce.contract.test.ts tests/api/paymentRecovery.contract.test.ts",
+    "test:cart": "tsx --test tests/cart/cartState.test.ts tests/ui/paymentPresentation.test.ts",
     "test:db:concurrency": "tsx --test tests/db/paymentAtomicConcurrency.test.ts",
     "check:api": "tsc -p tsconfig.api.json && tsc -p tsconfig.vercel-api.json"
   },

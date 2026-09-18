@@ -88,6 +88,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }));
   const statusToken = newStatusToken();
 
+  // Releases holds whose checkout window already closed, so an abandoned attempt
+  // stops counting against availability. Bounded and never fatal.
+  try { await supabase.rpc('expire_stale_commerce_holds', { p_limit: 50 }); } catch { /* checkout proceeds regardless */ }
   const { data: created, error: orderError } = await supabase.rpc('create_checkout_order_v2', {
     p_idempotency_key: idempotencyKey,
     p_checkout_request_hash: requestHash,

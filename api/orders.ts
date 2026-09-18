@@ -1,15 +1,31 @@
-import { createClient } from '@supabase/supabase-js';
+import { logEvent, serviceClient, type ApiRequest, type ApiResponse } from '../server/commerce/commerce.js';
 
-type ApiRequest = {
-  method?: string;
-  headers?: Record<string, string | string[] | undefined>;
-};
+// Explicit projection. `select('*')` previously shipped the guest status token
+// hash, the preference lease token, the idempotency key and the full delivery
+// address to the browser. Operations needs identity, money and state — not
+// authentication material, and not every personal field.
+const ORDER_COLUMNS = [
+  'id',
+  'order_number',
+  'created_at',
+  'paid_at',
+  'payment_status',
+  'order_status',
+  'fulfillment_status',
+  'total_amount',
+  'currency',
+  'delivery_method',
+  'customer_email',
+  'customer_name',
+  'mercadopago_payment_id',
+  'mercadopago_preference_id',
+  'review_required',
+  'review_reason',
+  'refund_required',
+  'order_items(product_name, quantity, unit_price)',
+].join(', ');
 
-type ApiResponse = {
-  status: (statusCode: number) => ApiResponse;
-  json: (body: unknown) => void;
-  setHeader?: (name: string, value: string) => void;
-};
+const MAX_ORDERS = 200;
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'GET') {
@@ -17,73 +33,47 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return response.status(405).json({ error: 'Metodo no permitido.' });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    console.error('[orders] Faltan variables backend requeridas.', {
-      hasSupabaseUrl: Boolean(supabaseUrl),
-      hasSupabaseServiceRoleKey: Boolean(supabaseServiceRoleKey),
-    });
-    return response.status(500).json({ error: 'Orders API no esta configurada.' });
+  const supabase = serviceClient();
+  if (!supabase) {
+    logEvent('orders_not_configured');
+    return response.status(503).json({ error: 'Orders API no esta configurada.' });
   }
 
-  try {
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
+  const token = bearerToken(request.headers?.authorization);
+  if (!token) return response.status(401).json({ error: 'No autorizado.' });
 
-    const token = getBearerToken(request.headers?.authorization);
-    if (!token) {
-      return response.status(401).json({ error: 'No autorizado.' });
-    }
-
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData.user) {
-      console.error('[orders] Token invalido consultando ordenes.', userError);
-      return response.status(401).json({ error: 'No autorizado.' });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userData.user.id)
-      .single();
-
-    if (profileError || profile?.role !== 'admin') {
-      console.error('[orders] Usuario sin permisos para consultar ordenes.', {
-        userId: userData.user.id,
-        error: profileError,
-      });
-      return response.status(403).json({ error: 'No autorizado.' });
-    }
-
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('[orders] No se pudieron obtener las ordenes.', error);
-      return response.status(500).json({ error: 'No se pudieron obtener las ordenes.' });
-    }
-
-    return response.status(200).json({ orders: data ?? [] });
-  } catch (error) {
-    console.error('[orders] Error inesperado obteniendo ordenes.', error);
-    return response.status(500).json({ error: 'No se pudieron obtener las ordenes.' });
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  const user = userData?.user;
+  if (userError || !user) {
+    logEvent('orders_unauthorized');
+    return response.status(401).json({ error: 'No autorizado.' });
   }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (profileError || profile?.role !== 'admin') {
+    logEvent('orders_forbidden');
+    return response.status(403).json({ error: 'No autorizado.' });
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(ORDER_COLUMNS)
+    .order('created_at', { ascending: false })
+    .limit(MAX_ORDERS);
+  if (error) {
+    logEvent('orders_query_failed');
+    return response.status(503).json({ error: 'No se pudieron obtener las ordenes.' });
+  }
+
+  return response.status(200).json({ orders: data ?? [] });
 }
 
-function getBearerToken(value: string | string[] | undefined) {
+function bearerToken(value: string | string[] | undefined) {
   const header = Array.isArray(value) ? value[0] : value;
-  if (!header?.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = header.slice('Bearer '.length).trim();
-  return token || null;
+  if (!header?.startsWith('Bearer ')) return null;
+  return header.slice('Bearer '.length).trim() || null;
 }

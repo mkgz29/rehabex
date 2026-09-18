@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { loadCheckoutSnapshot, type CheckoutSnapshot } from '../cart/checkoutSnapshot';
-import { requestOrderStatus, type PaymentConfirmationState } from '../services/orderStatusService';
+import { requestPaymentSync, type PaymentConfirmationState, type RecoveryOutcome } from '../services/orderStatusService';
 
 export type PaymentResult = {
   state: 'verifying' | PaymentConfirmationState;
+  recovery: RecoveryOutcome | null;
+  retryAfterSeconds: number | null;
   snapshot: CheckoutSnapshot | null;
   refresh: () => void;
 };
@@ -15,6 +17,8 @@ export function usePaymentResult(): PaymentResult {
   const orderId = orderIdFromRedirect(searchParams);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<PaymentResult['state']>('verifying');
+  const [recovery, setRecovery] = useState<RecoveryOutcome | null>(null);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [snapshot, setSnapshot] = useState<CheckoutSnapshot | null>(null);
 
   useEffect(() => {
@@ -26,14 +30,24 @@ export function usePaymentResult(): PaymentResult {
     }
     let active = true;
     setState('verifying');
-    requestOrderStatus(current)
-      .then((next) => { if (active) setState(next); })
+    // Recovery is attempted on every view: if the signed webhook never arrived,
+    // the backend confirms the payment server-to-server before answering. The
+    // endpoint applies its own per-order cooldown, so this stays cheap.
+    requestPaymentSync(current)
+      .then((next) => {
+        if (!active) return;
+        setState(next.state);
+        setRecovery(next.recovery);
+        setRetryAfterSeconds(next.retryAfterSeconds);
+      })
       .catch(() => { if (active) setState('unknown'); });
     return () => { active = false; };
   }, [attempt, orderId]);
 
   return {
     state,
+    recovery,
+    retryAfterSeconds,
     snapshot,
     refresh: useCallback(() => setAttempt((current) => current + 1), []),
   };
