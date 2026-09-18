@@ -335,6 +335,18 @@ async function withAccessToken(run: () => Promise<void>) {
   }
 }
 
+async function captureConsoleInfo(run: () => Promise<void>) {
+  const original = console.info;
+  const entries: unknown[][] = [];
+  console.info = (...args: unknown[]) => { entries.push(args); };
+  try {
+    await run();
+    return entries;
+  } finally {
+    console.info = original;
+  }
+}
+
 test('admin reconciliation requires a valid admin session and strict small payload', async () => {
   assert.deepEqual(parseReconcilePaymentPayload({ paymentId: '179368065874' }), { paymentId: '179368065874' });
   assert.equal(parseReconcilePaymentPayload({ paymentId: '179368065874', orderId: reconcileOrderId }), null);
@@ -376,6 +388,85 @@ test('admin reconciliation keeps provider failures generic and applies CORS/rate
     await reconcileHandler()({ method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } }, preflight.response);
     assert.equal(preflight.read().statusCode, 204);
     assert.equal(preflight.read().headers.get('Access-Control-Allow-Headers'), 'Content-Type, Authorization');
+  });
+});
+
+test('admin reconciliation emits sanitized stage telemetry and distinguishes every 503', async () => {
+  await withAccessToken(async () => {
+    const cases: Array<{
+      name: string;
+      overrides: Record<string, unknown>;
+      stage: string;
+      errorCode: string;
+      providerHttpStatus?: number;
+    }> = [
+      {
+        name: 'rate limit',
+        overrides: { consumeRateLimit: async () => ({ ok: false, retryAfter: 0, unavailable: true }) },
+        stage: 'rate_limit', errorCode: 'rate_limit_unavailable',
+      },
+      {
+        name: 'payment fetch',
+        overrides: { fetchPayment: async () => ({ kind: 'unavailable', stage: 'payment_fetch', errorCode: 'provider_payment_http_error', httpStatus: 502 }) },
+        stage: 'payment_fetch', errorCode: 'provider_payment_http_error', providerHttpStatus: 502,
+      },
+      {
+        name: 'payment parse',
+        overrides: { fetchPayment: async () => ({ kind: 'unavailable', stage: 'payment_parse', errorCode: 'provider_payment_parse_error', httpStatus: 200 }) },
+        stage: 'payment_parse', errorCode: 'provider_payment_parse_error', providerHttpStatus: 200,
+      },
+      {
+        name: 'merchant order fetch',
+        overrides: { fetchPayment: async () => ({ kind: 'unavailable', stage: 'merchant_order_fetch', errorCode: 'provider_merchant_order_http_error', httpStatus: 429 }) },
+        stage: 'merchant_order_fetch', errorCode: 'provider_merchant_order_http_error', providerHttpStatus: 429,
+      },
+      {
+        name: 'merchant order parse',
+        overrides: { fetchPayment: async () => ({ kind: 'unavailable', stage: 'merchant_order_parse', errorCode: 'provider_merchant_order_parse_error', httpStatus: 200 }) },
+        stage: 'merchant_order_parse', errorCode: 'provider_merchant_order_parse_error', providerHttpStatus: 200,
+      },
+      {
+        name: 'atomic rpc',
+        overrides: { processPayment: async () => ({ kind: 'unavailable' }) },
+        stage: 'atomic_rpc', errorCode: 'atomic_rpc_unavailable',
+      },
+    ];
+
+    for (const scenario of cases) {
+      const result = mockResponse();
+      const logs = await captureConsoleInfo(async () => {
+        await reconcileHandler(scenario.overrides)({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874' } }, result.response);
+      });
+      assert.equal(result.read().statusCode, 503, scenario.name);
+      assert.deepEqual(result.read().body, { error: 'No disponible.' }, scenario.name);
+      assert.deepEqual(logs, [[
+        '[commerce]',
+        {
+          code: 'admin_reconcile_503',
+          stage: scenario.stage,
+          errorCode: scenario.errorCode,
+          ...(scenario.providerHttpStatus === undefined ? {} : { providerHttpStatus: scenario.providerHttpStatus }),
+        },
+      ]], scenario.name);
+    }
+  });
+});
+
+test('admin reconciliation telemetry sanitizes invalid internal codes', async () => {
+  await withAccessToken(async () => {
+    const result = mockResponse();
+    const logs = await captureConsoleInfo(async () => {
+      await reconcileHandler({
+        fetchPayment: async () => ({
+          kind: 'unavailable', stage: 'payment_fetch', errorCode: 'token=secret&url=https://api.mercadopago.com/v1/payments/123', httpStatus: 500,
+        }),
+      })({ method: 'POST', headers: reconcileHeaders(), body: { paymentId: '179368065874' } }, result.response);
+    });
+    assert.equal(result.read().statusCode, 503);
+    assert.deepEqual(logs, [[
+      '[commerce]',
+      { code: 'admin_reconcile_503', stage: 'payment_fetch', errorCode: 'reconciliation_error', providerHttpStatus: 500 },
+    ]]);
   });
 });
 

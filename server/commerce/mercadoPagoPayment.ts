@@ -18,8 +18,16 @@ type FetchPayment = (input: string, init: { headers: Record<string, string> }) =
 
 export type MercadoPagoProviderResult =
   | { kind: 'ok'; payment: MercadoPagoPayment }
-  | { kind: 'not_found'; httpStatus?: 404 }
-  | { kind: 'unavailable'; httpStatus?: number };
+  | MercadoPagoProviderFailure;
+
+export type MercadoPagoProviderStage = 'payment_fetch' | 'payment_parse' | 'merchant_order_fetch' | 'merchant_order_parse';
+
+export type MercadoPagoProviderFailure = {
+  kind: 'not_found' | 'unavailable';
+  stage: MercadoPagoProviderStage;
+  errorCode: string;
+  httpStatus?: number;
+};
 
 /**
  * Keeps the provider payload at the boundary and passes the payment processor
@@ -31,26 +39,41 @@ export async function fetchMercadoPagoPayment(
   accessToken: string,
   fetchPayment: FetchPayment = fetch,
 ): Promise<MercadoPagoProviderResult> {
+  let paymentResponse: FetchResponse;
   try {
-    const paymentResponse = await fetchPayment(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, requestOptions(accessToken));
-    if (paymentResponse.status === 404) return { kind: 'not_found', httpStatus: 404 };
-    if (!paymentResponse.ok) return { kind: 'unavailable', httpStatus: paymentResponse.status };
-
-    const payment = asPaymentResponse(await paymentResponse.json());
-    let preferenceId = nonEmptyString(payment.preference_id);
-    if (!preferenceId) {
-      const merchantOrderId = merchantOrderIdFor(payment);
-      if (!merchantOrderId) return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, undefined) };
-
-      const merchantOrderResponse = await fetchPayment(`https://api.mercadopago.com/merchant_orders/${encodeURIComponent(merchantOrderId)}`, requestOptions(accessToken));
-      if (!merchantOrderResponse.ok) return { kind: 'unavailable', httpStatus: merchantOrderResponse.status };
-      preferenceId = nonEmptyString(asMerchantOrderResponse(await merchantOrderResponse.json()).preference_id);
-    }
-
-    return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, preferenceId) };
+    paymentResponse = await fetchPayment(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, requestOptions(accessToken));
   } catch {
-    return { kind: 'unavailable' };
+    return providerUnavailable('payment_fetch', 'provider_payment_network_error');
   }
+  if (paymentResponse.status === 404) return providerFailure('not_found', 'payment_fetch', 'provider_payment_not_found', 404);
+  if (!paymentResponse.ok) return providerUnavailable('payment_fetch', 'provider_payment_http_error', paymentResponse.status);
+
+  let payment: MercadoPagoPaymentResponse;
+  try {
+    payment = requiredPaymentResponse(await paymentResponse.json());
+  } catch {
+    return providerUnavailable('payment_parse', 'provider_payment_parse_error', paymentResponse.status);
+  }
+  let preferenceId = nonEmptyString(payment.preference_id);
+  if (!preferenceId) {
+    const merchantOrderId = merchantOrderIdFor(payment);
+    if (!merchantOrderId) return providerUnavailable('payment_parse', 'provider_payment_preference_missing', paymentResponse.status);
+
+    let merchantOrderResponse: FetchResponse;
+    try {
+      merchantOrderResponse = await fetchPayment(`https://api.mercadopago.com/merchant_orders/${encodeURIComponent(merchantOrderId)}`, requestOptions(accessToken));
+    } catch {
+      return providerUnavailable('merchant_order_fetch', 'provider_merchant_order_network_error');
+    }
+    if (!merchantOrderResponse.ok) return providerUnavailable('merchant_order_fetch', 'provider_merchant_order_http_error', merchantOrderResponse.status);
+    try {
+      preferenceId = requiredMerchantOrderPreference(await merchantOrderResponse.json());
+    } catch {
+      return providerUnavailable('merchant_order_parse', 'provider_merchant_order_parse_error', merchantOrderResponse.status);
+    }
+  }
+
+  return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, preferenceId) };
 }
 
 export function adaptMercadoPagoPayment(payload: unknown, resolvedPreferenceId?: string): MercadoPagoPayment {
@@ -76,6 +99,36 @@ function asPaymentResponse(value: unknown): MercadoPagoPaymentResponse {
 
 function asMerchantOrderResponse(value: unknown): MercadoPagoMerchantOrderResponse {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as MercadoPagoMerchantOrderResponse : {};
+}
+
+function requiredPaymentResponse(value: unknown) {
+  const payment = asPaymentResponse(value);
+  if (!identifier(payment.id)
+    || typeof payment.status !== 'string'
+    || (typeof payment.transaction_amount !== 'number' && typeof payment.transaction_amount !== 'string')
+    || typeof payment.currency_id !== 'string'
+    || typeof payment.external_reference !== 'string') {
+    throw new Error('invalid provider payment response');
+  }
+  return payment;
+}
+
+function requiredMerchantOrderPreference(value: unknown) {
+  const preferenceId = nonEmptyString(asMerchantOrderResponse(value).preference_id);
+  if (!preferenceId) throw new Error('invalid provider merchant order response');
+  return preferenceId;
+}
+
+function providerUnavailable(stage: MercadoPagoProviderStage, errorCode: string, httpStatus?: number): MercadoPagoProviderFailure {
+  return providerFailure('unavailable', stage, errorCode, httpStatus);
+}
+
+function providerFailure(kind: MercadoPagoProviderFailure['kind'], stage: MercadoPagoProviderStage, errorCode: string, httpStatus?: number): MercadoPagoProviderFailure {
+  return { kind, stage, errorCode, ...(validHttpStatus(httpStatus) ? { httpStatus } : {}) };
+}
+
+function validHttpStatus(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599;
 }
 
 function merchantOrderIdFor(payment: MercadoPagoPaymentResponse) {

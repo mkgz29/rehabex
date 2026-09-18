@@ -29,6 +29,7 @@ type AdminServiceClient = {
 };
 
 type AuthorizationResult = { kind: 'admin'; userId: string } | { kind: 'unauthorized' | 'forbidden' };
+type ReconciliationStage = 'rate_limit' | 'payment_fetch' | 'payment_parse' | 'merchant_order_fetch' | 'merchant_order_parse' | 'atomic_rpc';
 type ReconcileDependencies = {
   serviceClient: () => AdminServiceClient | null;
   authorize: (supabase: AdminServiceClient, token: string) => Promise<AuthorizationResult>;
@@ -70,26 +71,61 @@ export function createReconcilePaymentHandler(overrides: Partial<ReconcileDepend
     const token = bearerToken(request.headers?.authorization);
     if (!token) return response.status(401).json({ error: 'No autorizado.' });
     const supabase = dependencies.serviceClient();
-    if (!supabase) return response.status(503).json({ error: 'No disponible.' });
+    if (!supabase) {
+      logReconciliationFailure('atomic_rpc', 'service_client_unavailable', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
     const authorization = await dependencies.authorize(supabase, token);
     if (authorization.kind !== 'admin') return response.status(authorization.kind === 'unauthorized' ? 401 : 403).json({ error: 'No autorizado.' });
 
-    const rateLimit = await dependencies.consumeRateLimit(supabase, request, authorization.userId);
-    if (rateLimit.unavailable) return response.status(503).json({ error: 'No disponible.' });
+    let rateLimit: { ok: boolean; retryAfter: number; unavailable: boolean };
+    try {
+      rateLimit = await dependencies.consumeRateLimit(supabase, request, authorization.userId);
+    } catch {
+      logReconciliationFailure('rate_limit', 'rate_limit_internal_error', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
+    if (rateLimit.unavailable) {
+      logReconciliationFailure('rate_limit', 'rate_limit_unavailable', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
     if (!rateLimit.ok) {
+      logReconciliationFailure('rate_limit', 'rate_limit_exceeded');
       setRetryAfter(response, rateLimit.retryAfter);
       return response.status(429).json({ error: 'Demasiadas solicitudes.' });
     }
 
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    if (!accessToken) return response.status(503).json({ error: 'No disponible.' });
-    const provider = await dependencies.fetchPayment(payload.paymentId, accessToken);
-    if (provider.kind !== 'ok') return response.status(provider.kind === 'not_found' ? 404 : 503).json({ error: provider.kind === 'not_found' ? 'No se pudo reconciliar el pago.' : 'No disponible.' });
+    if (!accessToken) {
+      logReconciliationFailure('payment_fetch', 'provider_not_configured', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
+    let provider: MercadoPagoProviderResult;
+    try {
+      provider = await dependencies.fetchPayment(payload.paymentId, accessToken);
+    } catch {
+      logReconciliationFailure('payment_fetch', 'provider_payment_network_error', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
+    if (provider.kind !== 'ok') {
+      const stage = reconciliationStage(provider.stage) ?? 'payment_fetch';
+      logReconciliationFailure(stage, provider.errorCode, provider.kind === 'unavailable', provider.httpStatus);
+      return response.status(provider.kind === 'not_found' ? 404 : 503).json({ error: provider.kind === 'not_found' ? 'No se pudo reconciliar el pago.' : 'No disponible.' });
+    }
 
-    const result = await dependencies.processPayment(supabase, provider.payment);
-    if (result.kind === 'unavailable') return response.status(503).json({ error: 'No disponible.' });
+    let result: PaymentProcessResult;
+    try {
+      result = await dependencies.processPayment(supabase, provider.payment);
+    } catch {
+      logReconciliationFailure('atomic_rpc', 'atomic_rpc_error', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
+    if (result.kind === 'unavailable') {
+      logReconciliationFailure('atomic_rpc', 'atomic_rpc_unavailable', true);
+      return response.status(503).json({ error: 'No disponible.' });
+    }
     if (result.kind === 'rejected') {
-      logEvent('admin_reconcile_rejected', { reason: result.reason });
+      logReconciliationFailure('atomic_rpc', result.reason);
       return response.status(409).json({ error: 'No se pudo reconciliar el pago.' });
     }
     logEvent(result.kind === 'duplicate' ? 'admin_reconcile_duplicate' : 'admin_reconcile_processed');
@@ -121,4 +157,31 @@ function bearerToken(value: string | string[] | undefined) {
   if (Array.isArray(value) || !value?.startsWith('Bearer ')) return null;
   const token = value.slice('Bearer '.length).trim();
   return token || null;
+}
+
+function logReconciliationFailure(stage: ReconciliationStage, errorCode: string, isUnavailable = false, providerHttpStatus?: number) {
+  const context: Record<string, string | number | boolean | undefined> = {
+    stage,
+    errorCode: safeInternalErrorCode(errorCode),
+  };
+  if (isProviderHttpStatus(providerHttpStatus)) context.providerHttpStatus = providerHttpStatus;
+  // The only dynamic values retained here are an allowlisted stage and an HTTP
+  // status. Do not include request identifiers, URLs, tokens, payloads or
+  // provider responses in reconciliation telemetry.
+  logEvent(isUnavailable ? 'admin_reconcile_503' : 'admin_reconcile_failed', context);
+}
+
+function reconciliationStage(value: unknown): ReconciliationStage | null {
+  return value === 'rate_limit' || value === 'payment_fetch' || value === 'payment_parse'
+    || value === 'merchant_order_fetch' || value === 'merchant_order_parse' || value === 'atomic_rpc'
+    ? value
+    : null;
+}
+
+function safeInternalErrorCode(value: unknown) {
+  return typeof value === 'string' && /^[a-z0-9_]{1,80}$/.test(value) ? value : 'reconciliation_error';
+}
+
+function isProviderHttpStatus(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599;
 }
