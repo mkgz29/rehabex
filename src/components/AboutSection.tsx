@@ -24,8 +24,12 @@ export function AboutSection({ content, products }: AboutSectionProps) {
       <div className="site-container">
         <div className="grid items-center gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
           <div data-reveal-item>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/60">Acerca de Rehabex</p>
-            <h2 id="about-title" className="mt-5 max-w-[18ch] text-balance text-[clamp(2.25rem,4vw,4rem)] font-bold leading-[1.02] tracking-[-0.045em] text-white">{content.title}</h2>
+            <p className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.2em] text-white/60">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[rgb(var(--color-stone))]" aria-hidden="true" />
+              Acerca de Rehabex
+            </p>
+            {/* Editorial, not a billboard: two to four lines at every width. */}
+            <h2 id="about-title" className="mt-5 max-w-[20ch] text-balance text-[clamp(1.875rem,3vw,3rem)] font-bold leading-[1.08] tracking-[-0.03em] text-white">{content.title}</h2>
             <div className="mt-7 max-w-xl space-y-4 text-base leading-7 text-white/70">
               <p>{content.description}</p>
               <p>Reunimos productos y accesorios para quienes buscan acompañar rehabilitación, movilidad y bienestar con información clara, disponibilidad visible y una navegación directa.</p>

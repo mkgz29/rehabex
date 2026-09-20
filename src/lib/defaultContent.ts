@@ -98,7 +98,7 @@ export const defaultLandingContent: LandingContent = {
   },
   about: {
     image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80',
-    title: 'REHABEX nace para acercar soluciones utiles, confiables y faciles de implementar',
+    title: 'Soluciones para acompañar cada etapa de recuperación.',
     description:
       'Somos un equipo enfocado en rehabilitacion y bienestar, con una mirada practica sobre lo que realmente necesita un tratamiento para sostenerse en el tiempo.',
     metrics: [
