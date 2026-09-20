@@ -1,9 +1,9 @@
 import { AboutSection } from '../components/AboutSection';
+import { CatalogCtaSection } from '../components/CatalogCtaSection';
 import { CommercialFeatureSection } from '../components/CommercialFeatureSection';
 import { FeaturedProductsSection } from '../components/FeaturedProductsSection';
 import { Footer } from '../components/Footer';
 import { HeroSection } from '../components/HeroSection';
-import { NewsletterSection } from '../components/NewsletterSection';
 import { Reveal } from '../components/Reveal';
 import { TrustStrip } from '../components/TrustStrip';
 import { useLandingData } from '../hooks/useLandingData';
@@ -27,7 +27,7 @@ export function LandingPage() {
         <Reveal><FeaturedProductsSection products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} /></Reveal>
         <Reveal><AboutSection content={content.about} products={activeProducts} /></Reveal>
         {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}
-        <Reveal><NewsletterSection /></Reveal>
+        <Reveal><CatalogCtaSection /></Reveal>
       </main>
       <Reveal><Footer categories={activeProducts.map((product) => product.category).filter((category): category is string => Boolean(category))} /></Reveal>
     </div>

@@ -7,7 +7,7 @@ export function CommercialFeatureSection({ product }: CommercialFeatureSectionPr
   if (!product) return null;
 
   return (
-    <section className="section-shell bg-surface-muted">
+    <section id="seleccion-destacada" className="bg-surface-muted pb-[var(--space-section-tight)] pt-[var(--space-section)]">
       <EditorialSplit
         eyebrow="Selección destacada"
         title={product.name}

@@ -39,7 +39,7 @@ export function EditorialSplit({ eyebrow, title, description, imageUrl, imageAlt
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface text-muted">
             <ImageOff className="h-7 w-7" aria-hidden="true" />
-            <span className="text-sm font-semibold">Imagen en preparación</span>
+            <span className="text-sm font-semibold">Imagen no disponible</span>
           </div>
         )}
       </div>

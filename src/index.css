@@ -69,6 +69,7 @@
 
     --space-page: clamp(1rem, 3vw, 2.5rem);
     --space-section: clamp(4rem, 7vw, 6.75rem);
+    --space-section-tight: clamp(2.75rem, 5vw, 4.5rem);
     --radius-control: 0.625rem;
     --radius-card: 0.875rem;
     --shadow-soft: 0 1px 2px rgb(17 17 17 / 0.04), 0 10px 30px rgb(17 17 17 / 0.04);

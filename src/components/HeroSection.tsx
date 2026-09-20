@@ -49,7 +49,7 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_70%_20%,rgb(var(--color-stone)/0.24),transparent_45%),rgb(var(--color-surface-muted))] text-muted">
               <ImageOff className="h-8 w-8" aria-hidden="true" />
-              <p className="text-sm font-semibold">Imagen en preparación</p>
+              <p className="text-sm font-semibold">Imagen no disponible</p>
             </div>
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark/25 via-transparent to-transparent ring-1 ring-inset ring-dark/5" aria-hidden="true" />
