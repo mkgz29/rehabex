@@ -5,6 +5,7 @@ import { FeaturedProductsSection } from '../components/FeaturedProductsSection';
 import { Footer } from '../components/Footer';
 import { HeroSection } from '../components/HeroSection';
 import { NewsletterSection } from '../components/NewsletterSection';
+import { Reveal } from '../components/Reveal';
 import { TrustStrip } from '../components/TrustStrip';
 import { useLandingData } from '../hooks/useLandingData';
 import { isInternalCategory } from '../lib/catalog';
@@ -23,14 +24,14 @@ export function LandingPage() {
     <div className="min-h-screen overflow-x-hidden bg-canvas text-ink">
       <main id="contenido-principal">
         <HeroSection heroContent={content.hero} />
-        <TrustStrip />
-        <FeaturedProductsSection products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} />
-        {!isLoading && !productsError ? <CategoriesSection products={activeProducts} /> : null}
-        <AboutSection content={content.about} />
-        {!isLoading && !productsError ? <CommercialFeatureSection product={featuredProducts[0]} /> : null}
-        <NewsletterSection />
+        <Reveal><TrustStrip /></Reveal>
+        <Reveal><FeaturedProductsSection products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} /></Reveal>
+        {!isLoading && !productsError ? <Reveal><CategoriesSection products={activeProducts} /></Reveal> : null}
+        <Reveal><AboutSection content={content.about} products={activeProducts} /></Reveal>
+        {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}
+        <Reveal><NewsletterSection /></Reveal>
       </main>
-      <Footer />
+      <Reveal><Footer /></Reveal>
     </div>
   );
 }
