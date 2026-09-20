@@ -9,6 +9,9 @@ import { navLinks } from '../content/navigation';
 import { AnnouncementBar } from './AnnouncementBar';
 import { MobileNavigation } from './MobileNavigation';
 
+/** Distance scrolled before the navbar switches to its Charcoal state. */
+const SCROLL_SWAP_OFFSET = 24;
+
 function getActiveHref(pathname: string, hash: string) {
   if (pathname === '/' && hash === '#quienes-somos') return '/#quienes-somos';
   if (pathname === '/' && hash === '#contacto') return '/#contacto';
@@ -20,8 +23,10 @@ function getActiveHref(pathname: string, hash: string) {
 export function SiteHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +47,36 @@ export function SiteHeader() {
     const sectionId = location.hash.slice(1);
     window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' }), 0);
   }, [closeMenu, location.hash, location.pathname]);
+
+  // The logo swaps between the orange and the Charcoal lockup once the page has
+  // moved off the top. A sentinel parked at the top of the document tells us
+  // that with one callback per crossing, instead of a reading per scrolled
+  // pixel. The fallback coalesces a passive listener into one rAF per frame.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+
+    if (sentinel && 'IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(([entry]) => setIsScrolled(!entry.isIntersecting), { threshold: 0 });
+      observer.observe(sentinel);
+      return () => observer.disconnect();
+    }
+
+    let frame = 0;
+    const readScroll = () => {
+      frame = 0;
+      setIsScrolled(window.scrollY > SCROLL_SWAP_OFFSET);
+    };
+    const handleScroll = () => {
+      if (frame === 0) frame = window.requestAnimationFrame(readScroll);
+    };
+
+    readScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isSearchOpen) return;
@@ -77,9 +112,13 @@ export function SiteHeader() {
   return (
     <>
       <a href="#contenido-principal" className="fixed left-4 top-3 z-toast -translate-y-24 rounded-control bg-dark px-4 py-3 text-sm font-bold text-white transition focus:translate-y-0">Saltar al contenido</a>
-      <header className="sticky top-0 z-header border-b border-line/90 bg-canvas/95 backdrop-blur-md">
+
+      {/* Out of flow, so watching it costs the layout nothing. */}
+      <div ref={sentinelRef} aria-hidden="true" className="pointer-events-none absolute left-0 top-0 h-6 w-px" />
+
+      <header className={`site-header sticky top-0 z-header backdrop-blur-md ${isScrolled ? 'is-scrolled' : ''}`}>
         <AnnouncementBar />
-        <div className="site-container flex min-h-[4.5rem] items-center gap-3 sm:min-h-20">
+        <div className="site-container relative z-10 flex min-h-[4.5rem] items-center gap-3 sm:min-h-20">
           <button
             ref={triggerRef}
             type="button"
@@ -93,7 +132,30 @@ export function SiteHeader() {
           </button>
 
           <Link to="/" className="flex h-11 shrink-0 items-center" aria-label="Rehabex, ir al inicio">
-            <img src="/brand/rehabex-logo-charcoal.svg" alt="" width="874" height="240" className="h-7 w-auto sm:h-8 lg:h-9" />
+            {/*
+              One link, two stacked lockups. The wrapper fixes the height and the
+              orange layer stays in flow to fix the width, so the box is settled
+              before either image decodes and the swap can never shift layout.
+              Both files are traced from the same artwork and share a viewBox,
+              so they register on top of each other exactly.
+            */}
+            <span className="brand-logo relative block h-7 sm:h-8 lg:h-9">
+              <img
+                src="/brand/rehabex-logo-brand.svg"
+                alt=""
+                width="874"
+                height="240"
+                className="brand-logo__mark brand-logo__mark--brand h-full w-auto"
+              />
+              <img
+                src="/brand/rehabex-logo-charcoal.svg"
+                alt=""
+                aria-hidden="true"
+                width="874"
+                height="240"
+                className="brand-logo__mark brand-logo__mark--charcoal absolute inset-0 h-full w-full"
+              />
+            </span>
           </Link>
 
           <nav className="ml-8 hidden items-stretch gap-1 self-stretch md:flex lg:ml-10" aria-label="Navegación principal">
@@ -104,10 +166,10 @@ export function SiteHeader() {
                   key={link.href}
                   to={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`relative inline-flex items-center px-3 text-sm font-semibold transition lg:px-4 ${isActive ? 'text-ink' : 'text-muted hover:text-ink'}`}
+                  className={`nav-link relative inline-flex items-center px-3 text-sm font-semibold transition-colors duration-ui lg:px-4 ${isActive ? 'nav-link--active text-ink' : 'text-muted hover:text-ink'}`}
                 >
-                  {link.label}
-                  <span className={`absolute inset-x-3 bottom-0 h-0.5 bg-primary transition-transform lg:inset-x-4 ${isActive ? 'scale-x-100' : 'scale-x-0'}`} aria-hidden="true" />
+                  <span className="relative">{link.label}</span>
+                  <span className="nav-link__underline" aria-hidden="true" />
                 </Link>
               );
             })}

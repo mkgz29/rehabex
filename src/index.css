@@ -76,6 +76,7 @@
     --shadow-card: 0 1px 2px rgb(17 17 17 / 0.05), 0 18px 46px rgb(17 17 17 / 0.07);
     --shadow-lift: 0 2px 4px rgb(17 17 17 / 0.06), 0 24px 54px rgb(17 17 17 / 0.11);
     --duration-ui: 200ms;
+    --duration-nav: 240ms;
     --ease-ui: cubic-bezier(0.2, 0, 0, 1);
     --z-header: 40;
     --z-overlay: 50;
@@ -254,6 +255,118 @@
   .cart-badge-enter {
     animation: cart-badge-enter 220ms var(--ease-ui) both;
   }
+
+  /* ---- Navbar ---- */
+  .site-header {
+    background-color: rgb(var(--color-canvas) / 0.88);
+    border-bottom: 1px solid rgb(var(--color-line) / 0.65);
+    transition:
+      background-color var(--duration-nav) var(--ease-ui),
+      border-color var(--duration-nav) var(--ease-ui),
+      box-shadow var(--duration-nav) var(--ease-ui);
+  }
+
+  .site-header::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 18%;
+    min-height: 0.625rem;
+    pointer-events: none;
+    background: linear-gradient(to top, rgb(var(--color-brand) / 0.11), rgb(var(--color-brand) / 0) 100%);
+    transition: opacity var(--duration-nav) var(--ease-ui);
+  }
+
+  .site-header.is-scrolled {
+    background-color: rgb(var(--color-canvas) / 0.97);
+    border-bottom-color: rgb(var(--color-line));
+    box-shadow: 0 10px 26px rgb(17 17 17 / 0.05);
+  }
+
+  /* Attenuated, never switched off. */
+  .site-header.is-scrolled::after {
+    opacity: 0.4;
+  }
+
+  /* ---- Logo crossfade ----
+     Both lockups are traced from the same artwork and share a viewBox, so they
+     register exactly. The wrapper owns the box and the orange layer stays in
+     flow, which is what keeps the swap free of layout shift. */
+  .brand-logo__mark {
+    transition:
+      opacity var(--duration-nav) var(--ease-ui),
+      transform var(--duration-nav) var(--ease-ui);
+  }
+
+  .brand-logo__mark--brand {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .brand-logo__mark--charcoal {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  .is-scrolled .brand-logo__mark--brand {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  .is-scrolled .brand-logo__mark--charcoal {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---- Primary navigation ---- */
+  .nav-link::before {
+    content: '';
+    position: absolute;
+    inset: 40% 0 0;
+    border-radius: 0.5rem 0.5rem 0 0;
+    background: linear-gradient(to top, rgb(var(--color-brand) / 0.11), rgb(var(--color-brand) / 0) 80%);
+    opacity: 0;
+    transition: opacity var(--duration-ui) var(--ease-ui);
+    pointer-events: none;
+  }
+
+  .nav-link:hover::before,
+  .nav-link:focus-visible::before {
+    opacity: 0.6;
+  }
+
+  .nav-link--active::before {
+    opacity: 1;
+  }
+
+  .nav-link__underline {
+    position: absolute;
+    inset-inline: 0.75rem;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: rgb(var(--color-brand));
+    transform: scaleX(0);
+    transition: transform var(--duration-ui) var(--ease-ui);
+  }
+
+  .nav-link:hover .nav-link__underline,
+  .nav-link:focus-visible .nav-link__underline {
+    transform: scaleX(0.45);
+  }
+
+  .nav-link--active .nav-link__underline {
+    transform: scaleX(1);
+  }
+
+  @media (min-width: 1024px) {
+    .nav-link__underline {
+      inset-inline: 1rem;
+    }
+  }
+
+
 }
 
 @keyframes hero-enter {
@@ -290,6 +403,11 @@
   .reveal-ready .reveal-section,
   .reveal-ready .reveal-section [data-reveal-item] {
     opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* The logo still swaps, but it does not move. */
+  .brand-logo__mark {
     transform: none !important;
   }
 }
