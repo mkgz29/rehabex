@@ -15,7 +15,7 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
   useEffect(() => setImageFailed(false), [heroContent.image_url]);
 
   return (
-    <section className="overflow-hidden bg-canvas" aria-labelledby="hero-title">
+    <section className="warm-hem warm-hem--drift overflow-hidden bg-canvas" aria-labelledby="hero-title">
       <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-9 py-10 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-10 md:py-12 lg:gap-16 lg:py-14">
         <div className="max-w-2xl py-2 md:py-8">
           <p className="eyebrow hero-enter">Rehabilitación · Movilidad · Bienestar</p>
@@ -32,7 +32,7 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
           </div>
         </div>
 
-        <div className="hero-enter hero-enter-delay-4 relative aspect-[4/5] overflow-hidden rounded-card border border-line/80 bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]">
+        <div className="hero-enter hero-enter-delay-4 relative aspect-[4/5] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]">
           {!imageFailed && heroContent.image_url ? (
             <img
               src={getOptimizedImageUrl(heroContent.image_url, { width: 1600 })}
@@ -52,7 +52,16 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
               <p className="text-sm font-semibold">Imagen no disponible</p>
             </div>
           )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark/25 via-transparent to-transparent ring-1 ring-inset ring-dark/5" aria-hidden="true" />
+          {/* Warms the corner the photograph hands over to the hem below, without
+              tinting the product itself. */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark/25 via-transparent to-transparent ring-1 ring-inset ring-dark/5"
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(64%_52%_at_92%_100%,rgb(var(--color-brand)/0.18),transparent_66%)]"
+            aria-hidden="true"
+          />
           <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-control border border-white/20 bg-primary/85 px-3 py-2 text-xs font-bold text-white backdrop-blur sm:bottom-6 sm:left-6">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-soft" aria-hidden="true" />
             Selección Rehabex

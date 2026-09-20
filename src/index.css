@@ -256,6 +256,55 @@
     animation: cart-badge-enter 220ms var(--ease-ui) both;
   }
 
+  /* ---- Warm hem: the one recurring way the brand orange returns ----
+     A light section closes with a faint orange wash over its last fifth and a
+     hairline. It is painted as a background layer, so it always sits behind the
+     content and can never touch legibility. Reserved for the hero and for the
+     single hand-off into a Charcoal block. */
+  .warm-hem {
+    position: relative;
+    isolation: isolate;
+    background-image:
+      linear-gradient(
+        to top,
+        rgb(var(--color-brand) / 0.085) 0%,
+        rgb(var(--color-brand) / 0.032) 9%,
+        rgb(var(--color-brand) / 0) 20%
+      );
+    background-repeat: no-repeat;
+  }
+
+  .warm-hem--ruled {
+    background-image:
+      linear-gradient(to top, rgb(var(--color-stone) / 0.5) 0 1px, transparent 1px),
+      linear-gradient(
+        to top,
+        rgb(var(--color-brand) / 0.075) 0%,
+        rgb(var(--color-brand) / 0.028) 9%,
+        rgb(var(--color-brand) / 0) 20%
+      );
+  }
+
+  /* The only continuous motion in the page: a compositor-only drift of the
+     glow. Nothing else reads or writes layout while it runs. */
+  .warm-hem--drift::after {
+    content: '';
+    position: absolute;
+    inset-inline: -8%;
+    bottom: 0;
+    z-index: -1;
+    height: 22%;
+    min-height: 6rem;
+    pointer-events: none;
+    background: radial-gradient(46% 62% at 28% 82%, rgb(var(--color-brand) / 0.13), transparent 70%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .warm-hem--drift::after {
+      animation: warm-drift 16s var(--ease-ui) infinite alternate;
+    }
+  }
+
   /* ---- Navbar ---- */
   .site-header {
     background-color: rgb(var(--color-canvas) / 0.88);
@@ -406,6 +455,11 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes warm-drift {
+  from { transform: translate3d(-4%, 0, 0); }
+  to { transform: translate3d(6%, 0, 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -426,9 +480,10 @@
     transform: none !important;
   }
 
-  /* The logo still swaps and the messages still change, but neither one moves. */
+  /* The logo still swaps and the hem still shows, but neither one moves. */
   .brand-logo__mark,
-  .announce-item {
+  .announce-item,
+  .warm-hem--drift::after {
     transform: none !important;
   }
 }
