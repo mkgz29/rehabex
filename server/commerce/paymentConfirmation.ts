@@ -1,4 +1,4 @@
-import { logEvent } from './commerce.js';
+import { expectedLiveMode, logEvent, type MercadoPagoEnvironment } from './commerce.js';
 import type { PreferenceBinding } from './mercadoPagoPayment.js';
 import {
   createSupabasePaymentRepository,
@@ -97,7 +97,15 @@ export type PaymentSelection =
   | { kind: 'ambiguous'; candidates: number };
 
 /** null means the payment matches the order. */
-export type PaymentMismatchReason = 'external_reference' | 'live_mode' | 'currency' | 'amount';
+export type PaymentMismatchReason = 'external_reference' | 'live_mode' | 'currency' | 'amount' | 'environment_unknown';
+
+/** The order carries its own immutable environment; the deployment variable is never consulted here. */
+export type OrderEnvironment = { id: string; total_amount: number | string; currency: string; payment_environment?: string | null };
+
+function orderEnvironment(order: OrderEnvironment): MercadoPagoEnvironment | null {
+  const value = typeof order.payment_environment === 'string' ? order.payment_environment.trim().toLowerCase() : '';
+  return value === 'test' || value === 'production' ? value : null;
+}
 
 // Terminal money states outrank provisional ones, so a rejected first attempt
 // never masks the approved retry that actually paid the order.
@@ -126,13 +134,18 @@ function sameAmount(amount: unknown, total: number) {
  * rejects the optional fields when they are present and disagree. The full
  * payment is then fetched and checked by {@link verifyPaymentMatchesOrder}.
  */
-export function selectOrderPayment(payments: MercadoPagoPayment[], order: { id: string; total_amount: number | string; currency: string }): PaymentSelection {
+export function selectOrderPayment(payments: MercadoPagoPayment[], order: OrderEnvironment): PaymentSelection {
   const total = Number(order.total_amount);
   const currency = typeof order.currency === 'string' ? order.currency.toUpperCase() : '';
+  const environment = orderEnvironment(order);
+  // An order without a recognised environment can never be matched: failing
+  // closed here is what keeps a TEST order from absorbing a real payment.
+  if (!environment) return { kind: 'none' };
+  const expected = expectedLiveMode(environment);
   const candidates = payments.filter((payment) => {
     const status = typeof payment.status === 'string' ? payment.status.toLowerCase() : '';
     if (payment.external_reference !== order.id || STATUS_RANK[status] === undefined) return false;
-    if (payment.live_mode !== undefined && payment.live_mode !== false) return false;
+    if (payment.live_mode !== undefined && payment.live_mode !== expected) return false;
     if (payment.currency_id !== undefined && String(payment.currency_id).toUpperCase() !== currency) return false;
     if (payment.transaction_amount !== undefined && !sameAmount(payment.transaction_amount, total)) return false;
     return true;
@@ -156,9 +169,13 @@ export function selectOrderPayment(payments: MercadoPagoPayment[], order: { id: 
  * which — unlike the search summary — always carries these fields. The atomic
  * RPC enforces the same invariants again; this fails closed earlier and says why.
  */
-export function verifyPaymentMatchesOrder(payment: MercadoPagoPayment, order: { id: string; total_amount: number | string; currency: string }): PaymentMismatchReason | null {
+export function verifyPaymentMatchesOrder(payment: MercadoPagoPayment, order: OrderEnvironment): PaymentMismatchReason | null {
   if (payment.external_reference !== order.id) return 'external_reference';
-  if (payment.live_mode !== false) return 'live_mode';
+  const environment = orderEnvironment(order);
+  if (!environment) return 'environment_unknown';
+  // Strict equality against the order's own environment. An absent live_mode is
+  // still a rejection: unknown is never treated as TEST.
+  if (payment.live_mode !== expectedLiveMode(environment)) return 'live_mode';
   const currency = typeof order.currency === 'string' ? order.currency.toUpperCase() : '';
   if (currency !== 'ARS' || String(payment.currency_id ?? '').toUpperCase() !== 'ARS') return 'currency';
   if (!sameAmount(payment.transaction_amount, Number(order.total_amount))) return 'amount';

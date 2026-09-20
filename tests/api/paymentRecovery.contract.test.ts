@@ -4,7 +4,14 @@ import test from 'node:test';
 import { createOrderPaymentSyncHandler, parseOrderPaymentSyncPayload } from '../../api/order-payment-sync';
 import { confirmMercadoPagoPayment, selectOrderPayment, verifyPaymentMatchesOrder } from '../../server/commerce/paymentConfirmation.js';
 import { credentialMode, fetchMercadoPagoPayment, searchMercadoPagoPaymentsByExternalReference } from '../../server/commerce/mercadoPagoPayment.js';
-import type { ApiRequest, ApiResponse } from '../../server/commerce/commerce.js';
+import {
+  classifyCheckoutUrl,
+  expectedEntryPoint,
+  expectedLiveMode,
+  mercadoPagoEnvironment,
+  type ApiRequest,
+  type ApiResponse,
+} from '../../server/commerce/commerce.js';
 import type { MercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
 
 const ORDER_ID = '159e3369-63a9-4879-b5ce-8f0db6369508';
@@ -37,6 +44,7 @@ function orderRow(overrides: Record<string, unknown> = {}) {
     refund_required: false,
     created_at: '2026-09-18T04:12:10.658Z',
     mercadopago_preference_id: PREFERENCE_ID,
+    payment_environment: 'test',
     ...overrides,
   };
 }
@@ -124,7 +132,7 @@ async function captureConsoleInfo(run: () => Promise<void>) {
 // ---------------------------------------------------------------------------
 
 test('recovery accepts only a payment that matches the order on every authoritative field', () => {
-  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS', payment_environment: 'test' };
   assert.equal(selectOrderPayment([providerPayment()], order).kind, 'selected');
   // Mismatched reference, amount, currency and production mode are all refused.
   assert.equal(selectOrderPayment([providerPayment({ external_reference: '00000000-0000-4000-8000-000000000000' })], order).kind, 'none');
@@ -136,7 +144,7 @@ test('recovery accepts only a payment that matches the order on every authoritat
 });
 
 test('recovery prefers the settled payment over an earlier failed attempt', () => {
-  const order = { id: ORDER_ID, total_amount: 100, currency: 'ARS' };
+  const order = { id: ORDER_ID, total_amount: 100, currency: 'ARS', payment_environment: 'test' };
   const selection = selectOrderPayment([
     providerPayment({ id: '1', status: 'rejected' }),
     providerPayment({ id: '2', status: 'approved' }),
@@ -147,7 +155,7 @@ test('recovery prefers the settled payment over an earlier failed attempt', () =
 });
 
 test('recovery refuses to choose between two payments that both settled the order', () => {
-  const order = { id: ORDER_ID, total_amount: 100, currency: 'ARS' };
+  const order = { id: ORDER_ID, total_amount: 100, currency: 'ARS', payment_environment: 'test' };
   const selection = selectOrderPayment([
     providerPayment({ id: '1', status: 'approved' }),
     providerPayment({ id: '2', status: 'approved' }),
@@ -428,7 +436,7 @@ test('a search summary that omits the optional money fields still selects the pa
   // PaymentSearchResult declares live_mode, currency_id and transaction_amount
   // as optional. Requiring them at selection time discarded every real
   // candidate and reported "no payment found" for payments that existed.
-  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS', payment_environment: 'test' };
   const summaryOnly: MercadoPagoPayment = { id: '179618368506', status: 'approved', external_reference: ORDER_ID };
   const selection = selectOrderPayment([summaryOnly], order);
   assert.equal(selection.kind, 'selected');
@@ -440,7 +448,7 @@ test('a search summary that omits the optional money fields still selects the pa
 });
 
 test('a search summary whose present fields disagree is still refused', () => {
-  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS', payment_environment: 'test' };
   assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: ORDER_ID, live_mode: true }], order).kind, 'none');
   assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: ORDER_ID, currency_id: 'USD' }], order).kind, 'none');
   assert.equal(selectOrderPayment([{ id: '1', status: 'approved', external_reference: ORDER_ID, transaction_amount: 99 }], order).kind, 'none');
@@ -448,7 +456,7 @@ test('a search summary whose present fields disagree is still refused', () => {
 });
 
 test('the full payment is the authority for TEST mode, currency and amount', () => {
-  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS' };
+  const order = { id: ORDER_ID, total_amount: '100.00', currency: 'ARS', payment_environment: 'test' };
   assert.equal(verifyPaymentMatchesOrder(providerPayment(), order), null);
   assert.equal(verifyPaymentMatchesOrder(providerPayment({ live_mode: true }), order), 'live_mode');
   assert.equal(verifyPaymentMatchesOrder(providerPayment({ currency_id: 'USD' }), order), 'currency');
@@ -635,4 +643,122 @@ test('a payment already processed is replayed as duplicate with no second effect
   // Both attempts carry the identical dedupe input, so the RPC decides, not us.
   assert.equal(mock.inputs[0]?.p_provider_payment_id, mock.inputs[1]?.p_provider_payment_id);
   assert.equal(mock.inputs[0]?.p_payment_status, mock.inputs[1]?.p_payment_status);
+});
+
+// ---------------------------------------------------------------------------
+// Mercado Pago environment: entry point and per-order live_mode expectation
+// ---------------------------------------------------------------------------
+
+function orderIn(environment: string | null, overrides: Record<string, unknown> = {}) {
+  return { id: ORDER_ID, total_amount: '100.00', currency: 'ARS', payment_environment: environment, ...overrides } as never;
+}
+
+function paymentWith(live_mode: boolean | undefined) {
+  return { id: '179962860372', status: 'approved', transaction_amount: 100, currency_id: 'ARS', external_reference: ORDER_ID, live_mode };
+}
+
+async function withEnv(value: string | undefined, run: () => void | Promise<void>) {
+  const before = process.env.MERCADOPAGO_ENV;
+  if (value === undefined) delete process.env.MERCADOPAGO_ENV; else process.env.MERCADOPAGO_ENV = value;
+  try { await run(); } finally {
+    if (before === undefined) delete process.env.MERCADOPAGO_ENV; else process.env.MERCADOPAGO_ENV = before;
+  }
+}
+
+test('a test order accepts only a test payment, in both gates', () => {
+  const order = orderIn('test');
+  assert.equal(selectOrderPayment([paymentWith(false)], order).kind, 'selected');
+  assert.equal(verifyPaymentMatchesOrder(paymentWith(false), order), null);
+  // Exactly the production incident: approved, right reference, right amount,
+  // but live money against an order that was meant to be a test.
+  assert.equal(selectOrderPayment([paymentWith(true)], order).kind, 'none');
+  assert.equal(verifyPaymentMatchesOrder(paymentWith(true), order), 'live_mode');
+});
+
+test('a production order accepts only a real payment, in both gates', () => {
+  const order = orderIn('production');
+  assert.equal(selectOrderPayment([paymentWith(true)], order).kind, 'selected');
+  assert.equal(verifyPaymentMatchesOrder(paymentWith(true), order), null);
+  // Without this direction the RPC would reject every real sale after go-live.
+  assert.equal(selectOrderPayment([paymentWith(false)], order).kind, 'none');
+  assert.equal(verifyPaymentMatchesOrder(paymentWith(false), order), 'live_mode');
+});
+
+test('an absent live_mode is refused under every environment', () => {
+  for (const environment of ['test', 'production']) {
+    const order = orderIn(environment);
+    assert.equal(verifyPaymentMatchesOrder(paymentWith(undefined), order), 'live_mode');
+  }
+  // The summary may legitimately omit it, so selection tolerates it there and
+  // the full payment is what decides.
+  assert.equal(selectOrderPayment([paymentWith(undefined)], orderIn('test')).kind, 'selected');
+});
+
+test('an order with no recognised environment can never be matched', () => {
+  for (const environment of [null, '', 'sandbox', 'PROD', 'prueba']) {
+    assert.equal(selectOrderPayment([paymentWith(false)], orderIn(environment)).kind, 'none');
+    assert.equal(verifyPaymentMatchesOrder(paymentWith(false), orderIn(environment)), 'environment_unknown');
+  }
+});
+
+test('changing the deployment variable never reclassifies an existing order', async () => {
+  // The order carries its own environment. Flipping MERCADOPAGO_ENV afterwards
+  // must not let a historical TEST order absorb a real payment.
+  await withEnv('production', () => {
+    const testOrder = orderIn('test');
+    assert.equal(selectOrderPayment([paymentWith(true)], testOrder).kind, 'none');
+    assert.equal(verifyPaymentMatchesOrder(paymentWith(true), testOrder), 'live_mode');
+  });
+  await withEnv('test', () => {
+    const productionOrder = orderIn('production');
+    assert.equal(selectOrderPayment([paymentWith(false)], productionOrder).kind, 'none');
+    assert.equal(verifyPaymentMatchesOrder(paymentWith(false), productionOrder), 'live_mode');
+  });
+});
+
+test('the configured environment is explicit and fails closed', async () => {
+  await withEnv(undefined, () => assert.equal(mercadoPagoEnvironment(), null));
+  await withEnv('', () => assert.equal(mercadoPagoEnvironment(), null));
+  await withEnv('sandbox', () => assert.equal(mercadoPagoEnvironment(), null));
+  await withEnv('PRODUCTION', () => assert.equal(mercadoPagoEnvironment(), 'production'));
+  await withEnv(' test ', () => assert.equal(mercadoPagoEnvironment(), 'test'));
+  assert.equal(expectedEntryPoint('test'), 'sandbox');
+  assert.equal(expectedEntryPoint('production'), 'live');
+  assert.equal(expectedLiveMode('test'), false);
+  assert.equal(expectedLiveMode('production'), true);
+});
+
+test('a checkout entry point is classified by host and nothing else', () => {
+  // This is what Rehabex actually used for all 15 preferences.
+  assert.equal(classifyCheckoutUrl('https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=secret'), 'live');
+  assert.equal(classifyCheckoutUrl('https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=secret'), 'sandbox');
+  assert.equal(classifyCheckoutUrl('https://mercadopago.com/checkout'), 'live');
+  // Anything else fails closed rather than sending a buyer somewhere unknown.
+  assert.equal(classifyCheckoutUrl('https://mercadopago.com.ar.evil.test/checkout'), null);
+  assert.equal(classifyCheckoutUrl('http://www.mercadopago.com.ar/checkout'), null);
+  assert.equal(classifyCheckoutUrl('not-a-url'), null);
+  assert.equal(classifyCheckoutUrl(undefined), null);
+});
+
+test('recovery on a test order refuses the live payment and records why', async () => {
+  await withAccessToken(async () => {
+    const mock = supabaseMock({ order: orderRow({ payment_environment: 'test' }) });
+    const handler = handlerWith({
+      searchPayments: (async () => ({ kind: 'ok', payments: [paymentWith(true)] })) as never,
+    }, mock);
+    const entries = await captureConsoleInfo(async () => {
+      const result = mockResponse();
+      await handler(syncRequest(), result.response);
+      assert.equal(result.read().body.recovery, 'no_payment_found');
+    });
+    // No transition is attempted for a payment from the wrong environment.
+    assert.equal(mock.calls.rpc.includes('process_mercadopago_payment_atomic'), false);
+    const candidate = entries.map(([, v]) => v as Record<string, unknown>).find((e) => e.code === 'payment_sync_candidate');
+    assert.equal(candidate?.liveMode, true);
+    assert.equal(candidate?.referenceMatches, true);
+    const serialized = JSON.stringify(entries);
+    for (const forbidden of [ACCESS_TOKEN, STATUS_TOKEN, PREFERENCE_ID]) {
+      assert.equal(serialized.includes(forbidden), false, 'leaked sensitive value');
+    }
+  });
 });

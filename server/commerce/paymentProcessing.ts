@@ -34,7 +34,7 @@ export type PaymentRepository = {
 export type PaymentProcessResult =
   | { kind: 'processed'; status: string; transition: string }
   | { kind: 'duplicate'; status: string }
-  | { kind: 'rejected'; reason: 'payment_shape_invalid' | 'test_mode_required' | 'order_not_found' | 'payment_id_mismatch' | 'preference_mismatch' | 'amount_mismatch' | 'currency_mismatch' | 'transition_invalid' }
+  | { kind: 'rejected'; reason: 'payment_shape_invalid' | 'test_mode_required' | 'environment_mismatch' | 'order_not_found' | 'payment_id_mismatch' | 'preference_mismatch' | 'amount_mismatch' | 'currency_mismatch' | 'transition_invalid' }
   | { kind: 'unavailable' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -44,6 +44,9 @@ const SUPPORTED_STATUSES = new Set(['approved', 'pending', 'in_process', 'reject
 const REJECTED_OUTCOMES: Record<string, Extract<PaymentProcessResult, { kind: 'rejected' }>['reason']> = {
   rejected_payment_shape: 'payment_shape_invalid',
   rejected_test_mode: 'test_mode_required',
+  // The order's own environment disagreed with the payment's live_mode, in
+  // either direction. Kept distinct from the legacy test-only rejection.
+  rejected_environment_mismatch: 'environment_mismatch',
   rejected_order_not_found: 'order_not_found',
   rejected_payment_id_mismatch: 'payment_id_mismatch',
   rejected_preference_mismatch: 'preference_mismatch',

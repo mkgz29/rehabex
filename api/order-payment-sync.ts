@@ -26,6 +26,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const STATUS_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const RECOVERY_COOLDOWN_SECONDS = 30;
 const PUBLIC_ORDER_COLUMNS = 'id, order_number, payment_status, order_status, fulfillment_status, total_amount, currency, refund_required, created_at';
+const ORDER_DECISION_COLUMNS = 'mercadopago_preference_id, payment_environment';
 
 export const config = { api: { bodyParser: false } };
 
@@ -49,6 +50,7 @@ type OrderRow = {
   total_amount: number | string;
   currency: string;
   mercadopago_preference_id: string | null;
+  payment_environment: string | null;
 };
 
 type SyncDependencies = {
@@ -98,7 +100,7 @@ export function createOrderPaymentSyncHandler(dependencies: SyncDependencies = {
 
     const { data: order, error } = await supabase
       .from('orders')
-      .select(`${PUBLIC_ORDER_COLUMNS}, mercadopago_preference_id`)
+      .select(`${PUBLIC_ORDER_COLUMNS}, ${ORDER_DECISION_COLUMNS}`)
       .eq('id', orderId)
       .eq('status_access_token_hash', hash(token))
       .maybeSingle();

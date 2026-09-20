@@ -247,3 +247,50 @@ export function logEvent(code: string, context: Record<string, string | number |
   // Never pass request bodies, provider responses, tokens, PII, or credentials.
   console.info('[commerce]', { code, ...context });
 }
+
+export type MercadoPagoEnvironment = 'test' | 'production';
+export type CheckoutEntryPoint = 'sandbox' | 'live';
+
+/**
+ * Mercado Pago's own environment, deliberately independent from VERCEL_ENV.
+ *
+ * Rehabex runs on Vercel Production while Mercado Pago is still in test, so the
+ * hosting environment can never imply the payment environment. Unset or
+ * unrecognised fails closed rather than guessing.
+ */
+export function mercadoPagoEnvironment(): MercadoPagoEnvironment | null {
+  const value = process.env.MERCADOPAGO_ENV?.trim().toLowerCase();
+  return value === 'test' || value === 'production' ? value : null;
+}
+
+/** Test orders are paid on the sandbox entry point, production ones on the live entry point. */
+export function expectedEntryPoint(environment: MercadoPagoEnvironment): CheckoutEntryPoint {
+  return environment === 'test' ? 'sandbox' : 'live';
+}
+
+/** A test order must produce live_mode false; a production order must produce true. */
+export function expectedLiveMode(environment: MercadoPagoEnvironment) {
+  return environment === 'production';
+}
+
+const LIVE_CHECKOUT_HOST = /^(www\.)?mercadopago\.com(\.[a-z]{2})?$/;
+const SANDBOX_CHECKOUT_HOST = /^sandbox\.mercadopago\.com(\.[a-z]{2})?$/;
+
+/**
+ * Classifies a Checkout Pro entry point by host only. Never returns, logs or
+ * stores the full URL or its query string, which carry the preference token.
+ */
+export function classifyCheckoutUrl(url: string | undefined): CheckoutEntryPoint | null {
+  if (!url) return null;
+  let host: string;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return null;
+    host = parsed.host.toLowerCase();
+  } catch {
+    return null;
+  }
+  if (SANDBOX_CHECKOUT_HOST.test(host)) return 'sandbox';
+  if (LIVE_CHECKOUT_HOST.test(host)) return 'live';
+  return null;
+}
