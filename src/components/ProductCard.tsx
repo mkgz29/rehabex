@@ -2,6 +2,7 @@ import { ArrowUpRight, ImageOff, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { formatCurrency } from '../lib/format';
+import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
 import type { Product } from '../types/cms';
 
 type ProductCardProps = {
@@ -16,11 +17,13 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
 
   return (
     <article className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:shadow-card focus-within:shadow-card">
-      <Link to={detailHref} className="relative block aspect-[4/5] overflow-hidden bg-canvas" tabIndex={-1} aria-hidden="true">
+      <div className="relative block aspect-[4/5] overflow-hidden bg-canvas">
         {product.imageUrl ? (
           <img
-            src={product.imageUrl}
-            alt=""
+            src={getOptimizedImageUrl(product.imageUrl, { width: 720 })}
+            srcSet={getResponsiveImageSrcSet(product.imageUrl, [320, 480, 720])}
+            sizes="(min-width: 1024px) 25vw, (min-width: 500px) 50vw, calc(100vw - 2rem)"
+            alt={product.name}
             width="800"
             height="1000"
             loading="lazy"
@@ -34,7 +37,7 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
           </div>
         )}
         {isOutOfStock ? <span className="absolute left-3 top-3 rounded-md bg-dark px-2.5 py-1.5 text-xs font-bold text-white">Sin stock</span> : null}
-      </Link>
+      </div>
 
       <div className="flex flex-1 flex-col p-5">
         {product.category ? <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">{product.category}</p> : null}

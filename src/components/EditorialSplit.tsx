@@ -2,6 +2,8 @@ import { ImageOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
+
 type EditorialSplitProps = {
   eyebrow: string;
   title: string;
@@ -22,7 +24,18 @@ export function EditorialSplit({ eyebrow, title, description, imageUrl, imageAlt
     <div className="site-container grid items-stretch gap-8 lg:grid-cols-2 lg:gap-12">
       <div className={`relative min-h-[22rem] overflow-hidden rounded-card bg-line sm:min-h-[30rem] ${reversed ? 'lg:order-2' : ''}`}>
         {!imageFailed && imageUrl ? (
-          <img src={imageUrl} alt={imageAlt} width="1200" height="1000" loading="lazy" decoding="async" onError={() => setImageFailed(true)} className="absolute inset-0 h-full w-full object-cover object-center" />
+          <img
+            src={getOptimizedImageUrl(imageUrl, { width: 1200 })}
+            srcSet={getResponsiveImageSrcSet(imageUrl, [480, 720, 960, 1200])}
+            sizes="(min-width: 1024px) 50vw, calc(100vw - 2rem)"
+            alt={imageAlt}
+            width="1200"
+            height="1000"
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface text-muted">
             <ImageOff className="h-7 w-7" aria-hidden="true" />

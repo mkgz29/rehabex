@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { useCart } from '../cart/useCart';
 import { Footer } from '../components/Footer';
@@ -8,12 +8,18 @@ import { getActiveProducts } from '../services/cms';
 import type { Product } from '../types/cms';
 
 export function StorePage() {
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
   const [cartErrorProductId, setCartErrorProductId] = useState<string | null>(null);
   const { addItem } = useCart();
+  const searchQuery = searchParams.get('buscar')?.trim() ?? '';
+  const normalizedQuery = normalizeSearchTerm(searchQuery);
+  const visibleProducts = normalizedQuery
+    ? products.filter((product) => normalizeSearchTerm([product.name, product.category, product.description].filter(Boolean).join(' ')).includes(normalizedQuery))
+    : products;
 
   useEffect(() => {
     let mounted = true;
@@ -74,6 +80,7 @@ export function StorePage() {
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600">
               Productos activos cargados desde el panel de administracion, listos para consulta y compra asistida.
             </p>
+            {searchQuery ? <p className="mt-4 text-sm font-semibold text-slate-700">Resultados para “{searchQuery}”</p> : null}
           </div>
 
           {loading ? (
@@ -92,9 +99,15 @@ export function StorePage() {
             </div>
           ) : null}
 
-          {!loading && !error && products.length > 0 ? (
+          {!loading && !error && products.length > 0 && visibleProducts.length === 0 ? (
+            <div className="mt-12 rounded-2xl border border-slate-200 bg-stone-50 p-6 text-sm text-slate-600">
+              No encontramos productos que coincidan con “{searchQuery}”.
+            </div>
+          ) : null}
+
+          {!loading && !error && visibleProducts.length > 0 ? (
             <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {products.map((product) => (
+              {visibleProducts.map((product) => (
                 <article
                   key={product.id}
                   className="group flex min-h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_22px_60px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(15,23,42,0.1)]"
@@ -161,4 +174,11 @@ export function StorePage() {
       <Footer />
     </div>
   );
+}
+
+function normalizeSearchTerm(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es');
 }

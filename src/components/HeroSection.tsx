@@ -2,6 +2,7 @@ import { ArrowRight, ImageOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
 import type { HeroContent } from '../types/cms';
 
 type HeroSectionProps = {
@@ -34,7 +35,9 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
         <div className="relative min-h-[24rem] overflow-hidden rounded-card bg-line md:min-h-[34rem] lg:min-h-[40rem]">
           {!imageFailed && heroContent.image_url ? (
             <img
-              src={heroContent.image_url}
+              src={getOptimizedImageUrl(heroContent.image_url, { width: 1600 })}
+              srcSet={getResponsiveImageSrcSet(heroContent.image_url, [640, 960, 1280, 1600])}
+              sizes="(min-width: 768px) 55vw, calc(100vw - 2rem)"
               alt={heroContent.title}
               width="1600"
               height="1800"

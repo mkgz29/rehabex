@@ -1,5 +1,6 @@
 import { Menu, Search, ShoppingBag, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/useAuth';
@@ -19,8 +20,11 @@ function getActiveHref(pathname: string, hash: string) {
 
 export function SiteHeader() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin, loading, signOut, user } = useAuth();
   const { totalItems } = useCart();
   const location = useLocation();
@@ -33,10 +37,28 @@ export function SiteHeader() {
 
   useEffect(() => {
     closeMenu();
+    setIsSearchOpen(false);
     if (location.pathname !== '/' || !location.hash) return;
     const sectionId = location.hash.slice(1);
     window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' }), 0);
   }, [closeMenu, location.hash, location.pathname]);
+
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    searchInputRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsSearchOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isSearchOpen]);
+
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    navigate(query ? `/tienda?buscar=${encodeURIComponent(query)}` : '/tienda');
+    setIsSearchOpen(false);
+  };
 
   const handleLogout = async () => {
     setLogoutError(null);
@@ -89,9 +111,17 @@ export function SiteHeader() {
           </nav>
 
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
-            <Link to="/tienda" className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface sm:inline-flex" aria-label="Buscar productos en la tienda" title="Buscar productos">
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen((current) => !current)}
+              className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface sm:inline-flex"
+              aria-label={isSearchOpen ? 'Cerrar búsqueda' : 'Buscar productos'}
+              aria-expanded={isSearchOpen}
+              aria-controls="site-search"
+              title="Buscar productos"
+            >
               <Search className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
-            </Link>
+            </button>
             {showAuthLinks ? (
               <Link to="/login" className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface sm:inline-flex" aria-label="Ingresar a mi cuenta">
                 <UserRound className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
@@ -105,6 +135,23 @@ export function SiteHeader() {
             </Link>
           </div>
         </div>
+        {isSearchOpen ? (
+          <div id="site-search" className="border-t border-line bg-surface">
+            <form role="search" onSubmit={handleSearch} className="site-container flex gap-3 py-4">
+              <label htmlFor="site-search-input" className="sr-only">Buscar por nombre, categoría o descripción</label>
+              <input
+                ref={searchInputRef}
+                id="site-search-input"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Buscar en el catálogo"
+                className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-canvas px-4 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
+              />
+              <button type="submit" className="brand-button shrink-0">Buscar</button>
+            </form>
+          </div>
+        ) : null}
         {logoutError ? <div role="alert" className="site-container pb-3 text-sm font-medium text-danger">{logoutError}</div> : null}
       </header>
 
