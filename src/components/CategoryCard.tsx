@@ -13,7 +13,7 @@ type CategoryCardProps = {
 
 export function CategoryCard({ name, productCount, imageUrl, imageAlt }: CategoryCardProps) {
   return (
-    <Link to={getCategoryStoreHref(name)} className="group overflow-hidden rounded-card border border-line bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-card">
+    <Link data-reveal-item to={getCategoryStoreHref(name)} className="group overflow-hidden rounded-card border border-line/90 bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:border-accent hover:shadow-card">
       <div className="aspect-[4/3] overflow-hidden bg-line/50">
         {imageUrl ? (
           <img
@@ -35,7 +35,7 @@ export function CategoryCard({ name, productCount, imageUrl, imageAlt }: Categor
       </div>
       <div className="p-5">
         <p className="text-lg font-bold tracking-[-0.025em] text-ink">{name}</p>
-        <div className="mt-2 flex items-center justify-between text-sm text-muted">
+        <div className="mt-2 flex items-center justify-between text-sm text-accent">
           <span>{productCount} {productCount === 1 ? 'producto' : 'productos'}</span>
           <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
         </div>

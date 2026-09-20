@@ -16,7 +16,7 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
   const detailHref = `/productos/${product.id}`;
 
   return (
-    <article className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:shadow-card focus-within:shadow-card">
+    <article data-reveal-item className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line/90 bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:border-accent/70 hover:shadow-card focus-within:shadow-card">
       <Link to={detailHref} className="relative block aspect-[4/5] overflow-hidden bg-canvas" aria-label={`Ver ${product.name}`}>
         {product.imageUrl ? (
           <img
@@ -40,9 +40,11 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
       </Link>
 
       <div className="flex flex-1 flex-col p-5">
-        {product.category ? <p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-muted">{product.category}</p> : null}
+        {product.category ? <p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-accent">{product.category}</p> : null}
         <h3 className="mt-2 min-h-12 text-lg font-bold leading-snug tracking-[-0.02em] text-ink">
-          <Link to={detailHref} className="line-clamp-2 rounded-sm hover:text-brand-hover">{product.name}</Link>
+          <Link to={detailHref} className="flex min-h-11 items-start rounded-sm transition hover:text-accent">
+            <span className="line-clamp-2">{product.name}</span>
+          </Link>
         </h3>
         <p className="mt-3 text-lg font-bold tabular-nums text-ink">{formatCurrency(product.price)}</p>
         <p className={`mt-2 min-h-5 text-xs font-semibold ${isOutOfStock ? 'text-muted' : product.stockOnHand !== undefined ? 'text-success' : 'text-muted'}`}>

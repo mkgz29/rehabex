@@ -9,14 +9,14 @@ const trustItems = [
 
 export function TrustStrip() {
   return (
-    <section className="border-y border-line bg-surface" aria-label="Beneficios de comprar en Rehabex">
+    <section className="border-y border-white/10 bg-primary text-white" aria-label="Beneficios de comprar en Rehabex">
       <div className="site-container grid sm:grid-cols-2 lg:grid-cols-4">
         {trustItems.map(({ icon: Icon, title, text }, index) => (
-          <div key={title} className={`flex gap-4 py-6 sm:px-5 lg:py-7 ${index > 0 ? 'border-t border-line sm:border-t-0' : ''} ${index % 2 === 1 ? 'sm:border-l' : ''} ${index > 1 ? 'sm:border-t lg:border-t-0' : ''} ${index > 0 ? 'lg:border-l' : ''}`}>
-            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-brand-hover" strokeWidth={1.8} aria-hidden="true" />
+          <div key={title} data-reveal-item className={`flex gap-4 py-6 sm:px-5 lg:py-7 ${index > 0 ? 'border-t border-white/10 sm:border-t-0' : ''} ${index % 2 === 1 ? 'sm:border-l' : ''} ${index > 1 ? 'sm:border-t lg:border-t-0' : ''} ${index > 0 ? 'lg:border-l' : ''}`}>
+            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-accent-soft" strokeWidth={1.8} aria-hidden="true" />
             <div>
-              <h2 className="text-sm font-bold text-ink">{title}</h2>
-              <p className="mt-1 text-xs leading-5 text-muted sm:text-sm">{text}</p>
+              <h2 className="text-sm font-bold text-white">{title}</h2>
+              <p className="mt-1 text-xs leading-5 text-white/60 sm:text-sm">{text}</p>
             </div>
           </div>
         ))}

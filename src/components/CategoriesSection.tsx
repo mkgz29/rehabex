@@ -24,7 +24,7 @@ export function CategoriesSection({ products }: CategoriesSectionProps) {
   if (categories.length === 0) return null;
 
   return (
-    <section className="section-shell bg-canvas" aria-labelledby="categories-title">
+    <section className="section-shell bg-surface-muted" aria-labelledby="categories-title">
       <div className="site-container">
         <div id="categories-title">
           <SectionHeading eyebrow="Soluciones" title="Encontrá lo que necesitás para cada etapa" description="Explorá el catálogo a partir de las categorías disponibles en Rehabex." />

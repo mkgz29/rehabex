@@ -11,7 +11,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="flex min-h-64 flex-col items-center justify-center rounded-card border border-dashed border-line bg-surface px-6 py-12 text-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-hover">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-accent">
         <PackageOpen className="h-5 w-5" aria-hidden="true" />
       </span>
       <h3 className="mt-5 text-lg font-bold text-ink">{title}</h3>

@@ -31,7 +31,7 @@ export function LandingPage() {
         {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}
         <Reveal><NewsletterSection /></Reveal>
       </main>
-      <Reveal><Footer /></Reveal>
+      <Reveal><Footer categories={activeProducts.map((product) => product.category).filter((category): category is string => Boolean(category))} /></Reveal>
     </div>
   );
 }

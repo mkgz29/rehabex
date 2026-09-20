@@ -1,42 +1,67 @@
-import { ArrowUpRight, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import logo from '../assets/logo.png';
 import { navLinks } from '../content/navigation';
+import { getCategoryStoreHref } from '../lib/catalog';
 
-export function SiteFooter() {
+type SiteFooterProps = {
+  categories?: string[];
+};
+
+export function SiteFooter({ categories = [] }: SiteFooterProps) {
+  const visibleCategories = [...new Set(categories.map((category) => category.trim()).filter(Boolean))].slice(0, 5);
+
   return (
-    <footer id="contacto" className="bg-dark text-white">
+    <footer id="contacto" className="bg-primary text-white">
       <div className="site-container py-16 lg:py-20">
-        <div className="grid gap-12 border-b border-white/15 pb-12 lg:grid-cols-[1.25fr_0.75fr_0.8fr] lg:gap-16 lg:pb-16">
-          <div className="max-w-lg">
-            <img src={logo} alt="Rehabex" width="466" height="153" loading="lazy" className="h-11 w-auto object-contain brightness-0 invert" />
-            <p className="mt-6 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] sm:text-3xl">Equipamiento para acompañar cada etapa de tu recuperación.</p>
-            <p className="mt-4 max-w-md text-sm leading-7 text-white/65">Una selección clara de productos para rehabilitación, movilidad y bienestar.</p>
+        <div data-reveal-item className="grid gap-6 rounded-card border border-white/15 bg-white/[0.04] p-6 sm:p-8 lg:grid-cols-[auto_1fr_auto] lg:items-center lg:gap-8">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-accent-soft">
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/50">Medios de pago</p>
+            <h2 className="mt-2 text-lg font-bold text-white sm:text-xl">Pagos procesados de forma segura por Mercado Pago</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">La disponibilidad del producto se informa antes de iniciar la compra.</p>
+          </div>
+          <span className="inline-flex min-h-11 w-fit items-center rounded-control border border-white/20 bg-white/10 px-4 text-sm font-bold text-white">Mercado Pago</span>
+        </div>
+
+        <div className={`mt-14 grid gap-12 border-b border-white/15 pb-12 lg:mt-16 lg:gap-14 lg:pb-16 ${visibleCategories.length > 0 ? 'lg:grid-cols-[1.35fr_0.65fr_0.8fr]' : 'lg:grid-cols-[1.4fr_0.6fr]'}`}>
+          <div data-reveal-item className="max-w-lg">
+            <img src={logo} alt="Rehabex" width="466" height="153" loading="lazy" className="h-10 w-auto object-contain" />
+            <p className="mt-7 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] text-white sm:text-3xl">Equipamiento para acompañar cada etapa de tu recuperación.</p>
+            <p className="mt-4 max-w-md text-sm leading-7 text-white/60">Una selección clara de productos para rehabilitación, movilidad y bienestar.</p>
           </div>
 
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Explorar</p>
-            <nav className="mt-5 flex flex-col items-start gap-3" aria-label="Navegación del pie">
+          <div data-reveal-item>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Explorar</p>
+            <nav className="mt-4 flex flex-col items-start" aria-label="Navegación del pie">
               {navLinks.map((link) => (
-                <Link key={link.href} to={link.href} className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-white/75 transition hover:text-white">
+                <Link key={link.href} to={link.href} className="group inline-flex min-h-11 min-w-11 items-center gap-1.5 text-sm font-semibold text-white/70 transition hover:text-accent-soft">
                   {link.label}
-                  <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
+                  <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />
                 </Link>
               ))}
             </nav>
           </div>
 
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Compra</p>
-            <div className="mt-5 space-y-4 text-sm text-white/70">
-              <p className="flex items-start gap-3 leading-6"><CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />Pagos procesados mediante Mercado Pago.</p>
-              <p className="flex items-start gap-3 leading-6"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />El stock se confirma al iniciar la compra.</p>
+          {visibleCategories.length > 0 ? (
+            <div data-reveal-item>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Categorías</p>
+              <nav className="mt-4 flex flex-col items-start" aria-label="Categorías en el pie">
+                {visibleCategories.map((category) => (
+                  <Link key={category} to={getCategoryStoreHref(category)} className="group inline-flex min-h-11 min-w-11 items-center gap-1.5 text-sm font-semibold text-white/70 transition hover:text-accent-soft">
+                    {category}
+                    <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />
+                  </Link>
+                ))}
+              </nav>
             </div>
-          </div>
+          ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 pt-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 pt-6 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Rehabex. Todos los derechos reservados.</p>
           <p>Rehabilitación · Movilidad · Recuperación</p>
         </div>
