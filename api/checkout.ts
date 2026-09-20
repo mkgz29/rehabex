@@ -9,6 +9,7 @@ import {
   classifyCheckoutUrl,
   consumeRateLimit,
   expectedEntryPoint,
+  selectCheckoutEntryPoint,
   hash,
   header,
   isJsonContentType,
@@ -179,16 +180,17 @@ export default async function handler(request: ApiRequest, response: ApiResponse
           reservationExpiresAt: order.reservation_expires_at,
         }),
       });
-      // Exactly one entry point per environment. Never `init_point ?? sandbox_init_point`:
-      // that silently sent every test buyer to the live checkout.
-      const checkoutUrl = entryPoint === 'sandbox' ? response.sandbox_init_point : response.init_point;
-      const resolved = classifyCheckoutUrl(checkoutUrl);
-      if (!checkoutUrl || resolved !== entryPoint) {
-        logEvent('checkout_entry_point_invalid', { checkoutMode: environment, checkoutEntryPoint: entryPoint, resolvedEntryPoint: resolved ?? 'none' });
+      const selected = selectCheckoutEntryPoint(environment, response);
+      if (!selected) {
+        logEvent('checkout_entry_point_invalid', {
+          checkoutMode: environment,
+          checkoutEntryPoint: entryPoint,
+          resolvedEntryPoint: classifyCheckoutUrl(entryPoint === 'sandbox' ? response.sandbox_init_point : response.init_point) ?? 'none',
+        });
         throw new Error('checkout entry point unavailable for the configured environment');
       }
-      logEvent('checkout_entry_point_selected', { checkoutMode: environment, checkoutEntryPoint: entryPoint });
-      return { id: response.id, checkoutUrl };
+      logEvent('checkout_entry_point_selected', { checkoutMode: environment, checkoutEntryPoint: selected.entryPoint });
+      return { id: response.id, checkoutUrl: selected.checkoutUrl };
     },
   }, leaseToken);
 

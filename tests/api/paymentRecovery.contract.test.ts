@@ -9,6 +9,7 @@ import {
   expectedEntryPoint,
   expectedLiveMode,
   mercadoPagoEnvironment,
+  selectCheckoutEntryPoint,
   type ApiRequest,
   type ApiResponse,
 } from '../../server/commerce/commerce.js';
@@ -761,4 +762,45 @@ test('recovery on a test order refuses the live payment and records why', async 
       assert.equal(serialized.includes(forbidden), false, 'leaked sensitive value');
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// Entry point: which field, and which host, per environment
+// ---------------------------------------------------------------------------
+
+const PREFERENCE_ENTRY_POINTS = {
+  init_point: 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=3369421914-69d1f9e0',
+  sandbox_init_point: 'https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=3369421914-69d1f9e0',
+};
+
+test('production takes init_point on the live host, test takes sandbox_init_point on the sandbox host', () => {
+  const live = selectCheckoutEntryPoint('production', PREFERENCE_ENTRY_POINTS);
+  assert.equal(live?.entryPoint, 'live');
+  assert.equal(live?.checkoutUrl, PREFERENCE_ENTRY_POINTS.init_point);
+  assert.equal(new URL(String(live?.checkoutUrl)).host, 'www.mercadopago.com.ar');
+
+  const sandbox = selectCheckoutEntryPoint('test', PREFERENCE_ENTRY_POINTS);
+  assert.equal(sandbox?.entryPoint, 'sandbox');
+  assert.equal(sandbox?.checkoutUrl, PREFERENCE_ENTRY_POINTS.sandbox_init_point);
+  assert.equal(new URL(String(sandbox?.checkoutUrl)).host, 'sandbox.mercadopago.com.ar');
+
+  // Neither environment may ever resolve to the other's host.
+  assert.notEqual(new URL(String(live?.checkoutUrl)).host, 'sandbox.mercadopago.com.ar');
+  assert.notEqual(new URL(String(sandbox?.checkoutUrl)).host, 'www.mercadopago.com.ar');
+});
+
+test('a missing entry point never falls back to the other environment', () => {
+  // The original defect: `init_point ?? sandbox_init_point` sent test buyers live.
+  assert.equal(selectCheckoutEntryPoint('test', { init_point: PREFERENCE_ENTRY_POINTS.init_point }), null);
+  assert.equal(selectCheckoutEntryPoint('production', { sandbox_init_point: PREFERENCE_ENTRY_POINTS.sandbox_init_point }), null);
+  assert.equal(selectCheckoutEntryPoint('test', {}), null);
+  assert.equal(selectCheckoutEntryPoint('production', {}), null);
+});
+
+test('an entry point whose host does not match the environment is refused', () => {
+  // Mercado Pago returning a live URL in the sandbox field, or an impostor host.
+  assert.equal(selectCheckoutEntryPoint('test', { sandbox_init_point: PREFERENCE_ENTRY_POINTS.init_point }), null);
+  assert.equal(selectCheckoutEntryPoint('production', { init_point: PREFERENCE_ENTRY_POINTS.sandbox_init_point }), null);
+  assert.equal(selectCheckoutEntryPoint('production', { init_point: 'https://mercadopago.com.ar.evil.test/checkout' }), null);
+  assert.equal(selectCheckoutEntryPoint('production', { init_point: 'http://www.mercadopago.com.ar/checkout' }), null);
 });

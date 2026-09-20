@@ -294,3 +294,25 @@ export function classifyCheckoutUrl(url: string | undefined): CheckoutEntryPoint
   if (LIVE_CHECKOUT_HOST.test(host)) return 'live';
   return null;
 }
+
+/** The two entry points Mercado Pago returns when a preference is created. */
+export type PreferenceEntryPoints = { init_point?: string; sandbox_init_point?: string };
+
+/**
+ * Picks the one entry point that belongs to the configured environment.
+ *
+ * Deliberately has no fallback: `init_point ?? sandbox_init_point` is what sent
+ * every test buyer to the live checkout. A test environment uses
+ * `sandbox_init_point` and must resolve to a sandbox host; a production
+ * environment uses `init_point` and must resolve to a live host. Anything else
+ * returns null so the caller fails closed instead of guessing.
+ */
+export function selectCheckoutEntryPoint(
+  environment: MercadoPagoEnvironment,
+  preference: PreferenceEntryPoints,
+): { checkoutUrl: string; entryPoint: CheckoutEntryPoint } | null {
+  const entryPoint = expectedEntryPoint(environment);
+  const checkoutUrl = entryPoint === 'sandbox' ? preference.sandbox_init_point : preference.init_point;
+  if (!checkoutUrl || classifyCheckoutUrl(checkoutUrl) !== entryPoint) return null;
+  return { checkoutUrl, entryPoint };
+}
