@@ -1,19 +1,13 @@
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import mastercardMark from '../assets/payments/mastercard.svg';
-import visaMark from '../assets/payments/visa.svg';
 import { navLinks } from '../content/navigation';
 import { getCategoryStoreHref } from '../lib/catalog';
+import { PaymentMethods } from './PaymentMethods';
 
 type SiteFooterProps = {
   categories?: string[];
 };
-
-const paymentMethods = [
-  { name: 'Visa', src: visaMark, width: 1000, height: 324 },
-  { name: 'Mastercard', src: mastercardMark, width: 157, height: 100 },
-];
 
 export function SiteFooter({ categories = [] }: SiteFooterProps) {
   const visibleCategories = [...new Set(categories.map((category) => category.trim()).filter(Boolean))].slice(0, 5);
@@ -55,15 +49,8 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
           ) : null}
         </div>
 
-        <div data-reveal-item className="flex flex-col gap-4 border-b border-white/15 py-6 sm:flex-row sm:items-center sm:gap-7">
-          <p id="footer-payment-methods" className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Medios de pago</p>
-          <ul aria-labelledby="footer-payment-methods" className="flex flex-wrap items-center gap-2.5">
-            {paymentMethods.map((method) => (
-              <li key={method.name} className="flex h-8 items-center rounded-[0.375rem] bg-white px-2.5">
-                <img src={method.src} alt={method.name} width={method.width} height={method.height} loading="lazy" className="h-[1.125rem] w-auto" />
-              </li>
-            ))}
-          </ul>
+        <div className="border-b border-white/15 py-6">
+          <PaymentMethods />
         </div>
 
         <div className="flex flex-col gap-3 pt-6 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between">
