@@ -19,14 +19,17 @@ Fecha de descarga: 2026-09-20.
 
 **No hay archivo de Mastercard y no debe agregarse uno dibujado a mano.**
 
-Todos los endpoints oficiales de Mastercard responden `Access Denied` (Akamai)
-desde este entorno, tanto por HTTP directo como desde un navegador real:
+El Brand Center y la Media Library de Mastercard publican paquetes SVG oficiales,
+pero sus endpoints binarios responden `Access Denied` (Akamai) desde este entorno,
+tanto por HTTP directo como desde un navegador real:
 
 - `https://brand.mastercard.com/` → 403
 - `https://brand.mastercard.com/brandcenter.html` → 403
 - `https://www.mastercard.com/global/en.html` → 403
 - `https://www.mastercard.com.ar/es-ar.html` → 403
 - `https://www.mastercard.com/content/dam/.../mc-logo-52.svg` → 403
+- `https://www.mastercard.com/content/dam/brandcenter/assets/downloads/mc_symbol_SVG.zip` → 403
+- `https://www.mastercard.com/news/media/clbpi0i2/mastercard_symbol.zip` → 403
 
 Para completar la franja hace falta descargar desde el Brand Center de
 Mastercard (requiere aceptar sus condiciones de uso) el símbolo horizontal a
@@ -38,12 +41,11 @@ src/assets/payments/mastercard.svg
 
 Una vez presente el archivo, basta con descomentar su entrada en
 `paymentMethods` dentro de `src/components/PaymentMethods.tsx`; el componente ya
-contempla su altura óptica y no requiere ningún otro cambio.
+usa chips normalizados de 84 × 36 px y un área interior de 64 × 22 px.
 
 ## Notas de formato
 
-`visa.png` y `naranja-x.png` son PNG porque ninguna de las dos marcas publica un
-SVG accesible fuera de su brand center. Ambos son los archivos que la propia
-marca sirve en su sitio. Si más adelante se consiguen los SVG oficiales, se
-reemplazan los archivos conservando el nombre y sólo hay que cambiar la
-extensión en el import.
+`visa.png` y `naranja-x.png` son PNG porque los SVG oficiales no están disponibles
+sin pasar por sus formularios o brand centers. Ambos PNG son los archivos que la
+propia marca sirve desde sus dominios. No se vectorizan ni se convierten para no
+crear derivados no oficiales.

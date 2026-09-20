@@ -126,10 +126,10 @@ export function MobileNavigation({
                   to={link.href}
                   onClick={onClose}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`flex min-h-12 items-center justify-between rounded-control px-3 py-2.5 text-base font-semibold transition ${isActive ? 'bg-surface-muted text-primary' : 'text-ink hover:bg-surface'}`}
+                  className={`flex min-h-12 items-center justify-between rounded-control px-3 py-2.5 text-base font-semibold transition ${isActive ? 'bg-brand/5 text-primary ring-1 ring-inset ring-brand/15' : 'text-ink hover:bg-surface'}`}
                 >
                   {link.label}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  <ArrowRight className={`h-4 w-4 ${isActive ? 'text-brand' : ''}`} aria-hidden="true" />
                 </Link>
               );
             })}
