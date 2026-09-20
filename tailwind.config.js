@@ -6,10 +6,19 @@ export default {
       colors: {
         canvas: 'rgb(var(--color-canvas) / <alpha-value>)',
         surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        'surface-muted': 'rgb(var(--color-surface-muted) / <alpha-value>)',
         ink: 'rgb(var(--color-ink) / <alpha-value>)',
         muted: 'rgb(var(--color-muted) / <alpha-value>)',
         line: 'rgb(var(--color-line) / <alpha-value>)',
         dark: 'rgb(var(--color-dark) / <alpha-value>)',
+        primary: {
+          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+          hover: 'rgb(var(--color-primary-hover) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
+          soft: 'rgb(var(--color-accent-soft) / <alpha-value>)',
+        },
         brand: {
           DEFAULT: 'rgb(var(--color-brand) / <alpha-value>)',
           hover: 'rgb(var(--color-brand-hover) / <alpha-value>)',

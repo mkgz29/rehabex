@@ -38,17 +38,29 @@
   :root {
     color-scheme: light;
 
-    /* Brand color sampled from the existing Rehabex logo. */
+    /* Official Rehabex palette and its semantic roles. */
+    --color-charcoal: 31 31 31;
+    --color-stone: 168 159 147;
+    --color-off-white: 248 247 245;
+    --color-soft-gray: 231 229 226;
+
+    /* The original orange remains reserved for the logo and rare micro-accents. */
     --color-brand: 255 86 1;
     --color-brand-hover: 210 63 0;
     --color-brand-soft: 255 239 230;
 
-    --color-canvas: 250 250 247;
+    --color-primary: var(--color-charcoal);
+    --color-primary-hover: 52 52 52;
+    --color-accent: 117 108 97;
+    --color-accent-soft: 221 217 211;
+
+    --color-canvas: var(--color-off-white);
     --color-surface: 255 255 255;
-    --color-ink: 17 17 17;
-    --color-muted: 104 104 99;
-    --color-line: 231 231 226;
-    --color-dark: 16 16 16;
+    --color-surface-muted: var(--color-soft-gray);
+    --color-ink: var(--color-charcoal);
+    --color-muted: 95 91 86;
+    --color-line: 215 211 205;
+    --color-dark: var(--color-charcoal);
 
     --color-success: 20 108 67;
     --color-warning: 150 92 0;
@@ -116,12 +128,12 @@
   }
 
   :focus-visible {
-    outline: 3px solid rgb(var(--color-brand) / 0.72);
+    outline: 3px solid rgb(var(--color-accent) / 0.85);
     outline-offset: 3px;
   }
 
   ::selection {
-    background: rgb(var(--color-brand) / 0.2);
+    background: rgb(var(--color-stone) / 0.34);
     color: rgb(var(--color-ink));
   }
 }
@@ -139,14 +151,14 @@
   }
 
   .brand-button {
-    @apply inline-flex min-h-11 items-center justify-center rounded-control bg-brand px-5 py-3 text-sm font-bold text-dark transition;
+    @apply inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-5 py-3 text-sm font-bold text-white transition;
     transition-duration: var(--duration-ui);
     transition-property: background-color, border-color, color, box-shadow, transform;
     transition-timing-function: var(--ease-ui);
   }
 
   .brand-button:hover {
-    @apply bg-brand-hover text-white;
+    @apply bg-primary-hover text-white shadow-soft;
   }
 
   .brand-button:active {
@@ -154,23 +166,109 @@
   }
 
   .secondary-button {
-    @apply inline-flex min-h-11 items-center justify-center rounded-control border border-line bg-surface px-5 py-3 text-sm font-bold text-ink transition;
+    @apply inline-flex min-h-11 items-center justify-center rounded-control border border-line bg-transparent px-5 py-3 text-sm font-bold text-ink transition;
     transition-duration: var(--duration-ui);
     transition-property: background-color, border-color, color, box-shadow;
     transition-timing-function: var(--ease-ui);
   }
 
   .secondary-button:hover {
-    @apply border-ink bg-canvas;
+    @apply border-accent bg-surface;
   }
 
   .eyebrow {
-    @apply text-xs font-bold uppercase tracking-[0.2em] text-brand-hover;
+    @apply text-xs font-bold uppercase tracking-[0.2em] text-accent;
   }
 
   .text-balance {
     text-wrap: balance;
   }
+
+  .hero-enter {
+    animation: hero-enter 420ms var(--ease-ui) both;
+  }
+
+  .hero-enter-delay-1 {
+    animation-delay: 60ms;
+  }
+
+  .hero-enter-delay-2 {
+    animation-delay: 120ms;
+  }
+
+  .hero-enter-delay-3 {
+    animation-delay: 180ms;
+  }
+
+  .hero-enter-delay-4 {
+    animation-delay: 100ms;
+  }
+
+  .reveal-section {
+    opacity: 1;
+    transform: none;
+  }
+
+  .reveal-ready .reveal-section:not(.is-visible) {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .reveal-ready .reveal-section {
+    transition: opacity 380ms var(--ease-ui), transform 380ms var(--ease-ui);
+  }
+
+  .reveal-ready .reveal-section [data-reveal-item] {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item] {
+    opacity: 1;
+    transform: none;
+    transition: opacity 360ms var(--ease-ui), transform 360ms var(--ease-ui);
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item]:nth-child(2) {
+    transition-delay: 55ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item]:nth-child(3) {
+    transition-delay: 110ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item]:nth-child(4) {
+    transition-delay: 165ms;
+  }
+
+  .editorial-gallery {
+    scrollbar-width: none;
+  }
+
+  .editorial-gallery::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cart-badge-enter {
+    animation: cart-badge-enter 220ms var(--ease-ui) both;
+  }
+}
+
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cart-badge-enter {
+  0% { opacity: 0; transform: scale(0.72); }
+  70% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -185,5 +283,11 @@
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .reveal-ready .reveal-section,
+  .reveal-ready .reveal-section [data-reveal-item] {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

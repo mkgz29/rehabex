@@ -109,7 +109,7 @@ export function MobileNavigation({
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Ej. camilla"
-                className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
+                className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-accent"
               />
               <button type="submit" className="brand-button w-11 shrink-0 px-0" aria-label="Buscar en el catálogo">
                 <Search className="h-4 w-4" aria-hidden="true" />
@@ -126,7 +126,7 @@ export function MobileNavigation({
                   to={link.href}
                   onClick={onClose}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`flex min-h-12 items-center justify-between rounded-control px-3 py-2.5 text-base font-semibold transition ${isActive ? 'bg-brand-soft text-brand-hover' : 'text-ink hover:bg-surface'}`}
+                  className={`flex min-h-12 items-center justify-between rounded-control px-3 py-2.5 text-base font-semibold transition ${isActive ? 'bg-surface-muted text-primary' : 'text-ink hover:bg-surface'}`}
                 >
                   {link.label}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

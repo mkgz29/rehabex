@@ -108,7 +108,7 @@ export function SiteHeader() {
                   className={`relative inline-flex items-center px-3 text-sm font-semibold transition lg:px-4 ${isActive ? 'text-ink' : 'text-muted hover:text-ink'}`}
                 >
                   {link.label}
-                  <span className={`absolute inset-x-3 bottom-0 h-0.5 bg-brand transition-transform lg:inset-x-4 ${isActive ? 'scale-x-100' : 'scale-x-0'}`} aria-hidden="true" />
+                  <span className={`absolute inset-x-3 bottom-0 h-0.5 bg-primary transition-transform lg:inset-x-4 ${isActive ? 'scale-x-100' : 'scale-x-0'}`} aria-hidden="true" />
                 </Link>
               );
             })}
@@ -136,7 +136,7 @@ export function SiteHeader() {
             {showLogout ? <button type="button" onClick={handleLogout} className="hidden px-2 text-sm font-semibold text-muted hover:text-ink lg:inline-flex">Salir</button> : null}
             <Link to="/carrito" className="relative inline-flex h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface" aria-label={`Carrito, ${totalItems} ${totalItems === 1 ? 'producto' : 'productos'}`}>
               <ShoppingBag className="h-5 w-5" aria-hidden="true" />
-              {totalItems > 0 ? <span className="absolute right-0.5 top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand px-1 text-[0.625rem] font-bold leading-none text-dark">{totalItems > 99 ? '99+' : totalItems}</span> : null}
+              {totalItems > 0 ? <span key={totalItems} className="cart-badge-enter absolute right-0.5 top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-accent-soft px-1 text-[0.625rem] font-bold leading-none text-primary">{totalItems > 99 ? '99+' : totalItems}</span> : null}
             </Link>
           </div>
         </div>
@@ -151,7 +151,7 @@ export function SiteHeader() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Buscar en el catálogo"
-                className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-canvas px-4 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
+                className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-canvas px-4 text-sm text-ink outline-none placeholder:text-muted focus:border-accent"
               />
               <button type="submit" className="brand-button shrink-0">Buscar</button>
             </form>
