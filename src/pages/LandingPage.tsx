@@ -1,5 +1,4 @@
 import { AboutSection } from '../components/AboutSection';
-import { CategoriesSection } from '../components/CategoriesSection';
 import { CommercialFeatureSection } from '../components/CommercialFeatureSection';
 import { FeaturedProductsSection } from '../components/FeaturedProductsSection';
 import { Footer } from '../components/Footer';
@@ -26,7 +25,6 @@ export function LandingPage() {
         <HeroSection heroContent={content.hero} />
         <Reveal><TrustStrip /></Reveal>
         <Reveal><FeaturedProductsSection products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} /></Reveal>
-        {!isLoading && !productsError ? <Reveal><CategoriesSection products={activeProducts} /></Reveal> : null}
         <Reveal><AboutSection content={content.about} products={activeProducts} /></Reveal>
         {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}
         <Reveal><NewsletterSection /></Reveal>
