@@ -4,27 +4,60 @@
 
 @layer base {
   :root {
-    --color-primary: #ea7a1f;
-    --color-primary-dark: #c85f0a;
-    --color-primary-soft: #fff1e6;
-    --color-primary-border: #f3c29a;
-    --color-primary-soft-strong: #fde1cc;
+    color-scheme: light;
+
+    /* Brand color sampled from the existing Rehabex logo. */
+    --color-brand: 255 86 1;
+    --color-brand-hover: 220 68 0;
+    --color-brand-soft: 255 239 230;
+
+    --color-canvas: 250 250 247;
+    --color-surface: 255 255 255;
+    --color-ink: 17 17 17;
+    --color-muted: 104 104 99;
+    --color-line: 231 231 226;
+    --color-dark: 16 16 16;
+
+    --color-success: 20 108 67;
+    --color-warning: 150 92 0;
+    --color-danger: 181 42 42;
+    --color-info: 27 91 146;
+
+    --space-page: clamp(1rem, 3vw, 2.5rem);
+    --space-section: clamp(4rem, 8vw, 7.5rem);
+    --radius-control: 0.625rem;
+    --radius-card: 0.875rem;
+    --shadow-soft: 0 1px 2px rgb(17 17 17 / 0.04), 0 10px 30px rgb(17 17 17 / 0.04);
+    --shadow-card: 0 1px 2px rgb(17 17 17 / 0.05), 0 18px 46px rgb(17 17 17 / 0.07);
+    --shadow-lift: 0 2px 4px rgb(17 17 17 / 0.06), 0 24px 54px rgb(17 17 17 / 0.11);
+    --duration-ui: 200ms;
+    --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+    --z-header: 40;
+    --z-overlay: 50;
+    --z-modal: 60;
+    --z-toast: 70;
   }
 
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: 7rem;
   }
 
   body {
     margin: 0;
     min-width: 320px;
-    background-color: #fafaf9;
-    color: #0f172a;
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow-x: hidden;
+    background: rgb(var(--color-canvas));
+    color: rgb(var(--color-ink));
+    font-family: Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
-  * {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
@@ -33,177 +66,92 @@
     max-width: 100%;
   }
 
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   a {
     color: inherit;
     text-decoration: none;
   }
-}
 
-@layer components {
-  .brand-badge {
-    @apply border px-3 py-1;
-    border-color: var(--color-primary-border);
-    background-color: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-  }
-
-  .brand-button {
-    @apply text-white transition;
-    background-color: var(--color-primary);
-  }
-
-  .brand-button:hover {
-    background-color: var(--color-primary-dark);
-  }
-
-  .brand-link {
-    color: var(--color-primary-dark);
-  }
-
-  .brand-link:hover {
-    color: var(--color-primary);
-  }
-
-  .brand-ring-button {
-    @apply transition;
-  }
-
-  .brand-ring-button:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary-dark);
-  }
-
-  .brand-menu-button {
-    position: relative;
-    display: inline-flex;
-    height: 3rem;
-    width: 3rem;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    border: 1px solid var(--color-primary);
-    background-color: rgba(255, 255, 255, 0.92);
-    color: var(--color-primary-dark);
-    transition: all 0.3s ease;
-  }
-
-  .brand-menu-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent),
-      0 10px 28px color-mix(in srgb, var(--color-primary) 18%, transparent);
-  }
-
-  .brand-menu-button:focus-visible {
-    outline: 2px solid var(--color-primary);
+  :focus-visible {
+    outline: 3px solid rgb(var(--color-brand) / 0.72);
     outline-offset: 3px;
   }
 
-  .brand-menu-button__line {
-    position: absolute;
-    left: 50%;
-    height: 2px;
-    width: 1.125rem;
-    border-radius: 9999px;
-    background-color: currentColor;
-    transform-origin: center;
-    transition: all 0.3s ease;
+  ::selection {
+    background: rgb(var(--color-brand) / 0.2);
+    color: rgb(var(--color-ink));
+  }
+}
+
+@layer components {
+  .site-container {
+    width: 100%;
+    max-width: 84rem;
+    margin-inline: auto;
+    padding-inline: var(--space-page);
   }
 
-  .brand-menu-button__line:nth-child(2) {
-    transform: translate(-50%, -6px);
+  .section-shell {
+    padding-block: var(--space-section);
   }
 
-  .brand-menu-button__line:nth-child(3) {
-    transform: translate(-50%, 0);
+  .brand-button {
+    @apply inline-flex min-h-11 items-center justify-center rounded-control bg-brand px-5 py-3 text-sm font-bold text-white transition;
+    transition-duration: var(--duration-ui);
+    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-timing-function: var(--ease-ui);
   }
 
-  .brand-menu-button__line:nth-child(4) {
-    transform: translate(-50%, 6px);
+  .brand-button:hover {
+    @apply bg-brand-hover;
   }
 
-  .brand-menu-button.active {
-    background-color: var(--color-primary-soft);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  .brand-button:active {
+    transform: translateY(1px);
   }
 
-  .brand-menu-button.active .brand-menu-button__line:nth-child(2) {
-    transform: translate(-50%, 0) rotate(45deg);
+  .secondary-button {
+    @apply inline-flex min-h-11 items-center justify-center rounded-control border border-line bg-surface px-5 py-3 text-sm font-bold text-ink transition;
+    transition-duration: var(--duration-ui);
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-timing-function: var(--ease-ui);
   }
 
-  .brand-menu-button.active .brand-menu-button__line:nth-child(3) {
-    opacity: 0;
-    transform: translate(-50%, 0) scaleX(0.6);
+  .secondary-button:hover {
+    @apply border-ink bg-canvas;
   }
 
-  .brand-menu-button.active .brand-menu-button__line:nth-child(4) {
-    transform: translate(-50%, 0) rotate(-45deg);
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.2em] text-brand-hover;
   }
 
-  .hero-performance-bg {
-    background-position: 62% center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    transform: scale(1.02);
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 
-  @media (min-width: 768px) {
-    .hero-performance-bg {
-      background-position: 72% center;
-    }
-  }
-
-  .brand-nav-link {
-    @apply transition;
-  }
-
-  .brand-nav-link:hover {
-    color: var(--color-primary-dark);
-  }
-
-  .brand-soft-hover {
-    @apply transition;
-  }
-
-  .brand-soft-hover:hover {
-    background-color: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-  }
-
-  .brand-dot-active {
-    background-color: var(--color-primary);
-  }
-
-  .brand-accent-soft {
-    background-color: var(--color-primary-soft);
-  }
-
-  .brand-accent-soft-strong {
-    background-color: var(--color-primary-soft-strong);
-  }
-
-  .brand-accent-text {
-    color: var(--color-primary-dark);
-  }
-
-  .brand-accent-text-soft {
-    color: var(--color-primary-border);
-  }
-
-  .brand-accent-border {
-    border-color: var(--color-primary-border);
-  }
-
-  .brand-icon-soft {
-    background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
-    color: var(--color-primary-border);
-  }
-
-  .admin-input {
-    @apply w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition;
-  }
-
-  .admin-input:focus {
-    border-color: #0f172a;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
