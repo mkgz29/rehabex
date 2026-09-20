@@ -13,13 +13,13 @@ export function NewsletterSection() {
             <p className="mt-4 max-w-xl text-sm leading-7 text-white/65 sm:text-base">Estamos preparando un canal para compartir nuevos productos y contenido útil.</p>
           </div>
 
-          <form className="lg:justify-self-end" aria-label="Suscripción a novedades" onSubmit={(event) => event.preventDefault()}>
+          <form className="lg:justify-self-end" aria-label="Suscripción a novedades" aria-describedby="newsletter-status" onSubmit={(event) => event.preventDefault()}>
             <label htmlFor="newsletter-email" className="text-sm font-semibold text-white">Correo electrónico</label>
             <div className="mt-2 flex flex-col gap-3 sm:flex-row lg:min-w-[27rem]">
-              <input id="newsletter-email" type="email" disabled placeholder="tu@email.com" className="min-h-12 flex-1 rounded-control border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/40 disabled:cursor-not-allowed" />
+              <input id="newsletter-email" type="email" disabled aria-describedby="newsletter-status" placeholder="tu@email.com" className="min-h-12 flex-1 rounded-control border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/40 disabled:cursor-not-allowed disabled:opacity-70" />
               <button type="submit" disabled className="min-h-12 rounded-control bg-white/15 px-5 text-sm font-bold text-white/65 disabled:cursor-not-allowed">Próximamente</button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-white/45">La suscripción todavía no está habilitada.</p>
+            <p id="newsletter-status" className="mt-3 text-xs leading-5 text-white/55">La suscripción todavía no está habilitada.</p>
           </form>
         </div>
       </div>

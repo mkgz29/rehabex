@@ -7,7 +7,7 @@ import { navLinks } from '../content/navigation';
 export function SiteFooter() {
   return (
     <footer id="contacto" className="bg-dark text-white">
-      <div className="site-container section-shell">
+      <div className="site-container py-16 lg:py-20">
         <div className="grid gap-12 border-b border-white/15 pb-12 lg:grid-cols-[1.25fr_0.75fr_0.8fr] lg:gap-16 lg:pb-16">
           <div className="max-w-lg">
             <img src={logo} alt="Rehabex" width="466" height="153" loading="lazy" className="h-11 w-auto object-contain brightness-0 invert" />
@@ -19,7 +19,7 @@ export function SiteFooter() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Explorar</p>
             <nav className="mt-5 flex flex-col items-start gap-3" aria-label="Navegación del pie">
               {navLinks.map((link) => (
-                <Link key={link.href} to={link.href} className="group inline-flex min-h-7 items-center gap-1.5 text-sm font-semibold text-white/75 transition hover:text-white">
+                <Link key={link.href} to={link.href} className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-white/75 transition hover:text-white">
                   {link.label}
                   <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
                 </Link>

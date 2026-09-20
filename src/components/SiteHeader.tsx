@@ -24,6 +24,7 @@ export function SiteHeader() {
   const [searchQuery, setSearchQuery] = useState('');
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin, loading, signOut, user } = useAuth();
   const { totalItems } = useCart();
@@ -47,7 +48,10 @@ export function SiteHeader() {
     if (!isSearchOpen) return;
     searchInputRef.current?.focus();
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsSearchOpen(false);
+      if (event.key === 'Escape') {
+        setIsSearchOpen(false);
+        searchTriggerRef.current?.focus();
+      }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
@@ -89,11 +93,11 @@ export function SiteHeader() {
             <Menu className="h-5 w-5" aria-hidden="true" />
           </button>
 
-          <Link to="/" className="flex shrink-0 items-center" aria-label="Rehabex, ir al inicio">
-            <img src={logo} alt="" width="466" height="153" className="h-9 w-auto object-contain sm:h-11" />
+          <Link to="/" className="flex h-11 shrink-0 items-center" aria-label="Rehabex, ir al inicio">
+            <img src={logo} alt="" width="466" height="153" className="h-8 w-auto object-contain sm:h-9" />
           </Link>
 
-          <nav className="ml-8 hidden items-stretch self-stretch md:flex" aria-label="Navegación principal">
+          <nav className="ml-8 hidden items-stretch gap-1 self-stretch md:flex lg:ml-10" aria-label="Navegación principal">
             {navLinks.map((link) => {
               const isActive = activeHref === link.href;
               return (
@@ -112,9 +116,10 @@ export function SiteHeader() {
 
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
             <button
+              ref={searchTriggerRef}
               type="button"
               onClick={() => setIsSearchOpen((current) => !current)}
-              className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface sm:inline-flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface md:inline-flex"
               aria-label={isSearchOpen ? 'Cerrar búsqueda' : 'Buscar productos'}
               aria-expanded={isSearchOpen}
               aria-controls="site-search"
@@ -123,7 +128,7 @@ export function SiteHeader() {
               <Search className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
             </button>
             {showAuthLinks ? (
-              <Link to="/login" className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface sm:inline-flex" aria-label="Ingresar a mi cuenta">
+              <Link to="/login" className="hidden h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface md:inline-flex" aria-label="Ingresar a mi cuenta">
                 <UserRound className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
               </Link>
             ) : null}
@@ -131,7 +136,7 @@ export function SiteHeader() {
             {showLogout ? <button type="button" onClick={handleLogout} className="hidden px-2 text-sm font-semibold text-muted hover:text-ink lg:inline-flex">Salir</button> : null}
             <Link to="/carrito" className="relative inline-flex h-11 w-11 items-center justify-center rounded-control text-ink transition hover:bg-surface" aria-label={`Carrito, ${totalItems} ${totalItems === 1 ? 'producto' : 'productos'}`}>
               <ShoppingBag className="h-5 w-5" aria-hidden="true" />
-              {totalItems > 0 ? <span className="absolute right-0.5 top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand px-1 text-[0.625rem] font-bold leading-none text-white">{totalItems > 99 ? '99+' : totalItems}</span> : null}
+              {totalItems > 0 ? <span className="absolute right-0.5 top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand px-1 text-[0.625rem] font-bold leading-none text-dark">{totalItems > 99 ? '99+' : totalItems}</span> : null}
             </Link>
           </div>
         </div>
