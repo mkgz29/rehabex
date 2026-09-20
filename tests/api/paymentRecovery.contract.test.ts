@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { createOrderPaymentSyncHandler, parseOrderPaymentSyncPayload } from '../../api/order-payment-sync';
 import { confirmMercadoPagoPayment, selectOrderPayment, verifyPaymentMatchesOrder } from '../../server/commerce/paymentConfirmation.js';
-import { fetchMercadoPagoPayment, searchMercadoPagoPaymentsByExternalReference } from '../../server/commerce/mercadoPagoPayment.js';
+import { credentialMode, fetchMercadoPagoPayment, searchMercadoPagoPaymentsByExternalReference } from '../../server/commerce/mercadoPagoPayment.js';
 import type { ApiRequest, ApiResponse } from '../../server/commerce/commerce.js';
 import type { MercadoPagoPayment } from '../../server/commerce/paymentProcessing.js';
 
@@ -511,4 +511,128 @@ test('an empty search and a filtered-out search are distinguishable in telemetry
     // Only provider identifiers and money shape. Never payer data or a token.
     assert.deepEqual(Object.keys(candidate ?? {}).sort(), ['amount', 'code', 'currency', 'liveMode', 'orderId', 'referenceMatches', 'resourceId', 'status']);
   });
+});
+
+// ---------------------------------------------------------------------------
+// Environment mode (live_mode) and confirmation telemetry
+// ---------------------------------------------------------------------------
+
+function capturingSupabase(options: { order?: Record<string, unknown> | null; atomic?: { outcome: string; duplicate?: boolean } } = {}) {
+  const base = supabaseMock(options);
+  const inputs: Array<Record<string, unknown>> = [];
+  const client: any = {
+    from: base.client.from,
+    async rpc(name: string, input: Record<string, unknown>) {
+      if (name === 'process_mercadopago_payment_atomic') inputs.push(input);
+      return base.client.rpc(name, input);
+    },
+  };
+  return { client, inputs, calls: base.calls };
+}
+
+async function paymentResponse(body: Record<string, unknown>) {
+  return fetchMercadoPagoPayment('178635154627', ACCESS_TOKEN, (async (url: string) => {
+    if (url.includes('/merchant_orders/')) return { ok: false, status: 403, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => body };
+  }) as never);
+}
+
+const PROVIDER_BODY = {
+  id: '178635154627',
+  status: 'approved',
+  transaction_amount: 100,
+  currency_id: 'ARS',
+  external_reference: ORDER_ID,
+  order: { id: '44536002569' },
+};
+
+test('live_mode true is reported as present and reaches the RPC as true', async () => {
+  const result = await paymentResponse({ ...PROVIDER_BODY, live_mode: true });
+  assert.equal(result.kind, 'ok');
+  assert.equal(result.kind === 'ok' ? result.liveModeFieldPresent : null, true);
+  assert.equal(result.kind === 'ok' ? result.payment.live_mode : null, true);
+
+  const mock = capturingSupabase();
+  await confirmMercadoPagoPayment(mock.client, result.kind === 'ok' ? result.payment : providerPayment(), { requestId: null, binding: 'unresolved' });
+  assert.equal(mock.inputs[0]?.p_live_mode, true);
+});
+
+test('live_mode false is reported as present and reaches the RPC as false', async () => {
+  const result = await paymentResponse({ ...PROVIDER_BODY, live_mode: false });
+  assert.equal(result.kind === 'ok' ? result.liveModeFieldPresent : null, true);
+  assert.equal(result.kind === 'ok' ? result.payment.live_mode : null, false);
+
+  const mock = capturingSupabase();
+  await confirmMercadoPagoPayment(mock.client, result.kind === 'ok' ? result.payment : providerPayment(), { requestId: null, binding: 'unresolved' });
+  assert.equal(mock.inputs[0]?.p_live_mode, false);
+});
+
+test('an absent live_mode stays null and is never coerced into false', async () => {
+  const absent = await paymentResponse({ ...PROVIDER_BODY });
+  assert.equal(absent.kind === 'ok' ? absent.liveModeFieldPresent : null, false);
+  assert.equal(absent.kind === 'ok' ? absent.payment.live_mode : 'set', undefined);
+
+  const explicitNull = await paymentResponse({ ...PROVIDER_BODY, live_mode: null });
+  assert.equal(explicitNull.kind === 'ok' ? explicitNull.liveModeFieldPresent : null, false);
+
+  // The RPC must receive null, so its strict check keeps failing closed instead
+  // of silently treating an unknown environment as TEST.
+  const mock = capturingSupabase();
+  await confirmMercadoPagoPayment(mock.client, absent.kind === 'ok' ? absent.payment : providerPayment(), { requestId: null, binding: 'unresolved' });
+  assert.equal(mock.inputs[0]?.p_live_mode, null);
+});
+
+test('confirmation telemetry states the environment context and leaks nothing', async () => {
+  const result = await paymentResponse({ ...PROVIDER_BODY, live_mode: true });
+  const mock = capturingSupabase();
+  const entries = await captureConsoleInfo(async () => {
+    await confirmMercadoPagoPayment(mock.client, result.kind === 'ok' ? result.payment : providerPayment(), {
+      requestId: null,
+      binding: 'unresolved',
+      liveModeFieldPresent: result.kind === 'ok' ? result.liveModeFieldPresent : false,
+      credentialMode: credentialMode('APP_USR-0123456789-abcdef-secret-value'),
+    });
+  });
+  const logged = entries.map(([, value]) => value as Record<string, unknown>);
+  const context = logged.find((entry) => entry.code === 'payment_confirmation_context');
+  assert.ok(context);
+  assert.equal(context?.resourceId, '178635154627');
+  assert.equal(context?.liveModeFieldPresent, true);
+  assert.equal(context?.liveModeValue, 'true');
+  assert.equal(context?.providerStatus, 'approved');
+  assert.equal(context?.externalReferenceMatches, true);
+  assert.equal(context?.preferenceBinding, 'order_external_reference');
+  assert.equal(context?.credentialMode, 'app_usr_prefixed');
+  assert.deepEqual(Object.keys(context ?? {}).sort(), [
+    'code', 'credentialMode', 'externalReferenceMatches', 'liveModeFieldPresent',
+    'liveModeValue', 'preferenceBinding', 'providerStatus', 'resourceId',
+  ]);
+  const serialized = JSON.stringify(logged);
+  for (const forbidden of ['APP_USR-0123456789-abcdef-secret-value', 'secret-value', ACCESS_TOKEN, STATUS_TOKEN]) {
+    assert.equal(serialized.includes(forbidden), false, 'leaked credential material in telemetry');
+  }
+});
+
+test('the credential prefix is classified without ever carrying the credential', () => {
+  // Mercado Pago documents that a TEST access token also uses the APP_USR
+  // prefix, so this is a correlation hint and never an environment decision.
+  assert.equal(credentialMode('APP_USR-123-abc'), 'app_usr_prefixed');
+  assert.equal(credentialMode('TEST-123-abc'), 'test_prefixed');
+  assert.equal(credentialMode('something-else'), 'other_prefix');
+  assert.equal(credentialMode(undefined), 'absent');
+  for (const mode of ['app_usr_prefixed', 'test_prefixed', 'other_prefix', 'absent']) {
+    assert.equal(mode.includes('123'), false);
+  }
+});
+
+test('a payment already processed is replayed as duplicate with no second effect', async () => {
+  const mock = capturingSupabase({ atomic: { outcome: 'duplicate', duplicate: true } });
+  const first = await confirmMercadoPagoPayment(mock.client, providerPayment(), { requestId: null, binding: 'unresolved' });
+  const second = await confirmMercadoPagoPayment(mock.client, providerPayment(), { requestId: null, binding: 'unresolved' });
+  assert.equal(first.result.kind, 'duplicate');
+  assert.equal(second.result.kind, 'duplicate');
+  assert.equal(mock.inputs.length, 2);
+  // Both attempts carry the identical dedupe input, so the RPC decides, not us.
+  assert.equal(mock.inputs[0]?.p_provider_payment_id, mock.inputs[1]?.p_provider_payment_id);
+  assert.equal(mock.inputs[0]?.p_payment_status, mock.inputs[1]?.p_payment_status);
 });

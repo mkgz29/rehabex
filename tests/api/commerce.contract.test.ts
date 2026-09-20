@@ -696,6 +696,7 @@ test('Checkout Pro payment DTO resolves a missing preference through its merchan
       transaction_amount: 300, currency_id: 'ARS', preference_id: 'pref-checkout-pro', live_mode: false,
     },
     preferenceBinding: 'merchant_order',
+    liveModeFieldPresent: true,
   });
 });
 

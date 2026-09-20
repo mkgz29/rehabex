@@ -29,8 +29,23 @@ type FetchPayment = (input: string, init: { headers: Record<string, string> }) =
 export type PreferenceBinding = 'payment' | 'merchant_order' | 'unresolved';
 
 export type MercadoPagoProviderResult =
-  | { kind: 'ok'; payment: MercadoPagoPayment; preferenceBinding: PreferenceBinding }
+  | { kind: 'ok'; payment: MercadoPagoPayment; preferenceBinding: PreferenceBinding; liveModeFieldPresent: boolean }
   | MercadoPagoProviderFailure;
+
+/**
+ * Coarse classification of the configured access token's prefix.
+ *
+ * Non-authoritative on purpose: Mercado Pago documents that a test access
+ * token carries the same APP_USR prefix as a production one, so this can never
+ * decide the environment. `live_mode` on the payment is the authoritative
+ * signal. Recorded only to correlate a misconfiguration; never the value.
+ */
+export function credentialMode(accessToken: string | undefined): 'app_usr_prefixed' | 'test_prefixed' | 'other_prefix' | 'absent' {
+  if (!accessToken) return 'absent';
+  if (accessToken.startsWith('APP_USR-')) return 'app_usr_prefixed';
+  if (accessToken.startsWith('TEST-')) return 'test_prefixed';
+  return 'other_prefix';
+}
 
 export type MercadoPagoProviderStage = 'payment_fetch' | 'payment_parse' | 'merchant_order_fetch' | 'merchant_order_parse' | 'payment_search' | 'payment_search_parse';
 
@@ -88,7 +103,10 @@ export async function fetchMercadoPagoPayment(
     }
   }
 
-  return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, preferenceId), preferenceBinding };
+  // Distinguishes "the provider said false" from "the provider never sent the
+  // field", which the DTO alone collapses into the same undefined.
+  const liveModeFieldPresent = Object.prototype.hasOwnProperty.call(payment, 'live_mode') && payment.live_mode !== null;
+  return { kind: 'ok', payment: adaptMercadoPagoPayment(payment, preferenceId), preferenceBinding, liveModeFieldPresent };
 }
 
 /**

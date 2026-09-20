@@ -15,6 +15,7 @@ import {
 import { confirmMercadoPagoPayment, selectOrderPayment, verifyPaymentMatchesOrder } from '../server/commerce/paymentConfirmation.js';
 import type { MercadoPagoPayment } from '../server/commerce/paymentProcessing.js';
 import {
+  credentialMode,
   fetchMercadoPagoPayment,
   searchMercadoPagoPaymentsByExternalReference,
   type MercadoPagoProviderResult,
@@ -183,6 +184,8 @@ export function createOrderPaymentSyncHandler(dependencies: SyncDependencies = {
       const { result, binding } = await confirmMercadoPagoPayment(supabase, provider.payment, {
         requestId: null,
         binding: provider.preferenceBinding,
+        liveModeFieldPresent: provider.liveModeFieldPresent,
+        credentialMode: credentialMode(accessToken),
       });
       if (result.kind === 'unavailable') {
         logSyncFailure(orderId, 'atomic_rpc', 'atomic_rpc_unavailable', undefined, resourceId);

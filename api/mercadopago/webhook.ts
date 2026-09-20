@@ -11,7 +11,7 @@ import {
   type ApiResponse,
 } from '../../server/commerce/commerce.js';
 import { confirmMercadoPagoPayment } from '../../server/commerce/paymentConfirmation.js';
-import { fetchMercadoPagoPayment } from '../../server/commerce/mercadoPagoPayment.js';
+import { credentialMode, fetchMercadoPagoPayment } from '../../server/commerce/mercadoPagoPayment.js';
 
 type WebhookBody = { type?: unknown; data?: { id?: unknown } };
 const RESOURCE_ID = /^[A-Za-z0-9_-]{1,256}$/;
@@ -87,6 +87,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   const { result, binding } = await confirmMercadoPagoPayment(supabase, provider.payment, {
     requestId: requestId.value,
     binding: provider.preferenceBinding,
+    liveModeFieldPresent: provider.liveModeFieldPresent,
+    credentialMode: credentialMode(accessToken),
   });
   if (result.kind === 'unavailable') {
     logEvent('webhook_payment_processing_unavailable');

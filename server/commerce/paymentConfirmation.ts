@@ -1,3 +1,4 @@
+import { logEvent } from './commerce.js';
 import type { PreferenceBinding } from './mercadoPagoPayment.js';
 import {
   createSupabasePaymentRepository,
@@ -21,31 +22,47 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 /**
  * Single confirmation path shared by the signed webhook, the guest recovery
  * endpoint and admin reconciliation. Every channel reaches the same atomic RPC,
- * so deduplication by (provider, payment id, status) holds across all of them.
+ * so deduplication holds across all of them.
  *
  * When the provider does not expose `preference_id` — the documented Payment
  * contract does not include it, and `/merchant_orders` answers 403 for this
  * token — the preference is taken from the order addressed by the payment's
  * `external_reference`. That leaves the authoritative bindings as: the payment
  * was read from this collector with our own access token, it carries our own
- * order UUID, and the RPC still enforces amount, currency, TEST mode, payment
- * id agreement and transition legality.
+ * order UUID, and the RPC still enforces amount, currency, environment mode,
+ * payment id agreement and transition legality.
  */
 export async function confirmMercadoPagoPayment(
   supabase: any,
   payment: MercadoPagoPayment,
-  options: { requestId: string | null; binding: PreferenceBinding },
+  options: {
+    requestId: string | null;
+    binding: PreferenceBinding;
+    liveModeFieldPresent?: boolean;
+    credentialMode?: string;
+  },
 ): Promise<ConfirmationOutcome> {
   let binding: ResolvedBinding = options.binding;
   let preferenceId = typeof payment.preference_id === 'string' && payment.preference_id.trim() ? payment.preference_id : undefined;
 
-  if (!preferenceId) {
-    const derived = await orderPreferenceId(supabase, payment.external_reference);
-    if (derived) {
-      preferenceId = derived;
-      binding = 'order_external_reference';
-    }
+  const order = await orderForPayment(supabase, payment.external_reference);
+  if (!preferenceId && order.preferenceId) {
+    preferenceId = order.preferenceId;
+    binding = 'order_external_reference';
   }
+
+  // Sanitized decision context, emitted before the RPC so a rejection can be
+  // explained without the raw payload. Identifiers and booleans only: never a
+  // token, a payer, an e-mail, a signature or the provider body.
+  logEvent('payment_confirmation_context', {
+    resourceId: safeResourceId(payment.id),
+    liveModeFieldPresent: options.liveModeFieldPresent,
+    liveModeValue: typeof payment.live_mode === 'boolean' ? String(payment.live_mode) : 'null',
+    providerStatus: typeof payment.status === 'string' ? payment.status.toLowerCase().slice(0, 32) : undefined,
+    externalReferenceMatches: order.found,
+    preferenceBinding: binding,
+    credentialMode: options.credentialMode,
+  });
 
   const result = await processMercadoPagoPayment(
     createSupabasePaymentRepository(supabase),
@@ -56,17 +73,22 @@ export async function confirmMercadoPagoPayment(
 }
 
 /** Server-side only. The preference is never accepted from a client. */
-export async function orderPreferenceId(supabase: any, externalReference: unknown): Promise<string | null> {
-  if (typeof externalReference !== 'string' || !UUID.test(externalReference)) return null;
+export async function orderForPayment(supabase: any, externalReference: unknown): Promise<{ found: boolean; preferenceId: string | null }> {
+  if (typeof externalReference !== 'string' || !UUID.test(externalReference)) return { found: false, preferenceId: null };
   const { data, error } = await supabase
     .from('orders')
     .select('mercadopago_preference_id')
     .eq('id', externalReference)
     .eq('external_reference', externalReference)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data) return { found: false, preferenceId: null };
   const preferenceId = (data as { mercadopago_preference_id?: unknown }).mercadopago_preference_id;
-  return typeof preferenceId === 'string' && preferenceId.trim() ? preferenceId : null;
+  return { found: true, preferenceId: typeof preferenceId === 'string' && preferenceId.trim() ? preferenceId : null };
+}
+
+function safeResourceId(value: unknown) {
+  const id = String(value ?? '');
+  return /^[A-Za-z0-9_-]{1,256}$/.test(id) ? id : undefined;
 }
 
 export type PaymentSelection =
