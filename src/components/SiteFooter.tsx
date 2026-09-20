@@ -1,7 +1,6 @@
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import logo from '../assets/logo.png';
 import { navLinks } from '../content/navigation';
 import { getCategoryStoreHref } from '../lib/catalog';
 
@@ -17,7 +16,7 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
       <div className="site-container py-16 lg:py-20">
         <div className={`grid gap-12 border-b border-white/15 pb-12 lg:gap-14 lg:pb-16 ${visibleCategories.length > 0 ? 'lg:grid-cols-[1.35fr_0.65fr_0.8fr]' : 'lg:grid-cols-[1.4fr_0.6fr]'}`}>
           <div data-reveal-item className="max-w-lg">
-            <img src={logo} alt="Rehabex" width="466" height="153" loading="lazy" className="h-10 w-auto object-contain" />
+            <img src="/brand/rehabex-logo-light.svg" alt="Rehabex" width="874" height="240" loading="lazy" className="h-9 w-auto sm:h-10" />
             <p className="mt-7 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] text-white sm:text-3xl">Equipamiento para acompañar cada etapa de tu recuperación.</p>
             <p className="mt-4 max-w-md text-sm leading-7 text-white/60">Una selección clara de productos para rehabilitación, movilidad y bienestar.</p>
           </div>

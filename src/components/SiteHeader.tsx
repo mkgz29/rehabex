@@ -4,7 +4,6 @@ import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/useAuth';
-import logo from '../assets/logo.png';
 import { useCart } from '../cart/useCart';
 import { navLinks } from '../content/navigation';
 import { AnnouncementBar } from './AnnouncementBar';
@@ -94,7 +93,7 @@ export function SiteHeader() {
           </button>
 
           <Link to="/" className="flex h-11 shrink-0 items-center" aria-label="Rehabex, ir al inicio">
-            <img src={logo} alt="" width="466" height="153" className="h-8 w-auto object-contain sm:h-9" />
+            <img src="/brand/rehabex-logo-charcoal.svg" alt="" width="874" height="240" className="h-7 w-auto sm:h-8 lg:h-9" />
           </Link>
 
           <nav className="ml-8 hidden items-stretch gap-1 self-stretch md:flex lg:ml-10" aria-label="Navegación principal">
