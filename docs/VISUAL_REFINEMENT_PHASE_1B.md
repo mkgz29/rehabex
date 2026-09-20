@@ -8,9 +8,9 @@ Esta fase refina la Home existente sin reemplazar el sistema visual de la Fase 1
 
 - La paleta se organiza mediante tokens semánticos basados en Charcoal, Stone, Off White y Soft Gray. El naranja queda reservado para el logotipo original y para su presencia natural en las fotografías.
 - El hero conserva la composición dividida y reduce el peso de los recursos decorativos: CTA Charcoal, fondo Off White y etiqueta integrada en la nueva paleta.
-- La sección “Acerca de Rehabex” desarrolla el propósito de la tienda sin sumar antecedentes, cifras ni credenciales no verificadas. Incluye una galería manual con recursos ya presentes en el proyecto, controles visibles, teclado, gesto táctil y sin reproducción automática.
+- La sección “Acerca de Rehabex” desarrolla el propósito de la tienda sin sumar antecedentes, cifras ni credenciales no verificadas. Incluye una grilla editorial estática con recursos ya presentes en el proyecto, sin carrusel ni desplazamiento interno.
 - Las entradas de contenido y microinteracciones usan CSS e `IntersectionObserver`; con `prefers-reduced-motion` el contenido permanece visible y el movimiento se desactiva.
-- El footer utiliza fondo Charcoal, conserva el archivo original del logotipo y muestra únicamente la integración confirmada: “Pagos procesados de forma segura por Mercado Pago”. No se publican marcas de tarjetas hasta que el cliente confirme los medios disponibles.
+- El footer utiliza fondo Charcoal. Los medios de pago, Instagram y WhatsApp no se publican hasta contar con marcas y enlaces comerciales confirmados.
 
 ## Producción fotográfica pendiente
 
@@ -32,7 +32,9 @@ Para el catálogo se recomienda una producción consistente por producto: mismo 
 - Backend de newsletter. El formulario permanece deshabilitado y explica su estado.
 - Texto institucional definitivo para “Acerca de Rehabex”. La versión actual es deliberadamente general y debe ser validada por el cliente.
 - Marcas de tarjetas o métodos específicos aceptados por Mercado Pago. Hasta su confirmación, solo se comunica el procesador de pagos.
+- Logo Charcoal aislado en SVG o PNG transparente. El repositorio contiene únicamente `src/assets/logo.png`, correspondiente al logo naranja anterior.
+- URL comercial real de Instagram y número internacional comercial de WhatsApp. El número `5491100000000` retirado del código era un placeholder y no debe publicarse.
 
 ## Evidencia local
 
-Las capturas y el reporte automatizado se generan en `.temp/visual-audit/phase-1b/`. La carpeta está ignorada por Git y no forma parte de los commits.
+Las capturas y los reportes automatizados de la corrección se generan en `.temp/visual-audit/phase-1b-correction/`. La carpeta está ignorada por Git y no forma parte de los commits.

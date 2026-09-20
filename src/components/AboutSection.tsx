@@ -2,8 +2,8 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import type { AboutContent, Product } from '../types/cms';
-import { AboutGallery } from './AboutGallery';
-import type { AboutGalleryItem } from './AboutGallery';
+import { AboutImageGrid } from './AboutImageGrid';
+import type { AboutImageGridItem } from './AboutImageGrid';
 
 type AboutSectionProps = {
   content: AboutContent;
@@ -20,7 +20,7 @@ export function AboutSection({ content, products }: AboutSectionProps) {
   const galleryItems = getGalleryItems(content, products);
 
   return (
-    <section id="quienes-somos" className="section-shell overflow-hidden bg-primary text-white" aria-labelledby="about-title">
+    <section id="quienes-somos" className="section-shell bg-primary text-white" aria-labelledby="about-title">
       <div className="site-container">
         <div className="grid items-center gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
           <div data-reveal-item>
@@ -36,7 +36,7 @@ export function AboutSection({ content, products }: AboutSectionProps) {
             </Link>
           </div>
 
-          <AboutGallery items={galleryItems} />
+          <AboutImageGrid items={galleryItems} />
         </div>
 
         <div className="mt-14 grid border-y border-white/15 sm:grid-cols-3 lg:mt-20">
@@ -53,10 +53,10 @@ export function AboutSection({ content, products }: AboutSectionProps) {
 }
 
 function getGalleryItems(content: AboutContent, products: Product[]) {
-  const items: AboutGalleryItem[] = [];
+  const items: AboutImageGridItem[] = [];
   const seenUrls = new Set<string>();
 
-  const addItem = (item: AboutGalleryItem) => {
+  const addItem = (item: AboutImageGridItem) => {
     if (!item.imageUrl || seenUrls.has(item.imageUrl)) return;
     seenUrls.add(item.imageUrl);
     items.push(item);
@@ -74,8 +74,8 @@ function getGalleryItems(content: AboutContent, products: Product[]) {
       alt: product.name,
       label: product.name,
     });
-    if (items.length === 5) break;
+    if (items.length === 3) break;
   }
 
-  return items.slice(0, 5);
+  return items.slice(0, 3);
 }

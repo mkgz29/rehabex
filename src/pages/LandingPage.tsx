@@ -21,7 +21,7 @@ export function LandingPage() {
     .slice(0, 4);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-canvas text-ink">
+    <div className="min-h-screen bg-canvas text-ink">
       <main id="contenido-principal">
         <HeroSection heroContent={content.hero} />
         <Reveal><TrustStrip /></Reveal>

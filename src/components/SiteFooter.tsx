@@ -1,4 +1,4 @@
-import { ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import logo from '../assets/logo.png';
@@ -15,19 +15,7 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
   return (
     <footer id="contacto" className="bg-primary text-white">
       <div className="site-container py-16 lg:py-20">
-        <div data-reveal-item className="grid gap-6 rounded-card border border-white/15 bg-white/[0.04] p-6 sm:p-8 lg:grid-cols-[auto_1fr_auto] lg:items-center lg:gap-8">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-accent-soft">
-            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/50">Medios de pago</p>
-            <h2 className="mt-2 text-lg font-bold text-white sm:text-xl">Pagos procesados de forma segura por Mercado Pago</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">La disponibilidad del producto se informa antes de iniciar la compra.</p>
-          </div>
-          <span className="inline-flex min-h-11 w-fit items-center rounded-control border border-white/20 bg-white/10 px-4 text-sm font-bold text-white">Mercado Pago</span>
-        </div>
-
-        <div className={`mt-14 grid gap-12 border-b border-white/15 pb-12 lg:mt-16 lg:gap-14 lg:pb-16 ${visibleCategories.length > 0 ? 'lg:grid-cols-[1.35fr_0.65fr_0.8fr]' : 'lg:grid-cols-[1.4fr_0.6fr]'}`}>
+        <div className={`grid gap-12 border-b border-white/15 pb-12 lg:gap-14 lg:pb-16 ${visibleCategories.length > 0 ? 'lg:grid-cols-[1.35fr_0.65fr_0.8fr]' : 'lg:grid-cols-[1.4fr_0.6fr]'}`}>
           <div data-reveal-item className="max-w-lg">
             <img src={logo} alt="Rehabex" width="466" height="153" loading="lazy" className="h-10 w-auto object-contain" />
             <p className="mt-7 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] text-white sm:text-3xl">Equipamiento para acompañar cada etapa de tu recuperación.</p>
