@@ -366,7 +366,27 @@
     }
   }
 
+  /* ---- Announcement rotation ----
+     Every message shares one grid cell, so the strip is as tall as the tallest
+     message from the first paint and never reflows as they swap. */
+  .announce-viewport {
+    display: grid;
+    place-items: center;
+  }
 
+  .announce-item {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 420ms var(--ease-ui),
+      transform 420ms var(--ease-ui);
+  }
+
+  .announce-item.is-current {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes hero-enter {
@@ -406,8 +426,9 @@
     transform: none !important;
   }
 
-  /* The logo still swaps, but it does not move. */
-  .brand-logo__mark {
+  /* The logo still swaps and the messages still change, but neither one moves. */
+  .brand-logo__mark,
+  .announce-item {
     transform: none !important;
   }
 }
