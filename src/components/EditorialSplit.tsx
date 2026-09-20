@@ -21,8 +21,8 @@ export function EditorialSplit({ eyebrow, title, description, imageUrl, imageAlt
   useEffect(() => setImageFailed(false), [imageUrl]);
 
   return (
-    <div className="site-container grid items-stretch gap-8 lg:grid-cols-2 lg:gap-12">
-      <div className={`relative min-h-[22rem] overflow-hidden rounded-card bg-line sm:min-h-[30rem] ${reversed ? 'lg:order-2' : ''}`}>
+    <div className="site-container grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
+      <div className={`relative aspect-[4/3] overflow-hidden rounded-card bg-line shadow-soft lg:aspect-[6/5] ${reversed ? 'lg:order-2' : ''}`}>
         {!imageFailed && imageUrl ? (
           <img
             src={getOptimizedImageUrl(imageUrl, { width: 1200 })}
@@ -43,10 +43,10 @@ export function EditorialSplit({ eyebrow, title, description, imageUrl, imageAlt
           </div>
         )}
       </div>
-      <div className={`flex flex-col justify-center py-4 lg:px-8 lg:py-12 ${reversed ? 'lg:order-1' : ''}`}>
+      <div className={`flex flex-col justify-center py-2 lg:px-6 lg:py-10 ${reversed ? 'lg:order-1' : ''}`}>
         <p className="eyebrow">{eyebrow}</p>
-        <h2 className="mt-4 text-balance text-3xl font-bold leading-[1.08] tracking-[-0.04em] text-ink sm:text-4xl lg:text-5xl">{title}</h2>
-        <p className="mt-6 max-w-xl whitespace-pre-line text-base leading-8 text-muted">{description}</p>
+        <h2 className="mt-4 max-w-[18ch] text-balance text-[clamp(2rem,3.3vw,3rem)] font-bold leading-[1.06] tracking-[-0.04em] text-ink">{title}</h2>
+        <p className="mt-6 max-w-xl whitespace-pre-line text-base leading-7 text-muted sm:leading-8">{description}</p>
         {ctaLabel && ctaHref ? <Link to={ctaHref} className="secondary-button mt-8 w-fit">{ctaLabel}</Link> : null}
       </div>
     </div>

@@ -15,30 +15,30 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
   useEffect(() => setImageFailed(false), [heroContent.image_url]);
 
   return (
-    <section className="overflow-hidden bg-canvas">
-      <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-8 py-10 md:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] md:gap-10 md:py-12 lg:gap-16 lg:py-16">
-        <div className="max-w-xl py-4 md:py-10">
+    <section className="overflow-hidden bg-canvas" aria-labelledby="hero-title">
+      <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-9 py-10 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-10 md:py-12 lg:gap-16 lg:py-14">
+        <div className="max-w-2xl py-2 md:py-8">
           <p className="eyebrow">Rehabilitación · Movilidad · Bienestar</p>
-          <h1 className="mt-5 text-balance text-[clamp(2.75rem,7vw,5.75rem)] font-bold leading-[0.98] tracking-[-0.055em] text-ink">
+          <h1 id="hero-title" className="mt-5 max-w-[19ch] text-balance text-[clamp(2.75rem,5.2vw,4.5rem)] font-bold leading-[0.98] tracking-[-0.05em] text-ink">
             {heroContent.title}
           </h1>
-          {heroContent.subtitle ? <p className="mt-6 max-w-lg text-base leading-7 text-muted sm:text-lg sm:leading-8">{heroContent.subtitle}</p> : null}
+          {heroContent.subtitle ? <p className="mt-6 max-w-[34rem] text-base leading-7 text-muted sm:text-lg sm:leading-8">{heroContent.subtitle}</p> : null}
           <div className="mt-8 flex flex-wrap gap-3">
             <a href={heroContent.primary_cta_link} className="brand-button gap-2 px-6">
               {heroContent.primary_cta_text}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </a>
-            {heroContent.primary_cta_link !== '/tienda' ? <Link to="/tienda" className="secondary-button">Ver tienda</Link> : null}
+            <Link to="/tienda" className="secondary-button">Ver tienda</Link>
           </div>
         </div>
 
-        <div className="relative min-h-[24rem] overflow-hidden rounded-card bg-line md:min-h-[34rem] lg:min-h-[40rem]">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-card bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]">
           {!imageFailed && heroContent.image_url ? (
             <img
               src={getOptimizedImageUrl(heroContent.image_url, { width: 1600 })}
               srcSet={getResponsiveImageSrcSet(heroContent.image_url, [640, 960, 1280, 1600])}
               sizes="(min-width: 768px) 55vw, calc(100vw - 2rem)"
-              alt={heroContent.title}
+              alt="Equipo de rehabilitación seleccionado por Rehabex"
               width="1600"
               height="1800"
               fetchPriority="high"
@@ -52,8 +52,9 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
               <p className="text-sm font-semibold">Imagen en preparación</p>
             </div>
           )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark/20 via-transparent to-transparent" aria-hidden="true" />
-          <div className="absolute bottom-4 left-4 rounded-md border border-white/20 bg-dark/75 px-3 py-2 text-xs font-bold text-white backdrop-blur sm:bottom-6 sm:left-6">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark/25 via-transparent to-transparent ring-1 ring-inset ring-dark/5" aria-hidden="true" />
+          <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-control border border-white/20 bg-dark/80 px-3 py-2 text-xs font-bold text-white backdrop-blur sm:bottom-6 sm:left-6">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
             Selección Rehabex
           </div>
         </div>
