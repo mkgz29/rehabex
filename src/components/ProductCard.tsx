@@ -17,7 +17,7 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
 
   return (
     <article className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:shadow-card focus-within:shadow-card">
-      <div className="relative block aspect-[4/5] overflow-hidden bg-canvas">
+      <Link to={detailHref} className="relative block aspect-[4/5] overflow-hidden bg-canvas" aria-label={`Ver ${product.name}`}>
         {product.imageUrl ? (
           <img
             src={getOptimizedImageUrl(product.imageUrl, { width: 720 })}
@@ -36,18 +36,22 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
             <span className="text-sm font-medium">Imagen no disponible</span>
           </div>
         )}
-        {isOutOfStock ? <span className="absolute left-3 top-3 rounded-md bg-dark px-2.5 py-1.5 text-xs font-bold text-white">Sin stock</span> : null}
-      </div>
+        {isOutOfStock ? <span className="absolute left-3 top-3 rounded-control bg-dark/90 px-2.5 py-1.5 text-xs font-bold text-white">Sin stock</span> : null}
+      </Link>
 
       <div className="flex flex-1 flex-col p-5">
-        {product.category ? <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">{product.category}</p> : null}
-        <h3 className="mt-2 text-lg font-bold leading-snug tracking-[-0.02em] text-ink">
-          <Link to={detailHref} className="rounded-sm hover:text-brand-hover">{product.name}</Link>
+        {product.category ? <p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-muted">{product.category}</p> : null}
+        <h3 className="mt-2 min-h-12 text-lg font-bold leading-snug tracking-[-0.02em] text-ink">
+          <Link to={detailHref} className="line-clamp-2 rounded-sm hover:text-brand-hover">{product.name}</Link>
         </h3>
         <p className="mt-3 text-lg font-bold tabular-nums text-ink">{formatCurrency(product.price)}</p>
-        {product.stockOnHand !== undefined && !isOutOfStock ? (
-          <p className="mt-2 text-xs font-semibold text-success">Disponible · {product.stockOnHand} en stock</p>
-        ) : null}
+        <p className={`mt-2 min-h-5 text-xs font-semibold ${isOutOfStock ? 'text-muted' : product.stockOnHand !== undefined ? 'text-success' : 'text-muted'}`}>
+          {isOutOfStock
+            ? 'Sin stock actualmente'
+            : product.stockOnHand !== undefined
+              ? `Disponible · ${product.stockOnHand} en stock`
+              : 'Disponibilidad a confirmar'}
+        </p>
 
         <div className="mt-auto grid grid-cols-[1fr_auto] gap-2 pt-5">
           <button
@@ -65,7 +69,7 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
           </Link>
         </div>
 
-        <div className="min-h-6 pt-2 text-xs font-semibold" aria-live="polite">
+        <div className="min-h-6 pt-2 text-xs font-semibold" aria-live="polite" aria-atomic="true">
           {status === 'added' ? <p className="text-success">Agregado al carrito.</p> : null}
           {status === 'error' ? <p className="text-danger">No está disponible para agregar.</p> : null}
         </div>

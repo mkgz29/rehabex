@@ -16,10 +16,15 @@ export function StorePage() {
   const [cartErrorProductId, setCartErrorProductId] = useState<string | null>(null);
   const { addItem } = useCart();
   const searchQuery = searchParams.get('buscar')?.trim() ?? '';
+  const categoryQuery = searchParams.get('categoria')?.trim() ?? '';
   const normalizedQuery = normalizeSearchTerm(searchQuery);
-  const visibleProducts = normalizedQuery
-    ? products.filter((product) => normalizeSearchTerm([product.name, product.category, product.description].filter(Boolean).join(' ')).includes(normalizedQuery))
-    : products;
+  const normalizedCategory = normalizeSearchTerm(categoryQuery);
+  const visibleProducts = products.filter((product) => {
+    const matchesSearch = !normalizedQuery
+      || normalizeSearchTerm([product.name, product.category, product.description].filter(Boolean).join(' ')).includes(normalizedQuery);
+    const matchesCategory = !normalizedCategory || normalizeSearchTerm(product.category ?? '') === normalizedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -81,6 +86,7 @@ export function StorePage() {
               Productos activos cargados desde el panel de administracion, listos para consulta y compra asistida.
             </p>
             {searchQuery ? <p className="mt-4 text-sm font-semibold text-slate-700">Resultados para “{searchQuery}”</p> : null}
+            {categoryQuery ? <p className="mt-4 text-sm font-semibold text-slate-700">Categoría: {categoryQuery}</p> : null}
           </div>
 
           {loading ? (

@@ -7,14 +7,15 @@ import { HeroSection } from '../components/HeroSection';
 import { NewsletterSection } from '../components/NewsletterSection';
 import { TrustStrip } from '../components/TrustStrip';
 import { useLandingData } from '../hooks/useLandingData';
+import { isInternalCategory } from '../lib/catalog';
 
 export function LandingPage() {
   const { content, isLoading, products, productsError, reloadProducts } = useLandingData();
   const activeProducts = [...products]
-    .filter((product) => product.active)
+    .filter((product) => product.active && !isInternalCategory(product.category))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
-  const featuredProducts = [...products]
-    .filter((product) => product.active && product.featured)
+  const featuredProducts = [...activeProducts]
+    .filter((product) => product.featured)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
     .slice(0, 4);
 

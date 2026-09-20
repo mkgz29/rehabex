@@ -1,10 +1,10 @@
 import { Activity, BadgeCheck, PackageCheck, ShieldCheck } from 'lucide-react';
 
 const trustItems = [
-  { icon: ShieldCheck, title: 'Compra segura', text: 'Pagos gestionados con Mercado Pago.' },
-  { icon: BadgeCheck, title: 'Atención personalizada', text: 'Orientación clara para elegir cada producto.' },
-  { icon: PackageCheck, title: 'Stock informado', text: 'Disponibilidad visible antes de comprar.' },
-  { icon: Activity, title: 'Selección especializada', text: 'Productos para rehabilitación y movilidad.' },
+  { icon: ShieldCheck, title: 'Pago gestionado', text: 'El proceso de pago utiliza Mercado Pago.' },
+  { icon: BadgeCheck, title: 'Información clara', text: 'Cada producto presenta sus datos principales.' },
+  { icon: PackageCheck, title: 'Stock visible', text: 'La disponibilidad se informa en el catálogo.' },
+  { icon: Activity, title: 'Catálogo enfocado', text: 'Productos de rehabilitación y movilidad.' },
 ];
 
 export function TrustStrip() {
