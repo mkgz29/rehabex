@@ -50,10 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      console.log('AuthProvider session:', data.session);
-
       if (error) {
-        console.error('Error cargando sesion.', error);
         setSession(null);
       } else {
         setSession(data.session);
@@ -82,8 +79,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const userId = session?.user.id ?? null;
 
-    console.log('AuthProvider user.id:', userId);
-
     if (!supabase || !userId) {
       setProfile(null);
       setProfileUserId(null);
@@ -108,14 +103,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         const { data, error } = result;
-        console.log('AuthProvider profiles result:', result);
-
         if (error) {
-          console.error('Error cargando profile de usuario.', error);
           setProfile(null);
         } else {
           const nextProfile = normalizeProfile(data);
-          console.log('AuthProvider profile final:', nextProfile);
           setProfile(nextProfile);
         }
 
@@ -132,14 +123,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const profilePending = Boolean(user && profileUserId !== user.id);
   const loading = loadingAuth || loadingProfile || profilePending;
   const isAdmin = profile?.role === 'admin';
-
-  console.log('AuthProvider isAdmin calculado:', isAdmin);
-  console.log('AuthProvider loading:', {
-    loading,
-    loadingAuth,
-    loadingProfile,
-    profilePending,
-  });
 
   const value = useMemo<AuthContextValue>(
     () => ({
