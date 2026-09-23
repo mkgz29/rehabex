@@ -1,7 +1,7 @@
 import { defaultLandingContent } from '../lib/defaultContent';
 import { isPublicCatalogProduct } from '../lib/catalog';
 import { supabase } from '../lib/supabase';
-import type { AboutContent, HeroContent, LandingContent, Product, ProductInput } from '../types/cms';
+import type { AboutContent, HeroContent, LandingContent, Product } from '../types/cms';
 
 type SettingRow = {
   key: string;
@@ -19,11 +19,12 @@ type ProductRow = {
   display_order: number;
   category?: string | null;
   created_at?: string | null;
+  updated_at?: string | null;
   stock_on_hand?: number | null;
 };
 
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
-const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, stock_on_hand';
+const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, updated_at, stock_on_hand';
 
 function cloneLandingContent() {
   return JSON.parse(JSON.stringify(defaultLandingContent)) as LandingContent;
@@ -49,14 +50,6 @@ function getLocalSettings() {
   } catch {
     return [];
   }
-}
-
-function saveLocalSettings(settings: SettingRow[]) {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
 }
 
 function normalizeHeroContent(value: unknown): HeroContent | null {
@@ -116,6 +109,7 @@ function mapProductRow(row: ProductRow): Product {
     sortOrder: Number(row.display_order ?? 0),
     active: row.is_active,
     createdAt: row.created_at ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
     stockOnHand: row.stock_on_hand === null || row.stock_on_hand === undefined ? undefined : Number(row.stock_on_hand),
   };
 }
@@ -148,30 +142,6 @@ export async function getLandingContent() {
   }
 
   return mergeLandingSettings((data ?? []) as SettingRow[]);
-}
-
-export async function saveHeroContent(hero: HeroContent) {
-  return saveSetting('hero_content', hero);
-}
-
-export async function saveAboutContent(about: AboutContent) {
-  return saveSetting('about_content', about);
-}
-
-async function saveSetting(key: string, value: unknown) {
-  if (!supabase) {
-    const settings = getLocalSettings();
-    const nextSettings = settings.filter((setting) => setting.key !== key);
-    nextSettings.push({ key, value });
-    saveLocalSettings(nextSettings);
-    return;
-  }
-
-  const { error } = await supabase.from('settings').upsert({ key, value }, { onConflict: 'key' });
-
-  if (error) {
-    throw new Error('No se pudo guardar la configuracion.');
-  }
 }
 
 export async function getProducts() {
@@ -229,73 +199,4 @@ export async function getProductById(productId: string) {
 
   const product = mapProductRow(data as ProductRow);
   return isPublicCatalogProduct(product) ? product : null;
-}
-
-export async function saveProduct(product: ProductInput) {
-  const payload = mapProductInputToRow(product);
-
-  if (!supabase) {
-    throw new Error('Supabase no esta configurado para guardar productos.');
-  }
-
-  validateProductInput(product);
-
-  const query = product.id
-    ? supabase.from('products').update(payload).eq('id', product.id).select(PRODUCT_SELECT).single()
-    : supabase.from('products').insert(payload).select(PRODUCT_SELECT).single();
-
-  const { data, error } = await query;
-
-  if (error || !data) {
-    throw new Error(
-      formatSupabaseError(
-        `No se pudo guardar el producto en Supabase${product.id ? ` (id=${product.id})` : ''}`,
-      ),
-    );
-  }
-
-  return mapProductRow(data as ProductRow);
-}
-
-function validateProductInput(product: ProductInput) {
-  if (!product.name.trim()) {
-    throw new Error('El nombre del producto es obligatorio.');
-  }
-
-  const normalizedPrice = Number(product.price);
-  if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
-    throw new Error('El precio del producto debe ser mayor a 0.');
-  }
-
-  if (!product.imageUrl.trim()) {
-    throw new Error('La imagen del producto es obligatoria.');
-  }
-}
-
-function mapProductInputToRow(product: ProductInput) {
-  validateProductInput(product);
-
-  return {
-    ...(product.id ? { id: product.id } : {}),
-    name: product.name.trim(),
-    description: product.description.trim(),
-    category: product.category?.trim() || null,
-    price: Number(product.price),
-    image_url: product.imageUrl.trim(),
-    is_featured: product.featured,
-    display_order: Number(product.sortOrder) || 0,
-    is_active: product.active,
-  };
-}
-
-export async function deleteProduct(productId: string) {
-  if (!supabase) {
-    throw new Error('Supabase no esta configurado para eliminar productos.');
-  }
-
-  const { error } = await supabase.from('products').delete().eq('id', productId);
-
-  if (error) {
-    throw new Error(formatSupabaseError('No se pudo eliminar el producto de Supabase'));
-  }
 }

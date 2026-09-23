@@ -30,6 +30,7 @@ export type Product = {
   sortOrder: number;
   active: boolean;
   createdAt?: string;
+  updatedAt?: string;
   stockOnHand?: number;
 };
 
@@ -38,6 +39,6 @@ export type LandingContent = {
   about: AboutContent;
 };
 
-export type ProductInput = Omit<Product, 'id' | 'createdAt'> & {
+export type ProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & {
   id?: string;
 };

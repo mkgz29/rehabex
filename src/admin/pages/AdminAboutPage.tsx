@@ -3,7 +3,8 @@ import type { FormEvent } from 'react';
 
 import { defaultLandingContent } from '../../lib/defaultContent';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { getLandingContent, saveAboutContent } from '../../services/cms';
+import { getLandingContent } from '../../services/cms';
+import { AdminApiError, getSettingVersion, saveAboutContent } from '../../services/adminApi';
 import type { AboutContent } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
@@ -11,9 +12,15 @@ import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
 
+function messageForApiError(error: unknown, fallback: string) {
+  if (error instanceof AdminApiError) return error.message;
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function AdminAboutPage() {
   const [content, setContent] = useState<AboutContent>(defaultLandingContent.about);
   const [initialContent, setInitialContent] = useState<AboutContent>(defaultLandingContent.about);
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,9 +28,10 @@ export function AdminAboutPage() {
   useEffect(() => {
     async function load() {
       try {
-        const landingContent = await getLandingContent();
+        const [landingContent, version] = await Promise.all([getLandingContent(), getSettingVersion('about_content')]);
         setContent(landingContent.about);
         setInitialContent(landingContent.about);
+        setExpectedUpdatedAt(version);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la seccion.');
       }
@@ -52,15 +60,13 @@ export function AdminAboutPage() {
     setError(null);
 
     try {
-      await saveAboutContent(content);
-      setInitialContent(content);
-      setMessage(
-        hasSupabaseConfig
-          ? 'Seccion guardada correctamente.'
-          : 'Seccion guardada en este navegador. Configura Supabase si quieres compartirla o persistirla globalmente.',
-      );
+      const saved = await saveAboutContent(content, expectedUpdatedAt);
+      setContent(saved.content);
+      setInitialContent(saved.content);
+      setExpectedUpdatedAt(saved.updatedAt);
+      setMessage('Seccion guardada correctamente.');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar la seccion.');
+      setError(messageForApiError(submitError, 'No se pudo guardar la seccion.'));
     } finally {
       setSaving(false);
     }
@@ -75,7 +81,7 @@ export function AdminAboutPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Sin Supabase, los cambios se guardan en este navegador. Agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para compartirlos o persistirlos globalmente.
+          Sin Supabase, esta seccion no puede guardarse. Configura un entorno local o staging verificado para continuar.
         </AdminNotice>
       ) : null}
 
