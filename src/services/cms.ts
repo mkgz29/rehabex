@@ -1,4 +1,5 @@
-import { defaultLandingContent, defaultProducts } from '../lib/defaultContent';
+import { defaultLandingContent } from '../lib/defaultContent';
+import { isPublicCatalogProduct } from '../lib/catalog';
 import { supabase } from '../lib/supabase';
 import type { AboutContent, HeroContent, LandingContent, Product, ProductInput } from '../types/cms';
 
@@ -99,11 +100,8 @@ function normalizeHeroContent(value: unknown): HeroContent | null {
   };
 }
 
-function formatSupabaseError(context: string, error: { message?: string; details?: string; hint?: string; code?: string }) {
-  const parts = [error.message, error.details, error.hint, error.code ? `code=${error.code}` : null].filter(Boolean);
-  const message = parts.join(' | ') || 'Error desconocido de Supabase.';
-  console.error(`[cms] ${context}`, error);
-  return `${context}: ${message}`;
+function formatSupabaseError(context: string) {
+  return `${context}.`;
 }
 
 function mapProductRow(row: ProductRow): Product {
@@ -178,13 +176,13 @@ async function saveSetting(key: string, value: unknown) {
 
 export async function getProducts() {
   if (!supabase) {
-    return [...defaultProducts];
+    throw new Error('Supabase no esta configurado para cargar el catalogo administrativo.');
   }
 
   const { data, error } = await supabase.from('products').select(PRODUCT_SELECT).order('display_order', { ascending: true });
 
   if (error) {
-    throw new Error(formatSupabaseError('No se pudieron cargar los productos', error));
+    throw new Error(formatSupabaseError('No se pudieron cargar los productos'));
   }
 
   return ((data ?? []) as ProductRow[]).map(mapProductRow);
@@ -192,9 +190,7 @@ export async function getProducts() {
 
 export async function getActiveProducts() {
   if (!supabase) {
-    return [...defaultProducts]
-      .filter((product) => product.active)
-      .sort((a, b) => a.sortOrder - b.sortOrder || (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+    throw new Error('Supabase no esta configurado para cargar el catalogo.');
   }
 
   const { data, error } = await supabase
@@ -205,41 +201,41 @@ export async function getActiveProducts() {
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error(formatSupabaseError('No se pudieron cargar los productos activos', error));
+    throw new Error(formatSupabaseError('No se pudieron cargar los productos activos'));
   }
 
-  return ((data ?? []) as ProductRow[]).map(mapProductRow);
+  return ((data ?? []) as ProductRow[]).map(mapProductRow).filter(isPublicCatalogProduct);
 }
 
 export async function getProductById(productId: string) {
   if (!supabase) {
-    return defaultProducts.find((product) => product.id === productId) ?? null;
+    throw new Error('Supabase no esta configurado para cargar el producto.');
   }
 
-  const { data, error } = await supabase.from('products').select(PRODUCT_SELECT).eq('id', productId).maybeSingle();
+  const { data, error } = await supabase
+    .from('products')
+    .select(PRODUCT_SELECT)
+    .eq('id', productId)
+    .eq('is_active', true)
+    .maybeSingle();
 
   if (error) {
-    throw new Error(formatSupabaseError('No se pudo cargar el producto', error));
+    throw new Error(formatSupabaseError('No se pudo cargar el producto'));
   }
 
-  return data ? mapProductRow(data as ProductRow) : null;
+  if (!data) {
+    return null;
+  }
+
+  const product = mapProductRow(data as ProductRow);
+  return isPublicCatalogProduct(product) ? product : null;
 }
 
 export async function saveProduct(product: ProductInput) {
   const payload = mapProductInputToRow(product);
 
   if (!supabase) {
-    return {
-      ...product,
-      id: product.id ?? crypto.randomUUID(),
-      description: payload.description,
-      category: payload.category ?? undefined,
-      price: payload.price,
-      imageUrl: payload.image_url,
-      featured: payload.is_featured,
-      sortOrder: payload.display_order,
-      active: payload.is_active,
-    } as Product;
+    throw new Error('Supabase no esta configurado para guardar productos.');
   }
 
   validateProductInput(product);
@@ -254,7 +250,6 @@ export async function saveProduct(product: ProductInput) {
     throw new Error(
       formatSupabaseError(
         `No se pudo guardar el producto en Supabase${product.id ? ` (id=${product.id})` : ''}`,
-        error ?? { message: 'La operacion no devolvio datos.' },
       ),
     );
   }
@@ -295,12 +290,12 @@ function mapProductInputToRow(product: ProductInput) {
 
 export async function deleteProduct(productId: string) {
   if (!supabase) {
-    return;
+    throw new Error('Supabase no esta configurado para eliminar productos.');
   }
 
   const { error } = await supabase.from('products').delete().eq('id', productId);
 
   if (error) {
-    throw new Error(formatSupabaseError('No se pudo eliminar el producto de Supabase', error));
+    throw new Error(formatSupabaseError('No se pudo eliminar el producto de Supabase'));
   }
 }

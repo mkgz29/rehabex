@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { defaultLandingContent, defaultProducts } from '../lib/defaultContent';
+import { defaultLandingContent } from '../lib/defaultContent';
 import { getLandingContent, getProducts } from '../services/cms';
 import type { LandingContent, Product } from '../types/cms';
 
@@ -32,7 +32,7 @@ export function useLandingData() {
 
       setState({
         content: contentResult.status === 'fulfilled' ? contentResult.value : defaultLandingContent,
-        products: productsResult.status === 'fulfilled' ? productsResult.value : defaultProducts,
+        products: productsResult.status === 'fulfilled' ? productsResult.value : [],
         isLoading: false,
         productsError:
           productsResult.status === 'rejected'

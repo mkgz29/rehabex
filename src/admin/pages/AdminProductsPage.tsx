@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { defaultProducts } from '../../lib/defaultContent';
 import { formatCurrency } from '../../lib/format';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { deleteProduct, getProducts, saveProduct } from '../../services/cms';
@@ -24,7 +23,7 @@ const emptyProduct: ProductInput = {
 };
 
 export function AdminProductsPage() {
-  const [products, setProducts] = useState<Product[]>(defaultProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<ProductInput>(emptyProduct);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -129,7 +128,7 @@ export function AdminProductsPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Estas viendo datos de ejemplo. Para guardar de forma permanente, agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+          El catalogo no esta disponible sin Supabase. Configura un entorno local o staging verificado para continuar.
         </AdminNotice>
       ) : null}
 

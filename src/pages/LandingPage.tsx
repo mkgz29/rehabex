@@ -7,12 +7,12 @@ import { HeroSection } from '../components/HeroSection';
 import { Reveal } from '../components/Reveal';
 import { TrustStrip } from '../components/TrustStrip';
 import { useLandingData } from '../hooks/useLandingData';
-import { isInternalCategory } from '../lib/catalog';
+import { isPublicCatalogProduct } from '../lib/catalog';
 
 export function LandingPage() {
   const { content, isLoading, products, productsError, reloadProducts } = useLandingData();
   const activeProducts = [...products]
-    .filter((product) => product.active && !isInternalCategory(product.category))
+    .filter(isPublicCatalogProduct)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const featuredProducts = [...activeProducts]
     .filter((product) => product.featured)

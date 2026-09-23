@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { useCart } from '../cart/useCart';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { Footer } from '../components/Footer';
 import { formatCurrency } from '../lib/format';
 import { getActiveProducts } from '../services/cms';
@@ -12,6 +14,7 @@ export function StorePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
   const [cartErrorProductId, setCartErrorProductId] = useState<string | null>(null);
   const { addItem } = useCart();
@@ -54,7 +57,7 @@ export function StorePage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const handleAddToCart = (product: Product) => {
     const result = addItem({
@@ -96,12 +99,14 @@ export function StorePage() {
           ) : null}
 
           {!loading && error ? (
-            <div className="mt-12 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error}</div>
+            <div className="mt-12">
+              <ErrorState description={error} onRetry={() => setLoadAttempt((attempt) => attempt + 1)} />
+            </div>
           ) : null}
 
           {!loading && !error && products.length === 0 ? (
-            <div className="mt-12 rounded-2xl border border-slate-200 bg-stone-50 p-6 text-sm text-slate-600">
-              No hay productos activos para mostrar en este momento.
+            <div className="mt-12">
+              <EmptyState />
             </div>
           ) : null}
 
