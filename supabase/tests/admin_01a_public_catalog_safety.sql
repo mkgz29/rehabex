@@ -223,38 +223,72 @@ BEGIN
   IF NOT v_is_admin THEN RAISE EXCEPTION 'synthetic admin did not resolve as admin'; END IF;
   INSERT INTO admin_01a_results VALUES ('admin role is enforced by database identity', true, 'true');
 
-  EXECUTE 'SET LOCAL ROLE authenticated';
-  INSERT INTO public.products (
-    id, name, description, category, price, is_featured, display_order,
-    is_active, currency, track_stock, allow_backorder, stock_on_hand,
-    low_stock_threshold
-  ) VALUES (
-    v_admin_product_id, 'ADMIN-01A admin fixture', 'Fixture sintetico local',
-    'Ortopedia', 100, false, 10, false, 'ARS', true, false, 0, 0
-  );
-  EXECUTE 'RESET ROLE';
-  INSERT INTO admin_01a_results VALUES ('admin retains expected product insert', true, '1 row');
+  -- ADMIN-01B (202609230201_admin_01b_admin_boundary.sql) revokes direct
+  -- authenticated INSERT/UPDATE/DELETE on products/settings and replaces them
+  -- with narrow, audited RPCs. The four checks below therefore now assert the
+  -- opposite of what ADMIN-01A originally recorded: admin mutation only
+  -- happens through admin_create_product/admin_update_product/
+  -- admin_set_product_active/admin_upsert_settings_document, exercised in
+  -- supabase/tests/admin_01b_admin_boundary.sql. Physical deletion of
+  -- products was removed entirely by ADMIN-01B, so no replacement RPC exists
+  -- for the old "admin retains expected product delete" case.
 
+  v_denied := false;
   EXECUTE 'SET LOCAL ROLE authenticated';
-  UPDATE public.products SET name = 'ADMIN-01A admin fixture updated' WHERE id = v_admin_product_id;
-  GET DIAGNOSTICS v_count = ROW_COUNT;
+  BEGIN
+    INSERT INTO public.products (
+      id, name, description, category, price, is_featured, display_order,
+      is_active, currency, track_stock, allow_backorder, stock_on_hand,
+      low_stock_threshold
+    ) VALUES (
+      v_admin_product_id, 'ADMIN-01A admin fixture', 'Fixture sintetico local',
+      'Ortopedia', 100, false, 10, false, 'ARS', true, false, 0, 0
+    );
+  EXCEPTION WHEN insufficient_privilege THEN
+    v_denied := true;
+  END;
   EXECUTE 'RESET ROLE';
-  IF v_count <> 1 THEN RAISE EXCEPTION 'admin product update failed'; END IF;
-  INSERT INTO admin_01a_results VALUES ('admin retains expected product update', true, '1 row');
+  IF NOT v_denied THEN RAISE EXCEPTION 'admin inserted a product directly after ADMIN-01B revoked that grant'; END IF;
+  INSERT INTO admin_01a_results VALUES ('admin direct product insert is revoked (superseded by ADMIN-01B)', true, 'denied');
 
+  v_denied := false;
   EXECUTE 'SET LOCAL ROLE authenticated';
-  DELETE FROM public.products WHERE id = v_admin_product_id;
-  GET DIAGNOSTICS v_count = ROW_COUNT;
+  BEGIN
+    UPDATE public.products SET name = 'ADMIN-01A admin fixture updated' WHERE id = v_public_id;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    v_denied := v_count = 0;
+  EXCEPTION WHEN insufficient_privilege THEN
+    v_denied := true;
+  END;
   EXECUTE 'RESET ROLE';
-  IF v_count <> 1 THEN RAISE EXCEPTION 'admin product delete failed'; END IF;
-  INSERT INTO admin_01a_results VALUES ('admin retains expected product delete', true, '1 row');
+  IF NOT v_denied THEN RAISE EXCEPTION 'admin updated a product directly after ADMIN-01B revoked that grant'; END IF;
+  INSERT INTO admin_01a_results VALUES ('admin direct product update is revoked (superseded by ADMIN-01B)', true, 'denied');
 
+  v_denied := false;
   EXECUTE 'SET LOCAL ROLE authenticated';
-  UPDATE public.settings SET value = '{"scope":"admin-updated-local"}'::jsonb WHERE key = v_private_key;
-  GET DIAGNOSTICS v_count = ROW_COUNT;
+  BEGIN
+    DELETE FROM public.products WHERE id = v_public_id;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    v_denied := v_count = 0;
+  EXCEPTION WHEN insufficient_privilege THEN
+    v_denied := true;
+  END;
   EXECUTE 'RESET ROLE';
-  IF v_count <> 1 THEN RAISE EXCEPTION 'admin settings update failed'; END IF;
-  INSERT INTO admin_01a_results VALUES ('admin retains expected settings update', true, '1 row');
+  IF NOT v_denied THEN RAISE EXCEPTION 'admin deleted a product directly after ADMIN-01B revoked that grant'; END IF;
+  INSERT INTO admin_01a_results VALUES ('admin direct product delete is revoked (superseded by ADMIN-01B)', true, 'denied');
+
+  v_denied := false;
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  BEGIN
+    UPDATE public.settings SET value = '{"scope":"admin-updated-local"}'::jsonb WHERE key = v_private_key;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    v_denied := v_count = 0;
+  EXCEPTION WHEN insufficient_privilege THEN
+    v_denied := true;
+  END;
+  EXECUTE 'RESET ROLE';
+  IF NOT v_denied THEN RAISE EXCEPTION 'admin updated settings directly after ADMIN-01B revoked that grant'; END IF;
+  INSERT INTO admin_01a_results VALUES ('admin direct settings update is revoked (superseded by ADMIN-01B)', true, 'denied');
 
   IF pg_has_role('authenticated', 'service_role', 'MEMBER')
      OR has_table_privilege('authenticated', 'public.orders', 'INSERT')

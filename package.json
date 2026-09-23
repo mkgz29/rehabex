@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "check:env:safety": "node scripts/check-development-environment.mjs",
     "test:admin:safety": "tsx --test tests/admin/safetyFoundation.test.ts && node --test tests/admin/environmentSafety.test.mjs",
+    "test:admin:boundary": "tsx --test tests/admin/adminValidators.test.ts tests/admin/adminBoundary.contract.test.ts",
+    "test:admin:concurrency": "tsx --test tests/db/adminBoundaryConcurrency.test.ts",
     "test:api": "tsx --test tests/api/commerce.contract.test.ts tests/api/paymentRecovery.contract.test.ts",
     "test:cart": "tsx --test tests/cart/cartState.test.ts tests/ui/paymentPresentation.test.ts",
     "test:db:concurrency": "tsx --test tests/db/paymentAtomicConcurrency.test.ts",
