@@ -8,6 +8,7 @@ export type AdminProductRow = {
   category: string | null;
   price: number | string;
   image_url: string | null;
+  image_asset_id: string | null;
   is_featured: boolean;
   display_order: number;
   is_active: boolean;
@@ -23,6 +24,7 @@ export function mapAdminProductRow(row: AdminProductRow) {
     category: row.category ?? undefined,
     price: Number(row.price),
     imageUrl: row.image_url ?? '',
+    imageAssetId: row.image_asset_id ?? undefined,
     featured: row.is_featured,
     sortOrder: row.display_order,
     active: row.is_active,

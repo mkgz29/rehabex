@@ -23,13 +23,14 @@ export function createAdminUpdateProductHandler(overrides: Partial<RequireAdminD
     const payload = parseUpdateProductPayload(auth.body);
     if (!isValid(payload)) return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
 
-    const { data, error } = await auth.rpc.rpc('admin_update_product', {
+    const { data, error } = await auth.rpc.rpc('admin_update_product_with_media', {
       p_product_id: payload.value.id,
       p_name: payload.value.name,
       p_description: payload.value.description,
       p_category: payload.value.category,
       p_price: payload.value.price,
       p_image_url: payload.value.imageUrl,
+      p_image_asset_id: payload.value.imageAssetId,
       p_is_featured: payload.value.isFeatured,
       p_display_order: payload.value.displayOrder,
       p_expected_updated_at: payload.value.expectedUpdatedAt,

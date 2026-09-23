@@ -32,6 +32,7 @@ export function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<ProductInput>(emptyProduct);
   const [editingUpdatedAt, setEditingUpdatedAt] = useState<string | null>(null);
+  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -74,6 +75,7 @@ export function AdminProductsPage() {
       active: product.active,
     });
     setEditingUpdatedAt(product.updatedAt ?? null);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
@@ -81,6 +83,7 @@ export function AdminProductsPage() {
   const handleCancel = () => {
     setEditingProduct(emptyProduct);
     setEditingUpdatedAt(null);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
@@ -94,16 +97,18 @@ export function AdminProductsPage() {
     try {
       if (editingProduct.id) {
         if (!editingUpdatedAt) throw new Error('No se pudo determinar la version actual del producto. Recarga el listado.');
-        const updated = await updateProduct({ ...editingProduct, id: editingProduct.id, expectedUpdatedAt: editingUpdatedAt });
+        const updated = await updateProduct({ ...editingProduct, id: editingProduct.id, expectedUpdatedAt: editingUpdatedAt }, pendingImageAssetId);
         setProducts((current) => current.map((product) => (product.id === updated.id ? updated : product)));
         setEditingProduct(emptyProduct);
         setEditingUpdatedAt(null);
+        setPendingImageAssetId(null);
         setMessage('Producto actualizado correctamente.');
       } else {
-        const created = await createProduct(editingProduct);
+        const created = await createProduct(editingProduct, pendingImageAssetId);
         setProducts((current) => [...current, created]);
         setEditingProduct(emptyProduct);
         setEditingUpdatedAt(null);
+        setPendingImageAssetId(null);
         setMessage('Producto creado como inactivo. Activalo desde el listado cuando este listo para publicarse.');
       }
     } catch (submitError) {
@@ -250,7 +255,11 @@ export function AdminProductsPage() {
             <ImageField
               label="Imagen"
               value={editingProduct.imageUrl}
-              onChange={(value) => setEditingProduct((current) => ({ ...current, imageUrl: value }))}
+              intent="product"
+              onAssetReady={({ assetId, url }) => {
+                setPendingImageAssetId(assetId);
+                setEditingProduct((current) => ({ ...current, imageUrl: url }));
+              }}
             />
 
             <FormField label="Orden de aparicion" hint="Menor numero = aparece antes entre los destacados.">

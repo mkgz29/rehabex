@@ -110,11 +110,18 @@ export type ProductFieldsInput = {
   category: string;
   price: number;
   imageUrl: string | null;
+  imageAssetId: string | null;
   isFeatured: boolean;
   displayOrder: number;
 };
 
-const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'imageUrl', 'isFeatured', 'displayOrder'] as const;
+const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'imageUrl', 'imageAssetId', 'isFeatured', 'displayOrder'] as const;
+
+/** Absent/null is fine (no new upload this edit); if present it must be a UUID naming a media asset. */
+function optionalAssetId(value: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  return typeof value === 'string' && UUID.test(value) ? { ok: true, value } : { ok: false };
+}
 
 function parseProductFields(input: Record<string, unknown>, options: { rejectReservedCategory: boolean }): ValidationResult<ProductFieldsInput> {
   const name = requiredText(input.name, MAX_NAME);
@@ -131,6 +138,11 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
 
   const image = optionalImageUrl(input.imageUrl);
   if (!image.ok) return { ok: false, error: 'invalid_image_url' };
+  const imageAssetId = optionalAssetId(input.imageAssetId);
+  if (!imageAssetId.ok) return { ok: false, error: 'invalid_image_asset_id' };
+  // A brand-new upload (imageAssetId) and a client-chosen URL are mutually
+  // exclusive: the server always resolves the canonical URL from the asset.
+  if (imageAssetId.value && image.value) return { ok: false, error: 'ambiguous_image' };
 
   if (typeof input.isFeatured !== 'boolean') return { ok: false, error: 'invalid_is_featured' };
   if (!isNonNegativeInt(input.displayOrder, MAX_DISPLAY_ORDER)) return { ok: false, error: 'invalid_display_order' };
@@ -143,6 +155,7 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
       category,
       price: input.price as number,
       imageUrl: image.value,
+      imageAssetId: imageAssetId.value,
       isFeatured: input.isFeatured,
       displayOrder: input.displayOrder as number,
     },
@@ -208,9 +221,9 @@ export type HeroContentInput = {
 };
 
 const HERO_VALUE_FIELD_KEYS = ['title', 'subtitle', 'image_url', 'primary_cta_text', 'primary_cta_link'] as const;
-const SETTINGS_PAYLOAD_KEYS = ['value', 'expectedUpdatedAt'] as const;
+const SETTINGS_PAYLOAD_KEYS = ['value', 'expectedUpdatedAt', 'imageAssetId'] as const;
 
-export type SettingsMutationInput<T> = { content: T; expectedUpdatedAt: string | null };
+export type SettingsMutationInput<T> = { content: T; expectedUpdatedAt: string | null; imageAssetId: string | null };
 
 function parseExpectedUpdatedAtOrNull(value: unknown): { ok: true; value: string | null } | { ok: false } {
   if (value === null) return { ok: true, value: null };
@@ -224,6 +237,8 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
 
   const expectedUpdatedAt = parseExpectedUpdatedAtOrNull(outer.expectedUpdatedAt);
   if (!expectedUpdatedAt.ok) return { ok: false, error: 'invalid_version' };
+  const imageAssetId = optionalAssetId(outer.imageAssetId);
+  if (!imageAssetId.ok) return { ok: false, error: 'invalid_image_asset_id' };
 
   const input = asObject(outer.value);
   if (!input) return { ok: false, error: 'invalid_payload' };
@@ -233,8 +248,10 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
   if (!title) return { ok: false, error: 'invalid_title' };
   const subtitle = optionalText(input.subtitle, MAX_HERO_SUBTITLE);
   if (subtitle === null) return { ok: false, error: 'invalid_subtitle' };
-  const imageUrl = requiredImageUrl(input.image_url);
-  if (!imageUrl) return { ok: false, error: 'invalid_image_url' };
+  // When a fresh upload is attached, the server overwrites image_url with the
+  // asset's canonical secure_url, so the client-submitted value is not required.
+  const imageUrl = imageAssetId.value ? (typeof input.image_url === 'string' ? input.image_url.slice(0, MAX_IMAGE_URL) : '') : requiredImageUrl(input.image_url);
+  if (!imageAssetId.value && !imageUrl) return { ok: false, error: 'invalid_image_url' };
   const ctaText = requiredText(input.primary_cta_text, MAX_CTA_TEXT);
   if (!ctaText) return { ok: false, error: 'invalid_cta_text' };
   const ctaLink = requiredText(input.primary_cta_link, MAX_CTA_LINK);
@@ -243,8 +260,9 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
   return {
     ok: true,
     value: {
-      content: { title, subtitle, image_url: imageUrl, primary_cta_text: ctaText, primary_cta_link: ctaLink },
+      content: { title, subtitle, image_url: imageUrl ?? '', primary_cta_text: ctaText, primary_cta_link: ctaLink },
       expectedUpdatedAt: expectedUpdatedAt.value,
+      imageAssetId: imageAssetId.value,
     },
   };
 }
@@ -276,13 +294,17 @@ export function parseAboutContentPayload(value: unknown): ValidationResult<Setti
 
   const expectedUpdatedAt = parseExpectedUpdatedAtOrNull(outer.expectedUpdatedAt);
   if (!expectedUpdatedAt.ok) return { ok: false, error: 'invalid_version' };
+  const imageAssetId = optionalAssetId(outer.imageAssetId);
+  if (!imageAssetId.ok) return { ok: false, error: 'invalid_image_asset_id' };
 
   const input = asObject(outer.value);
   if (!input) return { ok: false, error: 'invalid_payload' };
   if (!hasOnlyAllowedKeys(input, ABOUT_VALUE_FIELD_KEYS)) return { ok: false, error: 'unknown_field' };
 
-  const image = requiredImageUrl(input.image);
-  if (!image) return { ok: false, error: 'invalid_image_url' };
+  // When a fresh upload is attached, the server overwrites image with the
+  // asset's canonical secure_url, so the client-submitted value is not required.
+  const image = imageAssetId.value ? (typeof input.image === 'string' ? input.image.slice(0, MAX_IMAGE_URL) : '') : requiredImageUrl(input.image);
+  if (!imageAssetId.value && !image) return { ok: false, error: 'invalid_image_url' };
   const title = requiredText(input.title, MAX_NAME);
   if (!title) return { ok: false, error: 'invalid_title' };
   const description = requiredText(input.description, MAX_ABOUT_DESCRIPTION);
@@ -296,5 +318,8 @@ export function parseAboutContentPayload(value: unknown): ValidationResult<Setti
     metrics.push(metric);
   }
 
-  return { ok: true, value: { content: { image, title, description, metrics }, expectedUpdatedAt: expectedUpdatedAt.value } };
+  return {
+    ok: true,
+    value: { content: { image: image ?? '', title, description, metrics }, expectedUpdatedAt: expectedUpdatedAt.value, imageAssetId: imageAssetId.value },
+  };
 }

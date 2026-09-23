@@ -86,6 +86,7 @@ type ProductApiResponse = {
   category?: string;
   price: number;
   imageUrl: string;
+  imageAssetId?: string;
   featured: boolean;
   sortOrder: number;
   active: boolean;
@@ -97,20 +98,34 @@ function mapProductResponse(product: ProductApiResponse): Product {
   return { ...product };
 }
 
-export async function createProduct(input: Omit<ProductInput, 'id' | 'active'>): Promise<Product> {
+/**
+ * A freshly uploaded asset (from *this* edit only) always wins over the
+ * existing imageUrl; the two are mutually exclusive server-side. Never pass
+ * a product's own already-attached imageAssetId back here: it is no longer
+ * `pending` once attached, and resending it would be rejected. Passing
+ * `null` (no new upload this edit) keeps the existing image via imageUrl.
+ */
+function imageFieldsForRequest(imageUrl: string, imageAssetId: string | null) {
+  return imageAssetId ? { imageUrl: null, imageAssetId } : { imageUrl: imageUrl || null, imageAssetId: null };
+}
+
+export async function createProduct(input: Omit<ProductInput, 'id' | 'active' | 'imageAssetId'>, imageAssetId: string | null = null): Promise<Product> {
   const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/create', {
     name: input.name,
     description: input.description,
     category: input.category ?? '',
     price: input.price,
-    imageUrl: input.imageUrl || null,
+    ...imageFieldsForRequest(input.imageUrl, imageAssetId),
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
   });
   return mapProductResponse(product);
 }
 
-export async function updateProduct(input: ProductInput & { id: string; expectedUpdatedAt: string }): Promise<Product> {
+export async function updateProduct(
+  input: ProductInput & { id: string; expectedUpdatedAt: string },
+  imageAssetId: string | null = null,
+): Promise<Product> {
   const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/update', {
     id: input.id,
     expectedUpdatedAt: input.expectedUpdatedAt,
@@ -118,7 +133,7 @@ export async function updateProduct(input: ProductInput & { id: string; expected
     description: input.description,
     category: input.category ?? '',
     price: input.price,
-    imageUrl: input.imageUrl || null,
+    ...imageFieldsForRequest(input.imageUrl, imageAssetId),
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
   });
@@ -136,18 +151,28 @@ export async function setProductActive(id: string, isActive: boolean, expectedUp
 
 type SettingApiResponse<T> = { value: T; updatedAt: string };
 
-export async function saveHeroContent(content: HeroContent, expectedUpdatedAt: string | null): Promise<{ content: HeroContent; updatedAt: string }> {
+export async function saveHeroContent(
+  content: HeroContent,
+  expectedUpdatedAt: string | null,
+  imageAssetId: string | null = null,
+): Promise<{ content: HeroContent; updatedAt: string }> {
   const { setting } = await postAdmin<{ setting: SettingApiResponse<HeroContent> }>('/api/admin/settings/hero', {
     value: content,
     expectedUpdatedAt,
+    imageAssetId,
   });
   return { content: setting.value, updatedAt: setting.updatedAt };
 }
 
-export async function saveAboutContent(content: AboutContent, expectedUpdatedAt: string | null): Promise<{ content: AboutContent; updatedAt: string }> {
+export async function saveAboutContent(
+  content: AboutContent,
+  expectedUpdatedAt: string | null,
+  imageAssetId: string | null = null,
+): Promise<{ content: AboutContent; updatedAt: string }> {
   const { setting } = await postAdmin<{ setting: SettingApiResponse<AboutContent> }>('/api/admin/settings/about', {
     value: content,
     expectedUpdatedAt,
+    imageAssetId,
   });
   return { content: setting.value, updatedAt: setting.updatedAt };
 }

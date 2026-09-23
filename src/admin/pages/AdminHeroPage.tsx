@@ -21,6 +21,7 @@ export function AdminHeroPage() {
   const [heroContent, setHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [initialHeroContent, setInitialHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
+  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function AdminHeroPage() {
 
   const handleCancel = () => {
     setHeroContent(initialHeroContent);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
@@ -57,10 +59,11 @@ export function AdminHeroPage() {
     setError(null);
 
     try {
-      const saved = await saveHeroContent(heroContent, expectedUpdatedAt);
+      const saved = await saveHeroContent(heroContent, expectedUpdatedAt, pendingImageAssetId);
       setHeroContent(saved.content);
       setInitialHeroContent(saved.content);
       setExpectedUpdatedAt(saved.updatedAt);
+      setPendingImageAssetId(null);
       setMessage('Hero guardado correctamente.');
     } catch (submitError) {
       setError(messageForApiError(submitError, 'No se pudo guardar el Hero.'));
@@ -91,7 +94,11 @@ export function AdminHeroPage() {
             label="Imagen principal"
             hint="Usa una imagen amplia y de alto impacto visual. Se recorta con object-cover en desktop y mobile."
             value={heroContent.image_url}
-            onChange={(value) => updateHero('image_url', value)}
+            intent="hero"
+            onAssetReady={({ assetId, url }) => {
+              setPendingImageAssetId(assetId);
+              updateHero('image_url', url);
+            }}
           />
 
           <div className="space-y-4">

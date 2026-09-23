@@ -24,9 +24,10 @@ export function createAdminHeroSettingsHandler(overrides: Partial<RequireAdminDe
     if (!isValid(payload)) return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
 
     // The client never chooses the settings key; this endpoint always writes hero_content.
-    const { data, error } = await auth.rpc.rpc('admin_upsert_settings_document', {
+    const { data, error } = await auth.rpc.rpc('admin_upsert_settings_document_with_media', {
       p_key: 'hero_content',
       p_value: payload.value.content,
+      p_image_asset_id: payload.value.imageAssetId,
       p_expected_updated_at: payload.value.expectedUpdatedAt,
       p_request_id: auth.requestId,
     });

@@ -21,6 +21,7 @@ export function AdminAboutPage() {
   const [content, setContent] = useState<AboutContent>(defaultLandingContent.about);
   const [initialContent, setInitialContent] = useState<AboutContent>(defaultLandingContent.about);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
+  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function AdminAboutPage() {
 
   const handleCancel = () => {
     setContent(initialContent);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
@@ -60,10 +62,11 @@ export function AdminAboutPage() {
     setError(null);
 
     try {
-      const saved = await saveAboutContent(content, expectedUpdatedAt);
+      const saved = await saveAboutContent(content, expectedUpdatedAt, pendingImageAssetId);
       setContent(saved.content);
       setInitialContent(saved.content);
       setExpectedUpdatedAt(saved.updatedAt);
+      setPendingImageAssetId(null);
       setMessage('Seccion guardada correctamente.');
     } catch (submitError) {
       setError(messageForApiError(submitError, 'No se pudo guardar la seccion.'));
@@ -94,7 +97,11 @@ export function AdminAboutPage() {
             label="Imagen"
             hint="Usa una foto de equipo o espacio profesional."
             value={content.image}
-            onChange={(value) => setContent((current) => ({ ...current, image: value }))}
+            intent="about"
+            onAssetReady={({ assetId, url }) => {
+              setPendingImageAssetId(assetId);
+              setContent((current) => ({ ...current, image: url }));
+            }}
           />
 
           <div className="space-y-4">

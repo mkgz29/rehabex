@@ -25,6 +25,7 @@ export type Product = {
   description: string;
   price: number;
   imageUrl: string;
+  imageAssetId?: string;
   category?: string;
   featured: boolean;
   sortOrder: number;
