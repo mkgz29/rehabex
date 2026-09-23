@@ -43,23 +43,31 @@ test('runtime catalog fails closed and contains no demo-product fallback', () =>
   assert.match(storePage, /<EmptyState\s*\/>/);
 });
 
-test('unsigned browser upload is absent and the existing image URL remains visible', () => {
+// ADMIN-01A disabled upload entirely (no signed flow existed yet), so this
+// test originally asserted that api.cloudinary.com/v1_1, FormData and the
+// upload button were all absent. ADMIN-01C reactivates upload through a
+// signed flow (server-authorized, server-verified), so those specific
+// mechanics are now intentionally present. What must still hold, forever,
+// is that no *unsigned* preset exists and the API secret never reaches
+// browser-bundled code; this test asserts that instead.
+test('secure signed upload is active: no unsigned preset, no API secret client-side, legacy image still renders', () => {
   const sourceRoot = join(process.cwd(), 'src');
   const runtimeSource = runtimeFiles(sourceRoot).map((path) => readFileSync(path, 'utf8')).join('\n');
   const existingUrl = 'https://images.example.test/existing.jpg';
   const markup = renderToStaticMarkup(React.createElement(ImageField, {
     label: 'Imagen existente',
     value: existingUrl,
-    onChange: () => undefined,
+    intent: 'product',
+    onAssetReady: () => undefined,
   }));
 
   assert.equal(existsSync(join(sourceRoot, 'services', 'cloudinary.ts')), false);
-  assert.doesNotMatch(runtimeSource, /upload_preset|api\.cloudinary\.com\/v1_1|new FormData\s*\(/i);
-  assert.match(markup, /value="https:\/\/images\.example\.test\/existing\.jpg"/);
+  assert.doesNotMatch(runtimeSource, /upload_preset/i);
+  assert.doesNotMatch(runtimeSource, /CLOUDINARY_API_SECRET/);
+  assert.doesNotMatch(runtimeSource, /VITE_CLOUDINARY/i);
+  assert.doesNotMatch(markup, /type="url"/);
+  assert.match(markup, /type="file"/);
   assert.match(markup, /src="https:\/\/images\.example\.test\/existing\.jpg"/);
-  assert.match(markup, /disabled=""/);
-  assert.match(markup, /flujo seguro pendiente/);
-  assert.doesNotMatch(markup, /required=""/);
 });
 
 function runtimeFiles(root: string): string[] {
