@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAdminCreateProductHandler } from '../../api/admin/products/create';
-import { createAdminUpdateProductHandler } from '../../api/admin/products/update';
-import { createAdminSetProductActiveHandler } from '../../api/admin/products/set-active';
-import { createAdminHeroSettingsHandler } from '../../api/admin/settings/hero';
-import { createAdminAboutSettingsHandler } from '../../api/admin/settings/about';
+import { createAdminCreateProductHandler, createAdminSetProductActiveHandler, createAdminUpdateProductHandler } from '../../server/admin/handlers/products';
+import { createAdminAboutSettingsHandler, createAdminHeroSettingsHandler } from '../../server/admin/handlers/settings';
 import type { AdminAuthClient, AdminAuthUser, AdminRpcClient, RequireAdminDependencies } from '../../server/admin/requireAdmin';
 import type { ApiRequest, ApiResponse } from '../../server/commerce/commerce';
 

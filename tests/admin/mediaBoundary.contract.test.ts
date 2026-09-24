@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAdminMediaSignHandler, type SignDependencies } from '../../api/admin/media/sign';
-import { createAdminMediaFinalizeHandler, type FinalizeDependencies } from '../../api/admin/media/finalize';
+import { createAdminMediaSignHandler, createAdminMediaFinalizeHandler, type SignDependencies, type FinalizeDependencies } from '../../server/admin/handlers/media';
 import type { AdminAuthClient, AdminAuthUser, AdminRpcClient } from '../../server/admin/requireAdmin';
 import type { CloudinaryEnv } from '../../server/admin/cloudinaryClient';
 import type { ApiRequest, ApiResponse } from '../../server/commerce/commerce';
