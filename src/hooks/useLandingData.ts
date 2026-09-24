@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
 
-import { defaultLandingContent, defaultProducts } from '../lib/defaultContent';
+import { defaultLandingContent } from '../lib/defaultContent';
 import { getLandingContent, getProducts } from '../services/cms';
 import type { LandingContent, Product } from '../types/cms';
 
 type LandingDataState = {
   content: LandingContent;
   products: Product[];
+  isLoading: boolean;
+  productsError: string | null;
 };
 
 export function useLandingData() {
   const [state, setState] = useState<LandingDataState>({
     content: defaultLandingContent,
-    products: defaultProducts,
+    products: [],
+    isLoading: true,
+    productsError: null,
   });
+  const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -27,7 +32,14 @@ export function useLandingData() {
 
       setState({
         content: contentResult.status === 'fulfilled' ? contentResult.value : defaultLandingContent,
-        products: productsResult.status === 'fulfilled' ? productsResult.value : defaultProducts,
+        products: productsResult.status === 'fulfilled' ? productsResult.value : [],
+        isLoading: false,
+        productsError:
+          productsResult.status === 'rejected'
+            ? productsResult.reason instanceof Error
+              ? productsResult.reason.message
+              : 'No pudimos cargar los productos destacados.'
+            : null,
       });
     }
 
@@ -36,7 +48,13 @@ export function useLandingData() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [requestVersion]);
 
-  return state;
+  return {
+    ...state,
+    reloadProducts: () => {
+      setState((current) => ({ ...current, isLoading: true, productsError: null }));
+      setRequestVersion((current) => current + 1);
+    },
+  };
 }

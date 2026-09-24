@@ -2,29 +2,117 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/manrope/files/manrope-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('@fontsource/manrope/files/manrope-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/manrope/files/manrope-latin-600-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/manrope/files/manrope-latin-700-normal.woff2') format('woff2');
+}
+
 @layer base {
   :root {
-    --color-primary: #ea7a1f;
-    --color-primary-dark: #c85f0a;
-    --color-primary-soft: #fff1e6;
-    --color-primary-border: #f3c29a;
-    --color-primary-soft-strong: #fde1cc;
+    color-scheme: light;
+
+    /* Official Rehabex palette and its semantic roles. */
+    --color-charcoal: 31 31 31;
+    --color-stone: 168 159 147;
+    --color-off-white: 248 247 245;
+    --color-soft-gray: 231 229 226;
+
+    /* The original orange remains reserved for the logo and rare micro-accents. */
+    --color-brand: 255 86 1;
+    --color-brand-hover: 210 63 0;
+    --color-brand-soft: 255 239 230;
+
+    --color-primary: var(--color-charcoal);
+    --color-primary-hover: 52 52 52;
+    --color-accent: 117 108 97;
+    --color-accent-soft: 221 217 211;
+
+    --color-canvas: var(--color-off-white);
+    --color-surface: 255 255 255;
+    --color-surface-muted: var(--color-soft-gray);
+    --color-ink: var(--color-charcoal);
+    --color-muted: 95 91 86;
+    --color-line: 215 211 205;
+    --color-dark: var(--color-charcoal);
+
+    --color-success: 20 108 67;
+    --color-warning: 150 92 0;
+    --color-danger: 181 42 42;
+    --color-info: 27 91 146;
+
+    --space-page: clamp(1rem, 3vw, 2.5rem);
+    --space-section: clamp(4rem, 7vw, 6.75rem);
+    --space-section-tight: clamp(2.75rem, 5vw, 4.5rem);
+    --radius-control: 0.625rem;
+    --radius-card: 0.875rem;
+    --shadow-soft: 0 1px 2px rgb(17 17 17 / 0.04), 0 10px 30px rgb(17 17 17 / 0.04);
+    --shadow-card: 0 1px 2px rgb(17 17 17 / 0.05), 0 18px 46px rgb(17 17 17 / 0.07);
+    --shadow-lift: 0 2px 4px rgb(17 17 17 / 0.06), 0 24px 54px rgb(17 17 17 / 0.11);
+    --duration-ui: 200ms;
+    --duration-nav: 240ms;
+    --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+    --z-header: 40;
+    --z-overlay: 50;
+    --z-modal: 60;
+    --z-toast: 70;
   }
 
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: 7rem;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 
   body {
     margin: 0;
     min-width: 320px;
-    background-color: #fafaf9;
-    color: #0f172a;
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    overflow-x: hidden;
+    background: rgb(var(--color-canvas));
+    color: rgb(var(--color-ink));
+    font-family: Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
-  * {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
@@ -33,177 +121,369 @@
     max-width: 100%;
   }
 
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   a {
     color: inherit;
     text-decoration: none;
   }
-}
 
-@layer components {
-  .brand-badge {
-    @apply border px-3 py-1;
-    border-color: var(--color-primary-border);
-    background-color: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-  }
-
-  .brand-button {
-    @apply text-white transition;
-    background-color: var(--color-primary);
-  }
-
-  .brand-button:hover {
-    background-color: var(--color-primary-dark);
-  }
-
-  .brand-link {
-    color: var(--color-primary-dark);
-  }
-
-  .brand-link:hover {
-    color: var(--color-primary);
-  }
-
-  .brand-ring-button {
-    @apply transition;
-  }
-
-  .brand-ring-button:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary-dark);
-  }
-
-  .brand-menu-button {
-    position: relative;
-    display: inline-flex;
-    height: 3rem;
-    width: 3rem;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    border: 1px solid var(--color-primary);
-    background-color: rgba(255, 255, 255, 0.92);
-    color: var(--color-primary-dark);
-    transition: all 0.3s ease;
-  }
-
-  .brand-menu-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent),
-      0 10px 28px color-mix(in srgb, var(--color-primary) 18%, transparent);
-  }
-
-  .brand-menu-button:focus-visible {
-    outline: 2px solid var(--color-primary);
+  :focus-visible {
+    outline: 3px solid rgb(var(--color-accent) / 0.85);
     outline-offset: 3px;
   }
 
-  .brand-menu-button__line {
-    position: absolute;
-    left: 50%;
-    height: 2px;
-    width: 1.125rem;
-    border-radius: 9999px;
-    background-color: currentColor;
-    transform-origin: center;
-    transition: all 0.3s ease;
+  ::selection {
+    background: rgb(var(--color-stone) / 0.34);
+    color: rgb(var(--color-ink));
+  }
+}
+
+@layer components {
+  .site-container {
+    width: 100%;
+    max-width: 84rem;
+    margin-inline: auto;
+    padding-inline: var(--space-page);
   }
 
-  .brand-menu-button__line:nth-child(2) {
-    transform: translate(-50%, -6px);
+  .section-shell {
+    padding-block: var(--space-section);
   }
 
-  .brand-menu-button__line:nth-child(3) {
-    transform: translate(-50%, 0);
+  .brand-button {
+    @apply inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-5 py-3 text-sm font-bold text-white transition;
+    transition-duration: var(--duration-ui);
+    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-timing-function: var(--ease-ui);
   }
 
-  .brand-menu-button__line:nth-child(4) {
-    transform: translate(-50%, 6px);
+  .brand-button:hover {
+    @apply bg-primary-hover text-white shadow-soft;
   }
 
-  .brand-menu-button.active {
-    background-color: var(--color-primary-soft);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  .brand-button:active {
+    transform: translateY(1px);
   }
 
-  .brand-menu-button.active .brand-menu-button__line:nth-child(2) {
-    transform: translate(-50%, 0) rotate(45deg);
+  .secondary-button {
+    @apply inline-flex min-h-11 items-center justify-center rounded-control border border-line bg-transparent px-5 py-3 text-sm font-bold text-ink transition;
+    transition-duration: var(--duration-ui);
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-timing-function: var(--ease-ui);
   }
 
-  .brand-menu-button.active .brand-menu-button__line:nth-child(3) {
+  .secondary-button:hover {
+    @apply border-accent bg-surface;
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.2em] text-accent;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .hero-enter {
+    animation: hero-enter 420ms var(--ease-ui) both;
+  }
+
+  .hero-enter-delay-1 {
+    animation-delay: 60ms;
+  }
+
+  .hero-enter-delay-2 {
+    animation-delay: 120ms;
+  }
+
+  .hero-enter-delay-3 {
+    animation-delay: 180ms;
+  }
+
+  .hero-enter-delay-4 {
+    animation-delay: 100ms;
+  }
+
+  .reveal-section {
+    opacity: 1;
+    transform: none;
+  }
+
+  .reveal-ready .reveal-section:not(.is-visible) {
     opacity: 0;
-    transform: translate(-50%, 0) scaleX(0.6);
+    transform: translateY(16px);
   }
 
-  .brand-menu-button.active .brand-menu-button__line:nth-child(4) {
-    transform: translate(-50%, 0) rotate(-45deg);
+  .reveal-ready .reveal-section {
+    transition: opacity 380ms var(--ease-ui), transform 380ms var(--ease-ui);
   }
 
-  .hero-performance-bg {
-    background-position: 62% center;
+  .reveal-ready .reveal-section [data-reveal-item] {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item] {
+    opacity: 1;
+    transform: none;
+    transition: opacity 360ms var(--ease-ui), transform 360ms var(--ease-ui);
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item]:nth-child(2) {
+    transition-delay: 55ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item]:nth-child(3) {
+    transition-delay: 110ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible [data-reveal-item]:nth-child(4) {
+    transition-delay: 165ms;
+  }
+
+  .cart-badge-enter {
+    animation: cart-badge-enter 220ms var(--ease-ui) both;
+  }
+
+  /* ---- Warm hem: the one recurring way the brand orange returns ----
+     A light section closes with a faint orange wash over its last fifth and a
+     hairline. It is painted as a background layer, so it always sits behind the
+     content and can never touch legibility. Reserved for the hero and for the
+     single hand-off into a Charcoal block. */
+  .warm-hem {
+    position: relative;
+    isolation: isolate;
+    background-image:
+      linear-gradient(
+        to top,
+        rgb(var(--color-brand) / 0.085) 0%,
+        rgb(var(--color-brand) / 0.032) 9%,
+        rgb(var(--color-brand) / 0) 20%
+      );
     background-repeat: no-repeat;
-    background-size: cover;
-    transform: scale(1.02);
   }
 
-  @media (min-width: 768px) {
-    .hero-performance-bg {
-      background-position: 72% center;
+  .warm-hem--ruled {
+    background-image:
+      linear-gradient(to top, rgb(var(--color-stone) / 0.5) 0 1px, transparent 1px),
+      linear-gradient(
+        to top,
+        rgb(var(--color-brand) / 0.075) 0%,
+        rgb(var(--color-brand) / 0.028) 9%,
+        rgb(var(--color-brand) / 0) 20%
+      );
+  }
+
+  /* The only continuous motion in the page: a compositor-only drift of the
+     glow. Nothing else reads or writes layout while it runs. */
+  .warm-hem--drift::after {
+    content: '';
+    position: absolute;
+    inset-inline: -8%;
+    bottom: 0;
+    z-index: -1;
+    height: 22%;
+    min-height: 6rem;
+    pointer-events: none;
+    background: radial-gradient(46% 62% at 28% 82%, rgb(var(--color-brand) / 0.13), transparent 70%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .warm-hem--drift::after {
+      animation: warm-drift 16s var(--ease-ui) infinite alternate;
     }
   }
 
-  .brand-nav-link {
-    @apply transition;
+  /* ---- Navbar ---- */
+  .site-header {
+    background-color: rgb(var(--color-canvas) / 0.88);
+    border-bottom: 1px solid rgb(var(--color-line) / 0.65);
+    transition:
+      background-color var(--duration-nav) var(--ease-ui),
+      border-color var(--duration-nav) var(--ease-ui),
+      box-shadow var(--duration-nav) var(--ease-ui);
   }
 
-  .brand-nav-link:hover {
-    color: var(--color-primary-dark);
+  .site-header::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 18%;
+    min-height: 0.625rem;
+    pointer-events: none;
+    background: linear-gradient(to top, rgb(var(--color-brand) / 0.11), rgb(var(--color-brand) / 0) 100%);
+    transition: opacity var(--duration-nav) var(--ease-ui);
   }
 
-  .brand-soft-hover {
-    @apply transition;
+  .site-header.is-scrolled {
+    background-color: rgb(var(--color-canvas) / 0.97);
+    border-bottom-color: rgb(var(--color-line));
+    box-shadow: 0 10px 26px rgb(17 17 17 / 0.05);
   }
 
-  .brand-soft-hover:hover {
-    background-color: var(--color-primary-soft);
-    color: var(--color-primary-dark);
+  /* Attenuated, never switched off. */
+  .site-header.is-scrolled::after {
+    opacity: 0.4;
   }
 
-  .brand-dot-active {
-    background-color: var(--color-primary);
+  /* ---- Logo crossfade ----
+     Both lockups are traced from the same artwork and share a viewBox, so they
+     register exactly. The wrapper owns the box and the orange layer stays in
+     flow, which is what keeps the swap free of layout shift. */
+  .brand-logo__mark {
+    transition:
+      opacity var(--duration-nav) var(--ease-ui),
+      transform var(--duration-nav) var(--ease-ui);
   }
 
-  .brand-accent-soft {
-    background-color: var(--color-primary-soft);
+  .brand-logo__mark--brand {
+    opacity: 1;
+    transform: translateY(0);
   }
 
-  .brand-accent-soft-strong {
-    background-color: var(--color-primary-soft-strong);
+  .brand-logo__mark--charcoal {
+    opacity: 0;
+    transform: translateY(5px);
   }
 
-  .brand-accent-text {
-    color: var(--color-primary-dark);
+  .is-scrolled .brand-logo__mark--brand {
+    opacity: 0;
+    transform: translateY(-5px);
   }
 
-  .brand-accent-text-soft {
-    color: var(--color-primary-border);
+  .is-scrolled .brand-logo__mark--charcoal {
+    opacity: 1;
+    transform: translateY(0);
   }
 
-  .brand-accent-border {
-    border-color: var(--color-primary-border);
+  /* ---- Primary navigation ---- */
+  .nav-link::before {
+    content: '';
+    position: absolute;
+    inset: 40% 0 0;
+    border-radius: 0.5rem 0.5rem 0 0;
+    background: linear-gradient(to top, rgb(var(--color-brand) / 0.11), rgb(var(--color-brand) / 0) 80%);
+    opacity: 0;
+    transition: opacity var(--duration-ui) var(--ease-ui);
+    pointer-events: none;
   }
 
-  .brand-icon-soft {
-    background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
-    color: var(--color-primary-border);
+  .nav-link:hover::before,
+  .nav-link:focus-visible::before {
+    opacity: 0.6;
   }
 
-  .admin-input {
-    @apply w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition;
+  .nav-link--active::before {
+    opacity: 1;
   }
 
-  .admin-input:focus {
-    border-color: #0f172a;
+  .nav-link__underline {
+    position: absolute;
+    inset-inline: 0.75rem;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: rgb(var(--color-brand));
+    transform: scaleX(0);
+    transition: transform var(--duration-ui) var(--ease-ui);
+  }
+
+  .nav-link:hover .nav-link__underline,
+  .nav-link:focus-visible .nav-link__underline {
+    transform: scaleX(0.45);
+  }
+
+  .nav-link--active .nav-link__underline {
+    transform: scaleX(1);
+  }
+
+  @media (min-width: 1024px) {
+    .nav-link__underline {
+      inset-inline: 1rem;
+    }
+  }
+
+  /* ---- Announcement rotation ----
+     Every message shares one grid cell, so the strip is as tall as the tallest
+     message from the first paint and never reflows as they swap. */
+  .announce-viewport {
+    display: grid;
+    place-items: center;
+  }
+
+  .announce-item {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 420ms var(--ease-ui),
+      transform 420ms var(--ease-ui);
+  }
+
+  .announce-item.is-current {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cart-badge-enter {
+  0% { opacity: 0; transform: scale(0.72); }
+  70% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes warm-drift {
+  from { transform: translate3d(-4%, 0, 0); }
+  to { transform: translate3d(6%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal-ready .reveal-section,
+  .reveal-ready .reveal-section [data-reveal-item] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* The logo still swaps and the hem still shows, but neither one moves. */
+  .brand-logo__mark,
+  .announce-item,
+  .warm-hem--drift::after {
+    transform: none !important;
   }
 }

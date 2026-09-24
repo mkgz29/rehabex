@@ -1,7 +1,7 @@
 type SectionHeadingProps = {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   align?: 'left' | 'center';
   theme?: 'light' | 'dark';
 };
@@ -13,20 +13,18 @@ export function SectionHeading({
   align = 'left',
   theme = 'light',
 }: SectionHeadingProps) {
-  const alignment = align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl';
-  const eyebrowColor = theme === 'dark' ? 'brand-accent-text-soft' : 'brand-accent-text';
-  const titleColor = theme === 'dark' ? 'text-white' : 'text-slate-900';
-  const descriptionColor = theme === 'dark' ? 'text-slate-300' : 'text-slate-600';
+  const alignment = align === 'center' ? 'mx-auto max-w-reading text-center' : 'max-w-reading';
+  const eyebrowColor = theme === 'dark' ? 'text-accent-soft' : 'text-accent';
+  const titleColor = theme === 'dark' ? 'text-white' : 'text-ink';
+  const descriptionColor = theme === 'dark' ? 'text-white/65' : 'text-muted';
 
   return (
     <div className={alignment}>
-      <span className={`text-sm font-semibold uppercase tracking-[0.24em] ${eyebrowColor}`}>
-        {eyebrow}
-      </span>
-      <h2 className={`mt-3 text-3xl font-semibold tracking-tight sm:text-4xl ${titleColor}`}>
+      <p className={`text-xs font-bold uppercase tracking-[0.2em] ${eyebrowColor}`}>{eyebrow}</p>
+      <h2 className={`mt-4 text-balance text-3xl font-bold leading-[1.08] tracking-[-0.035em] sm:text-4xl lg:text-5xl ${titleColor}`}>
         {title}
       </h2>
-      <p className={`mt-4 text-base leading-7 ${descriptionColor}`}>{description}</p>
+      {description ? <p className={`mt-5 text-base leading-7 ${descriptionColor}`}>{description}</p> : null}
     </div>
   );
 }

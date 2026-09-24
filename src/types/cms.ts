@@ -25,11 +25,13 @@ export type Product = {
   description: string;
   price: number;
   imageUrl: string;
+  imageAssetId?: string;
   category?: string;
   featured: boolean;
   sortOrder: number;
   active: boolean;
   createdAt?: string;
+  updatedAt?: string;
   stockOnHand?: number;
 };
 
@@ -38,6 +40,6 @@ export type LandingContent = {
   about: AboutContent;
 };
 
-export type ProductInput = Omit<Product, 'id' | 'createdAt'> & {
+export type ProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & {
   id?: string;
 };

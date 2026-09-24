@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { defaultProducts } from '../../lib/defaultContent';
 import { formatCurrency } from '../../lib/format';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { deleteProduct, getProducts, saveProduct } from '../../services/cms';
+import { getProducts } from '../../services/cms';
+import { AdminApiError, createProduct, setProductActive, updateProduct } from '../../services/adminApi';
 import type { Product, ProductInput } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
@@ -20,27 +20,34 @@ const emptyProduct: ProductInput = {
   category: '',
   featured: false,
   sortOrder: 0,
-  active: true,
+  active: false,
 };
 
+function messageForApiError(error: unknown, fallback: string) {
+  if (error instanceof AdminApiError) return error.message;
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function AdminProductsPage() {
-  const [products, setProducts] = useState<Product[]>(defaultProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<ProductInput>(emptyProduct);
+  const [editingUpdatedAt, setEditingUpdatedAt] = useState<string | null>(null);
+  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const productList = await getProducts();
-        setProducts(productList);
-      } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los productos.');
-      }
-    }
+  const loadProducts = async () => {
+    const productList = await getProducts();
+    setProducts(productList);
+    return productList;
+  };
 
-    load();
+  useEffect(() => {
+    loadProducts().catch((loadError) => {
+      setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los productos.');
+    });
   }, []);
 
   const sortedProducts = useMemo(
@@ -67,12 +74,16 @@ export function AdminProductsPage() {
       sortOrder: product.sortOrder,
       active: product.active,
     });
+    setEditingUpdatedAt(product.updatedAt ?? null);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
 
   const handleCancel = () => {
     setEditingProduct(emptyProduct);
+    setEditingUpdatedAt(null);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
@@ -84,39 +95,47 @@ export function AdminProductsPage() {
     setError(null);
 
     try {
-      await saveProduct(editingProduct);
-      const productList = await getProducts();
-      setProducts(productList);
-      setEditingProduct(emptyProduct);
-      setMessage(
-        hasSupabaseConfig
-          ? 'Producto guardado correctamente.'
-          : 'Vista local actualizada. Configura Supabase para persistir los cambios.',
-      );
+      if (editingProduct.id) {
+        if (!editingUpdatedAt) throw new Error('No se pudo determinar la version actual del producto. Recarga el listado.');
+        const updated = await updateProduct({ ...editingProduct, id: editingProduct.id, expectedUpdatedAt: editingUpdatedAt }, pendingImageAssetId);
+        setProducts((current) => current.map((product) => (product.id === updated.id ? updated : product)));
+        setEditingProduct(emptyProduct);
+        setEditingUpdatedAt(null);
+        setPendingImageAssetId(null);
+        setMessage('Producto actualizado correctamente.');
+      } else {
+        const created = await createProduct(editingProduct, pendingImageAssetId);
+        setProducts((current) => [...current, created]);
+        setEditingProduct(emptyProduct);
+        setEditingUpdatedAt(null);
+        setPendingImageAssetId(null);
+        setMessage('Producto creado como inactivo. Activalo desde el listado cuando este listo para publicarse.');
+      }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar el producto.');
+      setError(messageForApiError(submitError, 'No se pudo guardar el producto.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (productId: string) => {
+  const handleToggleActive = async (product: Product) => {
     setMessage(null);
     setError(null);
+    setTogglingId(product.id);
 
     try {
-      await deleteProduct(productId);
-      setProducts((current) => current.filter((product) => product.id !== productId));
-      if (editingProduct.id === productId) {
-        setEditingProduct(emptyProduct);
+      if (!product.updatedAt) throw new Error('No se pudo determinar la version actual del producto. Recarga el listado.');
+      const updated = await setProductActive(product.id, !product.active, product.updatedAt);
+      setProducts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      if (editingProduct.id === product.id) {
+        setEditingProduct((current) => ({ ...current, active: updated.active }));
+        setEditingUpdatedAt(updated.updatedAt ?? null);
       }
-      setMessage(
-        hasSupabaseConfig
-          ? 'Producto eliminado correctamente.'
-          : 'Vista local actualizada. Configura Supabase para persistir los cambios.',
-      );
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'No se pudo eliminar el producto.');
+      setMessage(updated.active ? 'Producto activado correctamente.' : 'Producto desactivado correctamente.');
+    } catch (toggleError) {
+      setError(messageForApiError(toggleError, 'No se pudo actualizar el estado del producto.'));
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -129,7 +148,7 @@ export function AdminProductsPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Estas viendo datos de ejemplo. Para guardar de forma permanente, agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+          El catalogo no esta disponible sin Supabase. Configura un entorno local o staging verificado para continuar.
         </AdminNotice>
       ) : null}
 
@@ -168,10 +187,11 @@ export function AdminProductsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(product.id)}
-                      className="rounded-full border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                      onClick={() => handleToggleActive(product)}
+                      disabled={togglingId === product.id}
+                      className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Eliminar
+                      {togglingId === product.id ? 'Actualizando...' : product.active ? 'Desactivar' : 'Activar'}
                     </button>
                   </div>
                 </div>
@@ -184,6 +204,11 @@ export function AdminProductsPage() {
           <h3 className="text-lg font-semibold text-slate-900">
             {editingProduct.id ? 'Editar producto' : 'Nuevo producto'}
           </h3>
+          {!editingProduct.id ? (
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Los productos nuevos se crean inactivos. Activalos desde el listado una vez revisados.
+            </p>
+          ) : null}
 
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             <FormField label="Nombre">
@@ -230,7 +255,11 @@ export function AdminProductsPage() {
             <ImageField
               label="Imagen"
               value={editingProduct.imageUrl}
-              onChange={(value) => setEditingProduct((current) => ({ ...current, imageUrl: value }))}
+              intent="product"
+              onAssetReady={({ assetId, url }) => {
+                setPendingImageAssetId(assetId);
+                setEditingProduct((current) => ({ ...current, imageUrl: url }));
+              }}
             />
 
             <FormField label="Orden de aparicion" hint="Menor numero = aparece antes entre los destacados.">
@@ -254,19 +283,6 @@ export function AdminProductsPage() {
                 type="checkbox"
                 checked={editingProduct.featured}
                 onChange={(event) => setEditingProduct((current) => ({ ...current, featured: event.target.checked }))}
-                className="h-5 w-5 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
-              />
-            </label>
-
-            <label className="flex items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Mostrar en catalogo</p>
-                <p className="mt-1 text-xs text-slate-500">Desactivalo si no quieres que aparezca en la landing.</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={editingProduct.active}
-                onChange={(event) => setEditingProduct((current) => ({ ...current, active: event.target.checked }))}
                 className="h-5 w-5 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
               />
             </label>

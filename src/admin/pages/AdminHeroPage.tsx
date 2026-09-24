@@ -3,7 +3,8 @@ import type { FormEvent } from 'react';
 
 import { defaultLandingContent } from '../../lib/defaultContent';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { getLandingContent, saveHeroContent } from '../../services/cms';
+import { getLandingContent } from '../../services/cms';
+import { AdminApiError, getSettingVersion, saveHeroContent } from '../../services/adminApi';
 import type { HeroContent } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
@@ -11,9 +12,16 @@ import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
 
+function messageForApiError(error: unknown, fallback: string) {
+  if (error instanceof AdminApiError) return error.message;
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function AdminHeroPage() {
   const [heroContent, setHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [initialHeroContent, setInitialHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
+  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,9 +29,10 @@ export function AdminHeroPage() {
   useEffect(() => {
     async function load() {
       try {
-        const content = await getLandingContent();
+        const [content, version] = await Promise.all([getLandingContent(), getSettingVersion('hero_content')]);
         setHeroContent(content.hero);
         setInitialHeroContent(content.hero);
+        setExpectedUpdatedAt(version);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el Hero.');
       }
@@ -38,6 +47,7 @@ export function AdminHeroPage() {
 
   const handleCancel = () => {
     setHeroContent(initialHeroContent);
+    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
   };
@@ -49,15 +59,14 @@ export function AdminHeroPage() {
     setError(null);
 
     try {
-      await saveHeroContent(heroContent);
-      setInitialHeroContent(heroContent);
-      setMessage(
-        hasSupabaseConfig
-          ? 'Hero guardado correctamente.'
-          : 'Hero guardado en este navegador. Configura Supabase si quieres compartirlo o persistirlo globalmente.',
-      );
+      const saved = await saveHeroContent(heroContent, expectedUpdatedAt, pendingImageAssetId);
+      setHeroContent(saved.content);
+      setInitialHeroContent(saved.content);
+      setExpectedUpdatedAt(saved.updatedAt);
+      setPendingImageAssetId(null);
+      setMessage('Hero guardado correctamente.');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar el Hero.');
+      setError(messageForApiError(submitError, 'No se pudo guardar el Hero.'));
     } finally {
       setSaving(false);
     }
@@ -72,7 +81,7 @@ export function AdminHeroPage() {
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Sin Supabase, los cambios se guardan en este navegador. Agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para compartirlos o persistirlos globalmente.
+          Sin Supabase, esta seccion no puede guardarse. Configura un entorno local o staging verificado para continuar.
         </AdminNotice>
       ) : null}
 
@@ -85,7 +94,11 @@ export function AdminHeroPage() {
             label="Imagen principal"
             hint="Usa una imagen amplia y de alto impacto visual. Se recorta con object-cover en desktop y mobile."
             value={heroContent.image_url}
-            onChange={(value) => updateHero('image_url', value)}
+            intent="hero"
+            onAssetReady={({ assetId, url }) => {
+              setPendingImageAssetId(assetId);
+              updateHero('image_url', url);
+            }}
           />
 
           <div className="space-y-4">
@@ -116,7 +129,7 @@ export function AdminHeroPage() {
               />
             </FormField>
 
-            <FormField label="Link del CTA principal">
+            <FormField label="Link del CTA principal" hint="Ruta interna (/tienda), ancla (#productos) o URL https.">
               <input
                 type="text"
                 value={heroContent.primary_cta_link}

@@ -1,38 +1,85 @@
-import type { AboutContent } from '../types/cms';
-import { SectionHeading } from './SectionHeading';
+import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+import type { AboutContent, Product } from '../types/cms';
+import { AboutImageGrid } from './AboutImageGrid';
+import type { AboutImageGridItem } from './AboutImageGrid';
 
 type AboutSectionProps = {
   content: AboutContent;
+  products: Product[];
 };
 
-export function AboutSection({ content }: AboutSectionProps) {
+const principles = [
+  { title: 'Rehabilitación', text: 'Equipamiento presentado para acompañar procesos de recuperación.' },
+  { title: 'Movilidad', text: 'Soluciones vinculadas con movimiento, práctica y continuidad.' },
+  { title: 'Bienestar', text: 'Productos orientados al cuidado cotidiano y funcional.' },
+];
+
+export function AboutSection({ content, products }: AboutSectionProps) {
+  const galleryItems = getGalleryItems(content, products);
+
   return (
-    <section id="quienes-somos" className="px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-      <div className="mx-auto grid w-full max-w-7xl gap-10 lg:grid-cols-[minmax(320px,440px)_minmax(0,1fr)] lg:items-center">
-        <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-3 shadow-sm">
-          <img
-            src={content.image}
-            alt="Equipo de trabajo especializado en rehabilitacion"
-            className="h-[320px] w-full rounded-[1.5rem] object-cover object-center sm:h-[420px]"
-          />
+    <section id="quienes-somos" className="section-shell bg-primary text-white" aria-labelledby="about-title">
+      <div className="site-container">
+        <div className="grid items-center gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
+          <div data-reveal-item>
+            <p className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.2em] text-white/60">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[rgb(var(--color-stone))]" aria-hidden="true" />
+              Acerca de Rehabex
+            </p>
+            {/* Editorial, not a billboard: two to four lines at every width. */}
+            <h2 id="about-title" className="mt-5 max-w-[20ch] text-balance text-[clamp(1.875rem,3vw,3rem)] font-bold leading-[1.08] tracking-[-0.03em] text-white">{content.title}</h2>
+            <div className="mt-7 max-w-xl space-y-4 text-base leading-7 text-white/70">
+              <p>{content.description}</p>
+              <p>Reunimos productos y accesorios para quienes buscan acompañar rehabilitación, movilidad y bienestar con información clara, disponibilidad visible y una navegación directa.</p>
+            </div>
+            <Link to="/tienda" className="group mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:border-white hover:bg-white hover:text-primary">
+              Conocer el catálogo
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+            </Link>
+          </div>
+
+          <AboutImageGrid items={galleryItems} />
         </div>
 
-        <div>
-          <SectionHeading eyebrow="Quienes somos" title={content.title} description={content.description} />
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {content.metrics.map((metric, index) => (
-              <div
-                key={metric.id}
-                className={`${index === 0 ? 'brand-accent-soft' : 'brand-accent-soft-strong'} rounded-[1.5rem] p-5`}
-              >
-                <p className="brand-accent-text text-3xl font-semibold">{metric.value}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">{metric.label}</p>
-              </div>
-            ))}
-          </div>
+        <div className="mt-14 grid border-y border-white/15 sm:grid-cols-3 lg:mt-20">
+          {principles.map((principle, index) => (
+            <div key={principle.title} data-reveal-item className={`py-7 sm:px-6 lg:py-9 ${index > 0 ? 'border-t border-white/15 sm:border-l sm:border-t-0' : ''}`}>
+              <p className="text-lg font-bold text-white">{principle.title}</p>
+              <p className="mt-2 max-w-xs text-sm leading-6 text-white/60">{principle.text}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
+}
+
+function getGalleryItems(content: AboutContent, products: Product[]) {
+  const items: AboutImageGridItem[] = [];
+  const seenUrls = new Set<string>();
+
+  const addItem = (item: AboutImageGridItem) => {
+    if (!item.imageUrl || seenUrls.has(item.imageUrl)) return;
+    seenUrls.add(item.imageUrl);
+    items.push(item);
+  };
+
+  addItem({
+    imageUrl: content.image,
+    alt: 'Imagen editorial de Rehabex vinculada con rehabilitación y bienestar',
+    label: 'Rehabilitación, movilidad y bienestar',
+  });
+
+  for (const product of products) {
+    addItem({
+      imageUrl: product.imageUrl,
+      alt: product.name,
+      label: product.name,
+    });
+    if (items.length === 3) break;
+  }
+
+  return items.slice(0, 3);
 }

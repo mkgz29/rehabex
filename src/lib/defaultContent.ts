@@ -1,91 +1,4 @@
-import type { LandingContent, Product } from '../types/cms';
-
-export const defaultProducts: Product[] = [
-  {
-    id: 'electroestimulador-pro',
-    name: 'Electroestimulador Pro',
-    description: 'Equipo compacto para terapias de recuperacion muscular y alivio del dolor.',
-    price: 249900,
-    imageUrl:
-      'https://images.unsplash.com/photo-1582719471384-894fbb16e074?auto=format&fit=crop&w=900&q=80',
-    category: 'Electroterapia',
-    featured: true,
-    sortOrder: 1,
-    active: true,
-  },
-  {
-    id: 'kit-bandas-terapeuticas',
-    name: 'Kit de bandas terapeuticas',
-    description: 'Set de resistencia progresiva para rehabilitacion funcional en casa o consultorio.',
-    price: 45990,
-    imageUrl:
-      'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80',
-    category: 'Movimiento',
-    featured: true,
-    sortOrder: 2,
-    active: true,
-  },
-  {
-    id: 'camilla-ergonomica',
-    name: 'Camilla ergonomica',
-    description: 'Superficie estable y confortable para sesiones prolongadas de tratamiento.',
-    price: 389000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',
-    category: 'Equipamiento',
-    featured: true,
-    sortOrder: 3,
-    active: true,
-  },
-  {
-    id: 'rodillo-miofascial',
-    name: 'Rodillo miofascial',
-    description: 'Apoyo versatil para movilidad, descarga muscular y recuperacion diaria.',
-    price: 28990,
-    imageUrl:
-      'https://images.unsplash.com/photo-1599058917765-a780eda07a3e?auto=format&fit=crop&w=900&q=80',
-    category: 'Recuperacion',
-    featured: true,
-    sortOrder: 4,
-    active: true,
-  },
-  {
-    id: 'pistola-masaje-terapeutica',
-    name: 'Pistola de masaje terapeutica',
-    description: 'Percusion controlada para descarga muscular, activacion y recuperacion post tratamiento.',
-    price: 67990,
-    imageUrl:
-      'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?auto=format&fit=crop&w=900&q=80',
-    category: 'Terapia muscular',
-    featured: true,
-    sortOrder: 5,
-    active: true,
-  },
-  {
-    id: 'compresa-frio-calor-pro',
-    name: 'Compresa frio calor Pro',
-    description: 'Solucion reutilizable para manejo termico en procesos de dolor, inflamacion y descarga.',
-    price: 18990,
-    imageUrl:
-      'https://images.unsplash.com/photo-1576671081837-49000212a370?auto=format&fit=crop&w=900&q=80',
-    category: 'Criotermia',
-    featured: true,
-    sortOrder: 6,
-    active: true,
-  },
-  {
-    id: 'tabla-equilibrio-clinica',
-    name: 'Tabla de equilibrio clinica',
-    description: 'Base estable para ejercicios de propiocepcion, control postural y trabajo funcional progresivo.',
-    price: 52990,
-    imageUrl:
-      'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80',
-    category: 'Propiocepcion',
-    featured: true,
-    sortOrder: 7,
-    active: true,
-  },
-];
+import type { LandingContent } from '../types/cms';
 
 export const defaultLandingContent: LandingContent = {
   hero: {
@@ -98,7 +11,7 @@ export const defaultLandingContent: LandingContent = {
   },
   about: {
     image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80',
-    title: 'REHABEX nace para acercar soluciones utiles, confiables y faciles de implementar',
+    title: 'Soluciones para acompañar cada etapa de recuperación.',
     description:
       'Somos un equipo enfocado en rehabilitacion y bienestar, con una mirada practica sobre lo que realmente necesita un tratamiento para sostenerse en el tiempo.',
     metrics: [
