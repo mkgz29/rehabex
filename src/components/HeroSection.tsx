@@ -3,16 +3,23 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
+import { resolveMediaSlotState } from './media/mediaSlotState';
 import type { HeroContent } from '../types/cms';
 
 type HeroSectionProps = {
   heroContent: HeroContent;
+  isLoading: boolean;
 };
 
-export function HeroSection({ heroContent }: HeroSectionProps) {
+export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => setImageFailed(false), [heroContent.image_url]);
+
+  // 'loading': settings haven't resolved yet, no img element, no request.
+  // 'empty': resolved, but no image is persisted -- never an editorial photo.
+  // 'ready': render the persisted URL. 'error': that URL failed to load.
+  const slotState = resolveMediaSlotState({ isLoading, url: heroContent.image_url, failed: imageFailed });
 
   return (
     <section className="warm-hem warm-hem--drift overflow-hidden bg-canvas" aria-labelledby="hero-title">
@@ -32,8 +39,11 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
           </div>
         </div>
 
-        <div className="hero-enter hero-enter-delay-4 relative aspect-[4/5] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]">
-          {!imageFailed && heroContent.image_url ? (
+        <div
+          className="hero-enter hero-enter-delay-4 relative aspect-[4/5] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]"
+          aria-busy={slotState === 'loading'}
+        >
+          {slotState === 'ready' ? (
             <img
               src={getOptimizedImageUrl(heroContent.image_url, { width: 1600 })}
               srcSet={getResponsiveImageSrcSet(heroContent.image_url, [640, 960, 1280, 1600])}
@@ -46,10 +56,14 @@ export function HeroSection({ heroContent }: HeroSectionProps) {
               onError={() => setImageFailed(true)}
               className="absolute inset-0 h-full w-full object-cover object-center"
             />
+          ) : slotState === 'loading' ? (
+            <div className="absolute inset-0 bg-[rgb(var(--color-surface-muted))]">
+              <span className="sr-only">Cargando imagen...</span>
+            </div>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_70%_20%,rgb(var(--color-stone)/0.24),transparent_45%),rgb(var(--color-surface-muted))] text-muted">
               <ImageOff className="h-8 w-8" aria-hidden="true" />
-              <p className="text-sm font-semibold">Imagen no disponible</p>
+              <p className="text-sm font-semibold">{slotState === 'empty' ? 'Imagen no configurada' : 'Imagen no disponible'}</p>
             </div>
           )}
           {/* Warms the corner the photograph hands over to the hem below, without

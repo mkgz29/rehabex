@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { MediaUploadError, uploadSecureImage, validateFileForUpload, type MediaIntent } from '../../services/mediaApi';
+import { resolveMediaSlotState } from '../../components/media/mediaSlotState';
 import { FormField } from './FormField';
 
 type ImageFieldProps = {
@@ -9,6 +10,8 @@ type ImageFieldProps = {
   /** Current display URL: the legacy or last-attached image. Read-only; never editable as free text. */
   value: string;
   intent: MediaIntent;
+  /** True while the parent form is still fetching persisted settings: shows a skeleton instead of `value`, which may still be an unseeded placeholder. */
+  isLoading?: boolean;
   /** Fired only after Cloudinary accepted the upload and the backend verified and registered it. */
   onAssetReady: (result: { assetId: string; url: string }) => void;
 };
@@ -21,10 +24,13 @@ type UploadState =
   | { kind: 'ready'; previewUrl: string }
   | { kind: 'error'; previewUrl: string | null; message: string };
 
-export function ImageField({ label, hint, value, intent, onAssetReady }: ImageFieldProps) {
+export function ImageField({ label, hint, value, intent, isLoading = false, onAssetReady }: ImageFieldProps) {
   const [state, setState] = useState<UploadState>({ kind: 'idle' });
+  const [persistedImageFailed, setPersistedImageFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => setPersistedImageFailed(false), [value]);
 
   const busy = state.kind === 'preparing' || state.kind === 'uploading' || state.kind === 'verifying';
 
@@ -72,23 +78,51 @@ export function ImageField({ label, hint, value, intent, onAssetReady }: ImageFi
   // The previous image stays visible until a new upload is fully verified;
   // nothing here ever shows success before the server has confirmed it.
   const displayUrl = state.kind === 'idle' || state.kind === 'error' ? (state.kind === 'error' ? state.previewUrl ?? value : value) : state.previewUrl;
+  // The loading/empty/error-of-persisted-image distinction only applies to
+  // the idle state (nothing being uploaded): every other state already has
+  // its own dedicated blob: preview and messaging below, unaffected by this.
+  const idleSlotState = resolveMediaSlotState({ isLoading, url: value, failed: persistedImageFailed });
+  const showIdleSkeleton = state.kind === 'idle' && idleSlotState === 'loading';
+  const showIdleEmpty = state.kind === 'idle' && idleSlotState === 'empty';
+  const showIdlePersistedError = state.kind === 'idle' && idleSlotState === 'error';
 
   return (
     <FormField label={label} hint={hint}>
       <div className="space-y-3">
-        {displayUrl ? (
+        {showIdleSkeleton ? (
+          <div className="h-48 w-full rounded-[1.5rem] border border-slate-200 bg-slate-100" aria-busy="true">
+            <span className="sr-only">Cargando imagen...</span>
+          </div>
+        ) : showIdleEmpty ? (
+          <div className="flex h-48 w-full items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50">
+            <p className="text-xs text-slate-500">Imagen no configurada.</p>
+          </div>
+        ) : showIdlePersistedError ? (
+          <div className="flex h-48 w-full items-center justify-center rounded-[1.5rem] border border-slate-200 bg-slate-50">
+            <p className="text-xs text-slate-500">Imagen no disponible.</p>
+          </div>
+        ) : displayUrl ? (
           <div className="overflow-hidden rounded-[1.5rem] border border-slate-200">
-            <img src={displayUrl} alt={label} className="h-48 w-full object-cover object-center" />
+            <img
+              src={displayUrl}
+              alt={label}
+              className="h-48 w-full object-cover object-center"
+              onError={() => {
+                if (state.kind === 'idle') setPersistedImageFailed(true);
+              }}
+            />
           </div>
         ) : (
-          <p className="text-xs text-slate-500">Todavia no hay una imagen cargada.</p>
+          <div className="flex h-48 w-full items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50">
+            <p className="text-xs text-slate-500">Imagen no configurada.</p>
+          </div>
         )}
 
         <input
           ref={inputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          disabled={busy}
+          disabled={busy || isLoading}
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) handleFileSelected(file);

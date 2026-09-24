@@ -23,6 +23,7 @@ export function AdminHeroPage() {
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
   const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,8 @@ export function AdminHeroPage() {
         setExpectedUpdatedAt(version);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el Hero.');
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -95,6 +98,7 @@ export function AdminHeroPage() {
             hint="Usa una imagen amplia y de alto impacto visual. Se recorta con object-cover en desktop y mobile."
             value={heroContent.image_url}
             intent="hero"
+            isLoading={isLoading}
             onAssetReady={({ assetId, url }) => {
               setPendingImageAssetId(assetId);
               updateHero('image_url', url);

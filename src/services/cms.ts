@@ -52,7 +52,7 @@ function getLocalSettings() {
   }
 }
 
-function normalizeHeroContent(value: unknown): HeroContent | null {
+export function normalizeHeroContent(value: unknown): HeroContent | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
@@ -68,12 +68,16 @@ function normalizeHeroContent(value: unknown): HeroContent | null {
         : typeof raw.subtitulo === 'string'
           ? raw.subtitulo
           : defaultLandingContent.hero.subtitle,
+    // Never falls back to a stock photo: a missing/blank/invalid persisted
+    // image resolves to '' (the explicit "no image configured" state), not
+    // an editorial placeholder. Independent of whatever defaultContent.ts
+    // holds, so this invariant can't regress if a textual default changes.
     image_url:
-      typeof raw.image_url === 'string'
+      typeof raw.image_url === 'string' && raw.image_url.trim() !== ''
         ? raw.image_url
-        : typeof raw.imageUrl === 'string'
+        : typeof raw.imageUrl === 'string' && raw.imageUrl.trim() !== ''
           ? raw.imageUrl
-          : defaultLandingContent.hero.image_url,
+          : '',
     primary_cta_text:
       typeof raw.primary_cta_text === 'string'
         ? raw.primary_cta_text
