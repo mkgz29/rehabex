@@ -28,7 +28,7 @@ function messageForStatus(status: number) {
     case 409:
       return 'Este contenido fue modificado en otra sesion. Recarga los datos antes de guardar.';
     case 422:
-      return 'Revisa los datos del formulario.';
+      return 'No pudimos guardar los cambios. Revisa que todos los campos esten completos y sean validos.';
     default:
       return 'No se pudo completar la operacion. Intenta nuevamente.';
   }
