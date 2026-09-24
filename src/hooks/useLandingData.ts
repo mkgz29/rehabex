@@ -8,6 +8,7 @@ type LandingDataState = {
   content: LandingContent;
   products: Product[];
   isLoading: boolean;
+  contentError: string | null;
   productsError: string | null;
 };
 
@@ -16,6 +17,7 @@ export function useLandingData() {
     content: defaultLandingContent,
     products: [],
     isLoading: true,
+    contentError: null,
     productsError: null,
   });
   const [requestVersion, setRequestVersion] = useState(0);
@@ -34,6 +36,12 @@ export function useLandingData() {
         content: contentResult.status === 'fulfilled' ? contentResult.value : defaultLandingContent,
         products: productsResult.status === 'fulfilled' ? productsResult.value : [],
         isLoading: false,
+        contentError:
+          contentResult.status === 'rejected'
+            ? contentResult.reason instanceof Error
+              ? contentResult.reason.message
+              : 'No pudimos cargar el contenido de la landing.'
+            : null,
         productsError:
           productsResult.status === 'rejected'
             ? productsResult.reason instanceof Error

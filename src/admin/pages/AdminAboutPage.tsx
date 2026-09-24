@@ -23,6 +23,7 @@ export function AdminAboutPage() {
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
   const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,8 @@ export function AdminAboutPage() {
         setExpectedUpdatedAt(version);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la seccion.');
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -98,6 +101,7 @@ export function AdminAboutPage() {
             hint="Usa una foto de equipo o espacio profesional."
             value={content.image}
             intent="about"
+            isLoading={isLoading}
             onAssetReady={({ assetId, url }) => {
               setPendingImageAssetId(assetId);
               setContent((current) => ({ ...current, image: url }));
