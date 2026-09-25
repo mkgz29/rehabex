@@ -107,6 +107,7 @@ const VALID_CREATE_BODY = {
   imageUrl: null,
   isFeatured: false,
   displayOrder: 0,
+  isActive: false,
 };
 
 const VALID_UPDATE_BODY = {

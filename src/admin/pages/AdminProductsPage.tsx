@@ -15,6 +15,7 @@ import { buildCategoryDirectory, resolveCategoryInput } from '../catalog/categor
 import { isProductFormDirty } from '../catalog/productDirtyState';
 import { filterProducts, type VisibilityFilter } from '../catalog/productListFilters';
 import { firstErrorField, validateProductForm, type ProductFormErrors } from '../catalog/productFormValidation';
+import { mergeProductIntoList, saveProduct } from '../catalog/productSaveOrchestration';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 const emptyProduct: ProductInput = {
@@ -181,44 +182,21 @@ export function AdminProductsPage() {
     setMessage(null);
     setError(null);
 
+    const isNew = !candidate.id;
+
     try {
-      let saved: Product;
-      if (candidate.id) {
-        if (!editingUpdatedAt) throw new Error('No pudimos identificar la version actual del producto. Volve a cargar el listado.');
-        saved = await updateProduct({ ...candidate, id: candidate.id, expectedUpdatedAt: editingUpdatedAt }, pendingImageAssetId);
-        if (saved.active !== candidate.active) {
-          try {
-            saved = await setProductActive(saved.id, candidate.active, saved.updatedAt ?? editingUpdatedAt);
-          } catch (visibilityError) {
-            setProducts((current) => current.map((product) => (product.id === saved.id ? saved : product)));
-            setIsFormOpen(false);
-            setDirty(false);
-            setError(messageForApiError(visibilityError, 'El producto se guardo, pero no pudimos actualizar su visibilidad. Podes cambiarla desde el listado.'));
-            return;
-          }
-        }
-        setProducts((current) => current.map((product) => (product.id === saved.id ? saved : product)));
-        setMessage('Producto actualizado correctamente.');
-      } else {
-        saved = await createProduct(candidate, pendingImageAssetId);
-        if (candidate.active && saved.updatedAt) {
-          try {
-            saved = await setProductActive(saved.id, true, saved.updatedAt);
-          } catch (visibilityError) {
-            setProducts((current) => [...current, saved]);
-            setIsFormOpen(false);
-            setDirty(false);
-            setMessage('Producto creado, pero quedo oculto porque no pudimos mostrarlo en la tienda. Podes cambiarlo desde el listado.');
-            void visibilityError;
-            return;
-          }
-        }
-        setProducts((current) => [...current, saved]);
-        setMessage('Producto creado correctamente.');
-      }
+      // One request, one database transaction: content, main image and
+      // visibility are committed together or not at all (admin_create_product
+      // _with_media / admin_update_product_with_media, ADMIN-02B).
+      const saved = await saveProduct(candidate, { editingUpdatedAt, pendingImageAssetId }, { createProduct, updateProduct });
+      setProducts((current) => mergeProductIntoList(current, saved, isNew));
+      setMessage(isNew ? 'Producto creado correctamente.' : 'Producto actualizado correctamente.');
       setIsFormOpen(false);
       setDirty(false);
     } catch (submitError) {
+      // Nothing was persisted: a failure anywhere in the single save request
+      // rolls back the whole transaction, so the form stays open with what
+      // was typed and nothing changed on the server.
       setError(messageForApiError(submitError, 'No pudimos guardar los cambios. Revisa que todos los campos esten completos y sean validos.'));
     } finally {
       setSaving(false);
@@ -421,7 +399,12 @@ export function AdminProductsPage() {
         <section className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-900">{editingProduct.id ? 'Editar producto' : 'Nuevo producto'}</h3>
-            <button type="button" onClick={closeForm} className="min-h-11 text-sm font-medium text-slate-600 underline-offset-4 hover:underline">
+            <button
+              type="button"
+              onClick={closeForm}
+              disabled={saving}
+              className="min-h-11 text-sm font-medium text-slate-600 underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60 disabled:no-underline"
+            >
               Volver al listado
             </button>
           </div>

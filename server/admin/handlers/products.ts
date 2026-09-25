@@ -31,6 +31,7 @@ export function createAdminCreateProductHandler(overrides: Partial<RequireAdminD
       p_image_asset_id: payload.value.imageAssetId,
       p_is_featured: payload.value.isFeatured,
       p_display_order: payload.value.displayOrder,
+      p_is_active: payload.value.isActive,
       p_request_id: auth.requestId,
     });
 
@@ -70,6 +71,7 @@ export function createAdminUpdateProductHandler(overrides: Partial<RequireAdminD
       p_image_asset_id: payload.value.imageAssetId,
       p_is_featured: payload.value.isFeatured,
       p_display_order: payload.value.displayOrder,
+      p_is_active: payload.value.isActive,
       p_expected_updated_at: payload.value.expectedUpdatedAt,
       p_request_id: auth.requestId,
     });

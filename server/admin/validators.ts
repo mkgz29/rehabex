@@ -113,9 +113,10 @@ export type ProductFieldsInput = {
   imageAssetId: string | null;
   isFeatured: boolean;
   displayOrder: number;
+  isActive: boolean;
 };
 
-const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'imageUrl', 'imageAssetId', 'isFeatured', 'displayOrder'] as const;
+const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'imageUrl', 'imageAssetId', 'isFeatured', 'displayOrder', 'isActive'] as const;
 
 /** Absent/null is fine (no new upload this edit); if present it must be a UUID naming a media asset. */
 function optionalAssetId(value: unknown): { ok: true; value: string | null } | { ok: false } {
@@ -146,6 +147,7 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
 
   if (typeof input.isFeatured !== 'boolean') return { ok: false, error: 'invalid_is_featured' };
   if (!isNonNegativeInt(input.displayOrder, MAX_DISPLAY_ORDER)) return { ok: false, error: 'invalid_display_order' };
+  if (typeof input.isActive !== 'boolean') return { ok: false, error: 'invalid_is_active' };
 
   return {
     ok: true,
@@ -158,6 +160,7 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
       imageAssetId: imageAssetId.value,
       isFeatured: input.isFeatured,
       displayOrder: input.displayOrder as number,
+      isActive: input.isActive,
     },
   };
 }

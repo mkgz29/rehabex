@@ -109,7 +109,7 @@ function imageFieldsForRequest(imageUrl: string, imageAssetId: string | null) {
   return imageAssetId ? { imageUrl: null, imageAssetId } : { imageUrl: imageUrl || null, imageAssetId: null };
 }
 
-export async function createProduct(input: Omit<ProductInput, 'id' | 'active' | 'imageAssetId'>, imageAssetId: string | null = null): Promise<Product> {
+export async function createProduct(input: Omit<ProductInput, 'id' | 'imageAssetId'>, imageAssetId: string | null = null): Promise<Product> {
   const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/create', {
     name: input.name,
     description: input.description,
@@ -118,6 +118,7 @@ export async function createProduct(input: Omit<ProductInput, 'id' | 'active' | 
     ...imageFieldsForRequest(input.imageUrl, imageAssetId),
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
+    isActive: input.active,
   });
   return mapProductResponse(product);
 }
@@ -136,6 +137,7 @@ export async function updateProduct(
     ...imageFieldsForRequest(input.imageUrl, imageAssetId),
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
+    isActive: input.active,
   });
   return mapProductResponse(product);
 }

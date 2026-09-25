@@ -22,6 +22,7 @@ const VALID_PRODUCT = {
   imageUrl: 'https://images.example.test/a.jpg',
   isFeatured: false,
   displayOrder: 0,
+  isActive: false,
 };
 
 test('isReservedCategory matches TEST/PRUEBA case- and space-insensitively, not partial words', () => {
