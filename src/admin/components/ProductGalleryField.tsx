@@ -26,7 +26,7 @@ type UploadState =
 type ProductGalleryFieldProps = {
   items: GalleryDraftItem[];
   onChange: (items: GalleryDraftItem[]) => void;
-  /** mediaAssetId values already saved on the server before this edit session started; removing one of these asks for confirmation first. */
+  /** Identities (mediaAssetId, or url for a legacy item with no asset id) already saved on the server before this edit session started; removing one of these asks for confirmation first. */
   persistedIds: Set<string>;
 };
 
@@ -75,7 +75,7 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
 
   const handleRemove = (index: number) => {
     const item = items[index];
-    if (persistedIds.has(item.mediaAssetId) && confirmRemoveIndex !== index) {
+    if (persistedIds.has(item.mediaAssetId ?? item.url) && confirmRemoveIndex !== index) {
       setConfirmRemoveIndex(index);
       return;
     }
@@ -99,7 +99,7 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
               const isConfirmingRemove = confirmRemoveIndex === index;
               return (
                 <li
-                  key={item.mediaAssetId}
+                  key={item.mediaAssetId ?? item.url}
                   draggable={!busy}
                   onDragStart={() => setDragIndex(index)}
                   onDragOver={(event) => event.preventDefault()}

@@ -23,7 +23,7 @@ type ProductRow = {
   stock_on_hand?: number | null;
 };
 
-type ProductImageRow = { product_id: string; media_asset_id: string; url: string; is_primary: boolean; display_order: number };
+type ProductImageRow = { product_id: string; media_asset_id: string | null; url: string; is_primary: boolean; display_order: number };
 
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
 const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, updated_at, stock_on_hand';

@@ -20,7 +20,8 @@ export type AboutContent = {
 };
 
 export type ProductImage = {
-  mediaAssetId: string;
+  /** Null for a legacy image carried over from before the gallery existed (RELEASE-ADMIN-02-PREFLIGHT backfill) -- never issued through the signed-upload flow, so it is identified by its URL instead. */
+  mediaAssetId: string | null;
   url: string;
   isPrimary: boolean;
   /** Informational only when read back from the server; while editing, array position is the order and this is unused. */

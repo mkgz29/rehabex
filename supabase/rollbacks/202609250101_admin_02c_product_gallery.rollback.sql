@@ -6,6 +6,15 @@
 -- gallery associations exist at rollback time (the product_images rows
 -- themselves, and media_assets, are untouched) -- acceptable for a manual,
 -- explicitly-authorized rollback, never something to run automatically.
+--
+-- Legacy-image backfill rows (media_asset_id NULL, inserted by this
+-- migration for products that only ever had products.image_url) are product_
+-- images rows like any other: they survive this rollback unchanged, and so
+-- does products.image_url itself (nothing here touches that column). The
+-- only visible difference from the pre-migration state is that a
+-- product_images row now exists for those legacy images, which is inert
+-- once the gallery feature above is gone -- never a data loss or a security
+-- regression (product_images already granted the same roles before ADMIN-02C).
 
 DROP FUNCTION IF EXISTS "public"."admin_create_product_with_media"(
   text, text, text, numeric, boolean, integer, boolean, jsonb, uuid

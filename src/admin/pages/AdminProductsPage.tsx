@@ -94,7 +94,10 @@ export function AdminProductsPage() {
     [categoryDirectory],
   );
 
-  const initialGalleryIds = useMemo(() => new Set((initialProduct.gallery ?? []).map((item) => item.mediaAssetId)), [initialProduct]);
+  const initialGalleryIds = useMemo(
+    () => new Set((initialProduct.gallery ?? []).map((item) => item.mediaAssetId ?? item.url)),
+    [initialProduct],
+  );
 
   const visibleProducts = useMemo(
     () =>

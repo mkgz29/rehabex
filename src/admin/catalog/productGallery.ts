@@ -71,8 +71,14 @@ export function reorderByDrag(items: GalleryDraftItem[], fromIndex: number, toIn
   return next;
 }
 
-export type GalleryPayloadItem = { mediaAssetId: string; isPrimary: boolean };
+export type GalleryPayloadItem = { mediaAssetId: string; isPrimary: boolean } | { legacyUrl: string; isPrimary: boolean };
 
+// A legacy item (mediaAssetId null -- carried over from before the gallery
+// existed, RELEASE-ADMIN-02-PREFLIGHT backfill) is never issued a media asset
+// id, so it round-trips by URL instead: the server only accepts a legacyUrl
+// that already exists as a legacy row on this exact product, never a new one.
 export function toGalleryPayload(items: GalleryDraftItem[]): GalleryPayloadItem[] {
-  return items.map(({ mediaAssetId, isPrimary }) => ({ mediaAssetId, isPrimary }));
+  return items.map(({ mediaAssetId, url, isPrimary }) =>
+    mediaAssetId ? { mediaAssetId, isPrimary } : { legacyUrl: url, isPrimary },
+  );
 }

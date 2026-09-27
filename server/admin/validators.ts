@@ -103,7 +103,7 @@ function optionalAssetId(value: unknown): { ok: true; value: string | null } | {
   return typeof value === 'string' && UUID.test(value) ? { ok: true, value } : { ok: false };
 }
 
-export type GalleryItemInput = { mediaAssetId: string; isPrimary: boolean };
+export type GalleryItemInput = { mediaAssetId: string; isPrimary: boolean } | { legacyUrl: string; isPrimary: boolean };
 
 export const MAX_GALLERY_IMAGES = 5;
 
@@ -112,6 +112,13 @@ export const MAX_GALLERY_IMAGES = 5;
  * is the actual security boundary); this pass exists only to reject an
  * obviously-malformed gallery with a specific, friendly message before ever
  * reaching the database.
+ *
+ * Each entry is either a media_assets-backed image (mediaAssetId) or a
+ * legacy image carried over from before the gallery existed (legacyUrl,
+ * RELEASE-ADMIN-02-PREFLIGHT backfill) -- never both. This pass only checks
+ * shape; the RPC is what actually verifies a legacyUrl already exists as a
+ * legacy row on that exact product, which is what stops a client from
+ * fabricating an arbitrary image by claiming it is "legacy".
  */
 function parseGallery(value: unknown): ValidationResult<GalleryItemInput[]> {
   if (value === undefined || value === null) return { ok: true, value: [] };
@@ -119,23 +126,39 @@ function parseGallery(value: unknown): ValidationResult<GalleryItemInput[]> {
   if (value.length > MAX_GALLERY_IMAGES) return { ok: false, error: 'too_many_images' };
 
   const items: GalleryItemInput[] = [];
-  const seen = new Set<string>();
+  const seenAssetIds = new Set<string>();
+  const seenLegacyUrls = new Set<string>();
   let primaryCount = 0;
 
   for (const raw of value) {
     const entry = asObject(raw);
     if (!entry) return { ok: false, error: 'invalid_gallery' };
-    if (!hasOnlyAllowedKeys(entry, ['mediaAssetId', 'isPrimary'])) return { ok: false, error: 'unknown_field' };
 
-    const mediaAssetId = entry.mediaAssetId;
-    if (typeof mediaAssetId !== 'string' || !UUID.test(mediaAssetId)) return { ok: false, error: 'invalid_gallery' };
-    if (seen.has(mediaAssetId)) return { ok: false, error: 'duplicate_image' };
-    seen.add(mediaAssetId);
+    const hasAssetId = 'mediaAssetId' in entry;
+    const hasLegacyUrl = 'legacyUrl' in entry;
+    if (hasAssetId === hasLegacyUrl) return { ok: false, error: 'invalid_gallery' };
+    if (!hasOnlyAllowedKeys(entry, hasAssetId ? ['mediaAssetId', 'isPrimary'] : ['legacyUrl', 'isPrimary'])) {
+      return { ok: false, error: 'unknown_field' };
+    }
 
     if (typeof entry.isPrimary !== 'boolean') return { ok: false, error: 'invalid_gallery' };
     if (entry.isPrimary) primaryCount += 1;
 
-    items.push({ mediaAssetId, isPrimary: entry.isPrimary });
+    if (hasAssetId) {
+      const mediaAssetId = entry.mediaAssetId;
+      if (typeof mediaAssetId !== 'string' || !UUID.test(mediaAssetId)) return { ok: false, error: 'invalid_gallery' };
+      if (seenAssetIds.has(mediaAssetId)) return { ok: false, error: 'duplicate_image' };
+      seenAssetIds.add(mediaAssetId);
+      items.push({ mediaAssetId, isPrimary: entry.isPrimary });
+    } else {
+      const legacyUrl = entry.legacyUrl;
+      if (typeof legacyUrl !== 'string' || legacyUrl.length > MAX_IMAGE_URL || !isHttpsUrl(legacyUrl)) {
+        return { ok: false, error: 'invalid_gallery' };
+      }
+      if (seenLegacyUrls.has(legacyUrl)) return { ok: false, error: 'duplicate_image' };
+      seenLegacyUrls.add(legacyUrl);
+      items.push({ legacyUrl, isPrimary: entry.isPrimary });
+    }
   }
 
   if (items.length > 0 && primaryCount !== 1) return { ok: false, error: 'invalid_primary' };
