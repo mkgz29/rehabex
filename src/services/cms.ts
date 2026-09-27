@@ -1,7 +1,8 @@
 import { defaultLandingContent } from '../lib/defaultContent';
 import { isPublicCatalogProduct } from '../lib/catalog';
+import { normalizeFraming } from '../lib/imageFraming';
 import { supabase } from '../lib/supabase';
-import type { AboutContent, HeroContent, LandingContent, Product, ProductImage } from '../types/cms';
+import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, LandingContent, Product, ProductImage } from '../types/cms';
 
 type SettingRow = {
   key: string;
@@ -23,14 +24,50 @@ type ProductRow = {
   stock_on_hand?: number | null;
 };
 
-type ProductImageRow = { product_id: string; media_asset_id: string | null; url: string; is_primary: boolean; display_order: number };
+type ProductImageRow = {
+  product_id: string;
+  media_asset_id: string | null;
+  url: string;
+  is_primary: boolean;
+  display_order: number;
+  framing: unknown;
+};
 
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
 const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, updated_at, stock_on_hand';
-const GALLERY_SELECT = 'product_id, media_asset_id, url, is_primary, display_order';
+const GALLERY_SELECT = 'product_id, media_asset_id, url, is_primary, display_order, framing';
 
 function mapGalleryRow(row: ProductImageRow): ProductImage {
-  return { mediaAssetId: row.media_asset_id, url: row.url, isPrimary: row.is_primary, displayOrder: row.display_order };
+  return {
+    mediaAssetId: row.media_asset_id,
+    url: row.url,
+    isPrimary: row.is_primary,
+    displayOrder: row.display_order,
+    framing: normalizeFraming(row.framing),
+  };
+}
+
+async function attachGalleries(products: Product[]): Promise<Product[]> {
+  if (!supabase || products.length === 0) return products;
+
+  const { data: galleryRows, error } = await supabase
+    .from('product_images')
+    .select(GALLERY_SELECT)
+    .in('product_id', products.map((product) => product.id))
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    throw new Error(formatSupabaseError('No se pudieron cargar las imagenes de los productos'));
+  }
+
+  const galleryByProductId = new Map<string, ProductImage[]>();
+  for (const row of (galleryRows ?? []) as ProductImageRow[]) {
+    const list = galleryByProductId.get(row.product_id) ?? [];
+    list.push(mapGalleryRow(row));
+    galleryByProductId.set(row.product_id, list);
+  }
+
+  return products.map((product) => ({ ...product, gallery: galleryByProductId.get(product.id) ?? [] }));
 }
 
 function cloneLandingContent() {
@@ -85,6 +122,7 @@ export function normalizeHeroContent(value: unknown): HeroContent | null {
         : typeof raw.imageUrl === 'string' && raw.imageUrl.trim() !== ''
           ? raw.imageUrl
           : '',
+    image_framing: normalizeFraming(raw.image_framing),
     primary_cta_text:
       typeof raw.primary_cta_text === 'string'
         ? raw.primary_cta_text
@@ -102,6 +140,46 @@ export function normalizeHeroContent(value: unknown): HeroContent | null {
             ? raw.ctaLink
             : defaultLandingContent.hero.primary_cta_link,
   };
+}
+
+export function normalizeAboutContent(value: unknown): AboutContent | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+
+  const metricsSource = Array.isArray(raw.metrics) ? raw.metrics : defaultLandingContent.about.metrics;
+  const metrics = metricsSource.map((entry, index) => {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    return {
+      id: typeof item.id === 'string' && item.id ? item.id : `metric-${index + 1}`,
+      value: typeof item.value === 'string' ? item.value : '',
+      label: typeof item.label === 'string' ? item.label : '',
+    };
+  });
+
+  return {
+    image: typeof raw.image === 'string' ? raw.image : '',
+    image_framing: normalizeFraming(raw.image_framing),
+    title: typeof raw.title === 'string' ? raw.title : defaultLandingContent.about.title,
+    description: typeof raw.description === 'string' ? raw.description : defaultLandingContent.about.description,
+    metrics,
+  };
+}
+
+function normalizeSectionCopy(value: unknown, fallback: { title: string; subtitle: string }): { title: string; subtitle: string } {
+  if (!value || typeof value !== 'object') return { ...fallback };
+  const raw = value as Record<string, unknown>;
+  return {
+    title: typeof raw.title === 'string' ? raw.title : fallback.title,
+    subtitle: typeof raw.subtitle === 'string' ? raw.subtitle : fallback.subtitle,
+  };
+}
+
+export function normalizeFeaturedSectionContent(value: unknown): FeaturedSectionContent {
+  return normalizeSectionCopy(value, defaultLandingContent.featuredSection);
+}
+
+export function normalizeCatalogSectionContent(value: unknown): CatalogSectionContent {
+  return normalizeSectionCopy(value, defaultLandingContent.catalogSection);
 }
 
 function formatSupabaseError(context: string) {
@@ -134,7 +212,15 @@ function mergeLandingSettings(settings: SettingRow[]) {
     }
 
     if (setting.key === 'about_content' && setting.value) {
-      merged.about = setting.value as AboutContent;
+      merged.about = normalizeAboutContent(setting.value) ?? merged.about;
+    }
+
+    if (setting.key === 'featured_section_content' && setting.value) {
+      merged.featuredSection = normalizeFeaturedSectionContent(setting.value);
+    }
+
+    if (setting.key === 'catalog_section_content' && setting.value) {
+      merged.catalogSection = normalizeCatalogSectionContent(setting.value);
     }
   }
 
@@ -166,27 +252,7 @@ export async function getProducts() {
     throw new Error(formatSupabaseError('No se pudieron cargar los productos'));
   }
 
-  const products = ((data ?? []) as ProductRow[]).map(mapProductRow);
-  if (products.length === 0) return products;
-
-  const { data: galleryRows, error: galleryError } = await supabase
-    .from('product_images')
-    .select(GALLERY_SELECT)
-    .in('product_id', products.map((product) => product.id))
-    .order('display_order', { ascending: true });
-
-  if (galleryError) {
-    throw new Error(formatSupabaseError('No se pudieron cargar las imagenes de los productos'));
-  }
-
-  const galleryByProductId = new Map<string, ProductImage[]>();
-  for (const row of (galleryRows ?? []) as ProductImageRow[]) {
-    const list = galleryByProductId.get(row.product_id) ?? [];
-    list.push(mapGalleryRow(row));
-    galleryByProductId.set(row.product_id, list);
-  }
-
-  return products.map((product) => ({ ...product, gallery: galleryByProductId.get(product.id) ?? [] }));
+  return attachGalleries(((data ?? []) as ProductRow[]).map(mapProductRow));
 }
 
 export async function getActiveProducts() {
@@ -205,7 +271,8 @@ export async function getActiveProducts() {
     throw new Error(formatSupabaseError('No se pudieron cargar los productos activos'));
   }
 
-  return ((data ?? []) as ProductRow[]).map(mapProductRow).filter(isPublicCatalogProduct);
+  const products = ((data ?? []) as ProductRow[]).map(mapProductRow).filter(isPublicCatalogProduct);
+  return attachGalleries(products);
 }
 
 export async function getProductById(productId: string) {

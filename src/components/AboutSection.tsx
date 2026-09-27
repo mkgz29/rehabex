@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import type { AboutContent, Product } from '../types/cms';
+import type { AboutContent, AboutMetric, Product } from '../types/cms';
 import { AboutImageGrid } from './AboutImageGrid';
 import type { AboutImageGridItem } from './AboutImageGrid';
 
@@ -10,14 +10,14 @@ type AboutSectionProps = {
   products: Product[];
 };
 
-const principles = [
-  { title: 'Rehabilitación', text: 'Equipamiento presentado para acompañar procesos de recuperación.' },
-  { title: 'Movilidad', text: 'Soluciones vinculadas con movimiento, práctica y continuidad.' },
-  { title: 'Bienestar', text: 'Productos orientados al cuidado cotidiano y funcional.' },
-];
+/** A metric with neither a value nor an explanation carries nothing to show -- rendering it would be an empty card, not "no invented data". */
+function isMetricEmpty(metric: AboutMetric): boolean {
+  return metric.value.trim() === '' && metric.label.trim() === '';
+}
 
 export function AboutSection({ content, products }: AboutSectionProps) {
   const galleryItems = getGalleryItems(content, products);
+  const visibleMetrics = content.metrics.filter((metric) => !isMetricEmpty(metric));
 
   return (
     <section id="quienes-somos" className="section-shell bg-primary text-white" aria-labelledby="about-title">
@@ -43,14 +43,20 @@ export function AboutSection({ content, products }: AboutSectionProps) {
           <AboutImageGrid items={galleryItems} />
         </div>
 
-        <div className="mt-14 grid border-y border-white/15 sm:grid-cols-3 lg:mt-20">
-          {principles.map((principle, index) => (
-            <div key={principle.title} data-reveal-item className={`py-7 sm:px-6 lg:py-9 ${index > 0 ? 'border-t border-white/15 sm:border-l sm:border-t-0' : ''}`}>
-              <p className="text-lg font-bold text-white">{principle.title}</p>
-              <p className="mt-2 max-w-xs text-sm leading-6 text-white/60">{principle.text}</p>
-            </div>
-          ))}
-        </div>
+        {/* "Datos destacados": renders exactly what the admin configured in
+            Editar página. A metric left fully empty is skipped; if every
+            metric is empty the whole block disappears instead of leaving a
+            hollow border on the page (ADMIN-02E). */}
+        {visibleMetrics.length > 0 ? (
+          <div className="mt-14 grid border-y border-white/15 sm:grid-cols-3 lg:mt-20" style={{ gridTemplateColumns: `repeat(${Math.min(visibleMetrics.length, 3)}, minmax(0, 1fr))` }}>
+            {visibleMetrics.map((metric, index) => (
+              <div key={metric.id} data-reveal-item className={`py-7 sm:px-6 lg:py-9 ${index > 0 ? 'border-t border-white/15 sm:border-l sm:border-t-0' : ''}`}>
+                <p className="text-lg font-bold text-white">{metric.value}</p>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-white/60">{metric.label}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -70,6 +76,7 @@ function getGalleryItems(content: AboutContent, products: Product[]) {
     imageUrl: content.image,
     alt: 'Imagen editorial de Rehabex vinculada con rehabilitación y bienestar',
     label: 'Rehabilitación, movilidad y bienestar',
+    framing: content.image_framing,
   });
 
   for (const product of products) {
@@ -77,6 +84,7 @@ function getGalleryItems(content: AboutContent, products: Product[]) {
       imageUrl: product.imageUrl,
       alt: product.name,
       label: product.name,
+      framing: product.gallery?.find((image) => image.isPrimary)?.framing,
     });
     if (items.length === 3) break;
   }

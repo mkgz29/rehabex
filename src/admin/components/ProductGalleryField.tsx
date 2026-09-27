@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 
 import { MediaUploadError, uploadSecureImage, validateFileForUpload } from '../../services/mediaApi';
+import { ImagePreparationError, optimizeImageForUpload } from '../../lib/imageOptimization';
+import { DEFAULT_FRAMING, framingToImageStyle } from '../../lib/imageFraming';
 import {
   MAX_GALLERY_IMAGES,
   addImage,
@@ -10,15 +12,18 @@ import {
   removeImageAt,
   replaceImageAt,
   reorderByDrag,
+  setFramingAt,
   setPrimaryAt,
   type GalleryDraftItem,
 } from '../catalog/productGallery';
 import { FormField } from './FormField';
+import { ImageFramerField } from './ImageFramerField';
 
 type UploadTarget = 'new' | number;
 
 type UploadState =
   | { kind: 'idle' }
+  | { kind: 'preparing'; target: UploadTarget }
   | { kind: 'uploading'; target: UploadTarget; previewUrl: string; percent: number }
   | { kind: 'verifying'; target: UploadTarget; previewUrl: string }
   | { kind: 'error'; target: UploadTarget; message: string };
@@ -33,23 +38,35 @@ type ProductGalleryFieldProps = {
 export function ProductGalleryField({ items, onChange, persistedIds }: ProductGalleryFieldProps) {
   const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
   const [confirmRemoveIndex, setConfirmRemoveIndex] = useState<number | null>(null);
+  const [framingIndex, setFramingIndex] = useState<number | null>(null);
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<number | null>(null);
 
-  const busy = upload.kind === 'uploading' || upload.kind === 'verifying';
+  const busy = upload.kind === 'preparing' || upload.kind === 'uploading' || upload.kind === 'verifying';
 
   const runUpload = async (file: File, target: UploadTarget) => {
-    const validation = await validateFileForUpload(file);
+    setUpload({ kind: 'preparing', target });
+
+    let optimized;
+    try {
+      optimized = await optimizeImageForUpload(file);
+    } catch (error) {
+      const message = error instanceof ImagePreparationError ? error.message : 'No pudimos preparar esta imagen. Probá con otro archivo.';
+      setUpload({ kind: 'error', target, message });
+      return;
+    }
+
+    const validation = await validateFileForUpload(optimized.file);
     if (!validation.ok) {
       setUpload({ kind: 'error', target, message: validation.message });
       return;
     }
 
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(optimized.file);
     setUpload({ kind: 'uploading', target, previewUrl, percent: 0 });
     try {
-      const result = await uploadSecureImage(file, 'product', {
+      const result = await uploadSecureImage(optimized.file, 'product', {
         onProgress: (percent) => setUpload((current) => (current.kind === 'uploading' && current.target === target ? { ...current, percent } : current)),
         onUploaded: () => setUpload({ kind: 'verifying', target, previewUrl }),
       });
@@ -80,6 +97,7 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
       return;
     }
     setConfirmRemoveIndex(null);
+    if (framingIndex === index) setFramingIndex(null);
     onChange(removeImageAt(items, index));
   };
 
@@ -95,8 +113,10 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
         ) : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {items.map((item, index) => {
-              const isReplacing = (upload.kind === 'uploading' || upload.kind === 'verifying') && upload.target === index;
+              const isTarget = (upload.kind === 'preparing' || upload.kind === 'uploading' || upload.kind === 'verifying') && upload.target === index;
               const isConfirmingRemove = confirmRemoveIndex === index;
+              const isFraming = framingIndex === index;
+              const style = framingToImageStyle(item.framing ?? DEFAULT_FRAMING);
               return (
                 <li
                   key={item.mediaAssetId ?? item.url}
@@ -115,18 +135,19 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
                   </p>
                   <div className="relative overflow-hidden rounded-xl border border-slate-200">
                     <img
-                      src={isReplacing && (upload.kind === 'uploading' || upload.kind === 'verifying') ? upload.previewUrl : item.url}
+                      src={isTarget && upload.kind !== 'preparing' ? upload.previewUrl : item.url}
                       alt={`Imagen ${index + 1} del producto`}
-                      className="h-28 w-full object-cover object-center"
+                      style={{ objectFit: style.objectFit, objectPosition: style.objectPosition, transform: style.transform }}
+                      className="h-28 w-full"
                     />
                     {item.isPrimary ? (
                       <span className="absolute left-1.5 top-1.5 rounded-full bg-slate-900/85 px-2 py-1 text-[10px] font-semibold text-white">Imagen principal</span>
                     ) : null}
                   </div>
 
-                  {isReplacing ? (
-                    <p className="text-center text-[11px] text-slate-500">
-                      {upload.kind === 'uploading' ? `Subiendo... ${upload.percent}%` : 'Verificando...'}
+                  {isTarget ? (
+                    <p className="text-center text-[11px] text-slate-500" aria-live="polite">
+                      {upload.kind === 'preparing' ? 'Preparando imagen...' : upload.kind === 'uploading' ? `Subiendo... ${upload.percent}%` : 'Verificando...'}
                     </p>
                   ) : (
                     <div className="flex flex-wrap justify-center gap-1">
@@ -140,6 +161,15 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
                           Usar como principal
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setFramingIndex(isFraming ? null : index)}
+                        aria-pressed={isFraming}
+                        className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Acomodar imagen
+                      </button>
                       <button
                         type="button"
                         disabled={busy}
@@ -201,6 +231,15 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
                     </div>
                   )}
 
+                  {isFraming ? (
+                    <ImageFramerField
+                      url={item.url}
+                      framing={item.framing ?? DEFAULT_FRAMING}
+                      onChange={(framing) => onChange(setFramingAt(items, index, framing))}
+                      aspectRatio="1 / 1"
+                    />
+                  ) : null}
+
                   {upload.kind === 'error' && upload.target === index ? (
                     <p role="alert" className="text-center text-[11px] text-red-600">
                       {upload.message}
@@ -227,11 +266,14 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
               className="admin-input"
               aria-label="Agregar imagen"
             />
-            <p className="mt-2 text-xs leading-5 text-slate-500">JPG, PNG o WebP. Máximo 8 MB. Entre 400x400 y 6000x6000 px.</p>
-            {upload.kind === 'uploading' && upload.target === 'new' ? (
-              <p className="mt-1 text-xs text-slate-500">Subiendo imagen... {upload.percent}%</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">JPG, PNG o WebP, hasta 20 MB. La ajustamos automáticamente antes de subirla.</p>
+            {upload.kind === 'preparing' && upload.target === 'new' ? (
+              <p className="mt-1 text-xs text-slate-500" aria-live="polite">Preparando imagen...</p>
             ) : null}
-            {upload.kind === 'verifying' && upload.target === 'new' ? <p className="mt-1 text-xs text-slate-500">Verificando imagen...</p> : null}
+            {upload.kind === 'uploading' && upload.target === 'new' ? (
+              <p className="mt-1 text-xs text-slate-500" aria-live="polite">Subiendo imagen... {upload.percent}%</p>
+            ) : null}
+            {upload.kind === 'verifying' && upload.target === 'new' ? <p className="mt-1 text-xs text-slate-500" aria-live="polite">Verificando imagen...</p> : null}
             {upload.kind === 'error' && upload.target === 'new' ? (
               <p role="alert" className="mt-1 text-xs text-red-600">
                 {upload.message}

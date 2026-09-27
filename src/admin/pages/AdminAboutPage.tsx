@@ -6,10 +6,12 @@ import { hasSupabaseConfig } from '../../lib/supabase';
 import { getLandingContent } from '../../services/cms';
 import { AdminApiError, getSettingVersion, saveAboutContent } from '../../services/adminApi';
 import type { AboutContent } from '../../types/cms';
+import { DEFAULT_FRAMING } from '../../lib/imageFraming';
 import { AdminNotice } from '../components/AdminNotice';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
+import { ImageFramerField } from '../components/ImageFramerField';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 function messageForApiError(error: unknown, fallback: string) {
@@ -107,17 +109,28 @@ export function AdminAboutPage() {
 
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-5 lg:grid-cols-2">
-          <ImageField
-            label="Imagen de la sección"
-            hint="Usá una foto de equipo o del espacio de trabajo."
-            value={content.image}
-            intent="about"
-            isLoading={isLoading}
-            onAssetReady={({ assetId, url }) => {
-              setPendingImageAssetId(assetId);
-              setContent((current) => ({ ...current, image: url }));
-            }}
-          />
+          <div className="space-y-4">
+            <ImageField
+              label="Imagen de la sección"
+              hint="Usá una foto de equipo o del espacio de trabajo."
+              value={content.image}
+              intent="about"
+              isLoading={isLoading}
+              onAssetReady={({ assetId, url }) => {
+                setPendingImageAssetId(assetId);
+                setContent((current) => ({ ...current, image: url }));
+              }}
+            />
+
+            {content.image ? (
+              <ImageFramerField
+                url={content.image}
+                framing={content.image_framing ?? DEFAULT_FRAMING}
+                onChange={(framing) => setContent((current) => ({ ...current, image_framing: framing }))}
+                aspectRatio="4 / 5"
+              />
+            ) : null}
+          </div>
 
           <div className="space-y-4">
             <FormField label="Título">

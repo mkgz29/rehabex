@@ -105,10 +105,10 @@ test('reorderByDrag moves an image to an arbitrary position, keeping every item 
 
 // --- toGalleryPayload -------------------------------------------------------------
 
-test('toGalleryPayload sends only mediaAssetId and isPrimary, in array order', () => {
+test('toGalleryPayload sends mediaAssetId, isPrimary and framing (defaulted when unset), in array order', () => {
   const items = [item('a', true), item('b')];
   assert.deepEqual(toGalleryPayload(items), [
-    { mediaAssetId: 'a', isPrimary: true },
-    { mediaAssetId: 'b', isPrimary: false },
+    { mediaAssetId: 'a', isPrimary: true, framing: { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: 1 } },
+    { mediaAssetId: 'b', isPrimary: false, framing: { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: 1 } },
   ]);
 });

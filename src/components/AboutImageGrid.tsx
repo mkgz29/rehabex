@@ -1,9 +1,12 @@
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
+import { FramedImage } from './media/FramedImage';
+import type { ImageFraming } from '../lib/imageFraming';
 
 export type AboutImageGridItem = {
   imageUrl: string;
   alt: string;
   label: string;
+  framing?: ImageFraming;
 };
 
 type AboutImageGridProps = {
@@ -34,16 +37,15 @@ export function AboutImageGrid({ items }: AboutImageGridProps) {
             key={item.imageUrl}
             className={`relative overflow-hidden rounded-card bg-primary-hover ${index === 0 ? 'aspect-[4/3] sm:col-span-2 sm:aspect-[16/9] lg:col-span-1 lg:row-span-2 lg:aspect-auto' : 'aspect-[4/3]'}`}
           >
-            <img
-              src={getOptimizedImageUrl(item.imageUrl, { width: index === 0 ? 1200 : 720 })}
+            <FramedImage
+              media={{ kind: 'image', url: getOptimizedImageUrl(item.imageUrl, { width: index === 0 ? 1200 : 720 }), framing: item.framing }}
               srcSet={getResponsiveImageSrcSet(item.imageUrl, index === 0 ? [480, 720, 960, 1200] : [320, 480, 720])}
               sizes={index === 0 ? '(min-width: 1024px) 28vw, (min-width: 640px) 88vw, calc(100vw - 2rem)' : '(min-width: 1024px) 20vw, (min-width: 640px) 44vw, calc(100vw - 2rem)'}
               alt={item.alt}
               width={index === 0 ? 1200 : 720}
               height={index === 0 ? 900 : 540}
               loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover object-center transition duration-500 ease-out hover:scale-[1.02]"
+              className="h-full w-full transition duration-500 ease-out hover:scale-[1.02]"
             />
             <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/90 via-primary/45 to-transparent px-4 pb-4 pt-12 text-sm font-semibold text-white sm:px-5 sm:pb-5 sm:pt-16">
               {item.label}

@@ -1,3 +1,4 @@
+import { DEFAULT_FRAMING, type ImageFraming } from '../../lib/imageFraming';
 import type { ProductImage } from '../../types/cms';
 
 // Pure, framework-free gallery editing logic for the product form. Every
@@ -19,8 +20,9 @@ export function addImage(items: GalleryDraftItem[], newItem: { mediaAssetId: str
   if (!canAddMoreImages(items)) return items;
   // The first image added to an empty gallery becomes primary automatically,
   // so the gallery is never left in the "non-empty but no primary" state a
-  // save would otherwise reject.
-  return [...items, { ...newItem, isPrimary: items.length === 0 }];
+  // save would otherwise reject. Starts centered/fill/normal-zoom -- the
+  // admin can reframe it with "Acomodar imagen" afterward.
+  return [...items, { ...newItem, isPrimary: items.length === 0, framing: { ...DEFAULT_FRAMING } }];
 }
 
 export function removeImageAt(items: GalleryDraftItem[], index: number): GalleryDraftItem[] {
@@ -40,7 +42,14 @@ export function setPrimaryAt(items: GalleryDraftItem[], index: number): GalleryD
 
 export function replaceImageAt(items: GalleryDraftItem[], index: number, replacement: { mediaAssetId: string; url: string }): GalleryDraftItem[] {
   if (index < 0 || index >= items.length) return items;
-  return items.map((item, i) => (i === index ? { ...item, mediaAssetId: replacement.mediaAssetId, url: replacement.url } : item));
+  // A replaced photo resets to the default framing: the old position was
+  // chosen for a different image and has no reason to still fit this one.
+  return items.map((item, i) => (i === index ? { ...item, mediaAssetId: replacement.mediaAssetId, url: replacement.url, framing: { ...DEFAULT_FRAMING } } : item));
+}
+
+export function setFramingAt(items: GalleryDraftItem[], index: number, framing: ImageFraming): GalleryDraftItem[] {
+  if (index < 0 || index >= items.length) return items;
+  return items.map((item, i) => (i === index ? { ...item, framing } : item));
 }
 
 function swap<T>(items: T[], a: number, b: number): T[] {
@@ -71,14 +80,17 @@ export function reorderByDrag(items: GalleryDraftItem[], fromIndex: number, toIn
   return next;
 }
 
-export type GalleryPayloadItem = { mediaAssetId: string; isPrimary: boolean } | { legacyUrl: string; isPrimary: boolean };
+export type GalleryPayloadItem =
+  | { mediaAssetId: string; isPrimary: boolean; framing: ImageFraming }
+  | { legacyUrl: string; isPrimary: boolean; framing: ImageFraming };
 
 // A legacy item (mediaAssetId null -- carried over from before the gallery
 // existed, RELEASE-ADMIN-02-PREFLIGHT backfill) is never issued a media asset
 // id, so it round-trips by URL instead: the server only accepts a legacyUrl
 // that already exists as a legacy row on this exact product, never a new one.
 export function toGalleryPayload(items: GalleryDraftItem[]): GalleryPayloadItem[] {
-  return items.map(({ mediaAssetId, url, isPrimary }) =>
-    mediaAssetId ? { mediaAssetId, isPrimary } : { legacyUrl: url, isPrimary },
-  );
+  return items.map(({ mediaAssetId, url, isPrimary, framing }) => {
+    const resolvedFraming = framing ?? DEFAULT_FRAMING;
+    return mediaAssetId ? { mediaAssetId, isPrimary, framing: resolvedFraming } : { legacyUrl: url, isPrimary, framing: resolvedFraming };
+  });
 }

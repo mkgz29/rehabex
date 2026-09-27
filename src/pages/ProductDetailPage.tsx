@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { useCart } from '../cart/useCart';
 import { Footer } from '../components/Footer';
+import { FramedImage } from '../components/media/FramedImage';
 import { formatCurrency } from '../lib/format';
 import { getProductById } from '../services/cms';
 import type { Product } from '../types/cms';
@@ -103,10 +104,14 @@ export function ProductDetailPage() {
           {!loading && !error && product ? (
             <article className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)] lg:items-start">
               <div className="space-y-3">
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                   {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] h-full w-full object-cover object-center" />
-                  ) : <div className="flex aspect-[4/3] items-center justify-center text-sm text-slate-500">Sin imagen</div>}
+                    <FramedImage
+                      media={{ kind: 'image', url: product.imageUrl, framing: product.gallery?.find((image) => image.isPrimary)?.framing }}
+                      alt={product.name}
+                      className="h-full w-full"
+                    />
+                  ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">Sin imagen</div>}
                 </div>
                 {/* Ordered gallery, no carousel: every image is always visible, in the
                     order set from the admin panel. The first (primary) image already
@@ -116,8 +121,8 @@ export function ProductDetailPage() {
                     {product.gallery
                       .filter((image) => !image.isPrimary)
                       .map((image) => (
-                        <div key={image.mediaAssetId} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                          <img src={image.url} alt={product.name} className="aspect-square h-full w-full object-cover object-center" />
+                        <div key={image.mediaAssetId ?? image.url} className="aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                          <FramedImage media={{ kind: 'image', url: image.url, framing: image.framing }} alt={product.name} className="h-full w-full" />
                         </div>
                       ))}
                   </div>

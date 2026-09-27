@@ -2,7 +2,7 @@
 // through /api/admin/*, carrying the caller's own Supabase access token; the
 // panel never writes to products/settings directly anymore.
 import { supabase } from '../lib/supabase';
-import type { AboutContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
+import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
 import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
 
 export type AdminApiErrorKind = 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'validation' | 'unavailable';
@@ -176,8 +176,40 @@ export async function saveAboutContent(
   return { content: setting.value, updatedAt: setting.updatedAt };
 }
 
+export async function saveFeaturedSectionContent(
+  content: FeaturedSectionContent,
+  expectedUpdatedAt: string | null,
+): Promise<{ content: FeaturedSectionContent; updatedAt: string }> {
+  const { setting } = await postAdmin<{ setting: SettingApiResponse<FeaturedSectionContent> }>('/api/admin/settings/featured-section', {
+    value: content,
+    expectedUpdatedAt,
+  });
+  return { content: setting.value, updatedAt: setting.updatedAt };
+}
+
+export async function saveCatalogSectionContent(
+  content: CatalogSectionContent,
+  expectedUpdatedAt: string | null,
+): Promise<{ content: CatalogSectionContent; updatedAt: string }> {
+  const { setting } = await postAdmin<{ setting: SettingApiResponse<CatalogSectionContent> }>('/api/admin/settings/catalog-section', {
+    value: content,
+    expectedUpdatedAt,
+  });
+  return { content: setting.value, updatedAt: setting.updatedAt };
+}
+
+export type FeaturedProductUpdate = { id: string; isFeatured: boolean; displayOrder: number };
+
+/** Atomic bulk selection/order update for the public "Productos destacados" section. */
+export async function saveFeaturedProducts(items: FeaturedProductUpdate[]): Promise<void> {
+  if (items.length === 0) return;
+  await postAdmin<{ requestId: string }>('/api/admin/products/set-featured', { items });
+}
+
 /** Reads the current version of a CMS document, for the initial expectedUpdatedAt. */
-export async function getSettingVersion(key: 'hero_content' | 'about_content'): Promise<string | null> {
+export async function getSettingVersion(
+  key: 'hero_content' | 'about_content' | 'featured_section_content' | 'catalog_section_content',
+): Promise<string | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.from('settings').select('updated_at').eq('key', key).maybeSingle();
   if (error || !data) return null;

@@ -6,10 +6,12 @@ import { hasSupabaseConfig } from '../../lib/supabase';
 import { getLandingContent } from '../../services/cms';
 import { AdminApiError, getSettingVersion, saveHeroContent } from '../../services/adminApi';
 import type { HeroContent } from '../../types/cms';
+import { DEFAULT_FRAMING } from '../../lib/imageFraming';
 import { AdminNotice } from '../components/AdminNotice';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
+import { ImageFramerField } from '../components/ImageFramerField';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 function messageForApiError(error: unknown, fallback: string) {
@@ -122,17 +124,28 @@ export function AdminHeroPage() {
 
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-5 lg:grid-cols-2">
-          <ImageField
-            label="Imagen de portada"
-            hint="Usá una imagen amplia y de buena calidad: es lo primero que ve la gente."
-            value={heroContent.image_url}
-            intent="hero"
-            isLoading={isLoading}
-            onAssetReady={({ assetId, url }) => {
-              setPendingImageAssetId(assetId);
-              updateHero('image_url', url);
-            }}
-          />
+          <div className="space-y-4">
+            <ImageField
+              label="Imagen de portada"
+              hint="Usá una imagen amplia y de buena calidad: es lo primero que ve la gente."
+              value={heroContent.image_url}
+              intent="hero"
+              isLoading={isLoading}
+              onAssetReady={({ assetId, url }) => {
+                setPendingImageAssetId(assetId);
+                updateHero('image_url', url);
+              }}
+            />
+
+            {heroContent.image_url ? (
+              <ImageFramerField
+                url={heroContent.image_url}
+                framing={heroContent.image_framing ?? DEFAULT_FRAMING}
+                onChange={(framing) => setHeroContent((current) => ({ ...current, image_framing: framing }))}
+                aspectRatio="4 / 5"
+              />
+            ) : null}
+          </div>
 
           <div className="space-y-4">
             <FormField label="Título principal" hint="Breve, directo y fácil de leer sobre la imagen.">
