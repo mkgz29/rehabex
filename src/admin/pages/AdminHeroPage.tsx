@@ -7,14 +7,30 @@ import { getLandingContent } from '../../services/cms';
 import { AdminApiError, getSettingVersion, saveHeroContent } from '../../services/adminApi';
 import type { HeroContent } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
-import { AdminPageHeader } from '../components/AdminPageHeader';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
+import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 function messageForApiError(error: unknown, fallback: string) {
   if (error instanceof AdminApiError) return error.message;
   return error instanceof Error ? error.message : fallback;
+}
+
+// Plain-language destinations for the main button, mapped to the real
+// existing routes/anchors the public site already understands. No new
+// destination is invented here -- picking one never changes link behaviour,
+// it only changes how the choice is presented.
+const CTA_DESTINATIONS = [
+  { id: 'featured', label: 'Productos destacados', link: '#productos' },
+  { id: 'store', label: 'Tienda', link: '/tienda' },
+] as const;
+
+type CtaDestinationId = (typeof CTA_DESTINATIONS)[number]['id'] | 'custom';
+
+function destinationForLink(link: string): CtaDestinationId {
+  const preset = CTA_DESTINATIONS.find((option) => option.link === link);
+  return preset ? preset.id : 'custom';
 }
 
 export function AdminHeroPage() {
@@ -26,6 +42,7 @@ export function AdminHeroPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { setDirty } = useUnsavedChanges();
 
   useEffect(() => {
     async function load() {
@@ -35,7 +52,7 @@ export function AdminHeroPage() {
         setInitialHeroContent(content.hero);
         setExpectedUpdatedAt(version);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el Hero.');
+        setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la portada principal.');
       } finally {
         setIsLoading(false);
       }
@@ -43,6 +60,9 @@ export function AdminHeroPage() {
 
     load();
   }, []);
+
+  const isDirty = JSON.stringify(heroContent) !== JSON.stringify(initialHeroContent);
+  useEffect(() => setDirty('hero', isDirty), [isDirty, setDirty]);
 
   const updateHero = (field: keyof HeroContent, value: string) => {
     setHeroContent((current) => ({ ...current, [field]: value }));
@@ -67,35 +87,44 @@ export function AdminHeroPage() {
       setInitialHeroContent(saved.content);
       setExpectedUpdatedAt(saved.updatedAt);
       setPendingImageAssetId(null);
-      setMessage('Hero guardado correctamente.');
+      setDirty('hero', false);
+      setMessage('Portada principal guardada correctamente.');
     } catch (submitError) {
-      setError(messageForApiError(submitError, 'No se pudo guardar el Hero.'));
+      setError(messageForApiError(submitError, 'No se pudo guardar la portada principal.'));
     } finally {
       setSaving(false);
     }
   };
 
+  const ctaDestination = destinationForLink(heroContent.primary_cta_link);
+
   return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title="Hero"
-        description="Edita un Hero visual con una sola imagen protagonista, texto corto y un unico CTA principal."
-      />
+    <section className="space-y-6 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
+      <header>
+        <h3 className="text-lg font-semibold text-slate-900">Portada principal</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          La primera imagen y mensaje que ve cualquier visitante al entrar a la tienda.
+        </p>
+      </header>
 
       {!hasSupabaseConfig ? (
         <AdminNotice>
-          Sin Supabase, esta seccion no puede guardarse. Configura un entorno local o staging verificado para continuar.
+          Sin Supabase, esta sección no puede guardarse. Configurá un entorno local o staging verificado para continuar.
         </AdminNotice>
       ) : null}
 
       {message ? <AdminNotice>{message}</AdminNotice> : null}
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <form className="space-y-6" onSubmit={handleSubmit}>
-        <section className="grid gap-5 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 lg:grid-cols-2">
+        <div className="grid gap-5 lg:grid-cols-2">
           <ImageField
-            label="Imagen principal"
-            hint="Usa una imagen amplia y de alto impacto visual. Se recorta con object-cover en desktop y mobile."
+            label="Imagen de portada"
+            hint="Usá una imagen amplia y de buena calidad: es lo primero que ve la gente."
             value={heroContent.image_url}
             intent="hero"
             isLoading={isLoading}
@@ -106,7 +135,7 @@ export function AdminHeroPage() {
           />
 
           <div className="space-y-4">
-            <FormField label="Titulo" hint="Breve, directo y facil de leer sobre la imagen.">
+            <FormField label="Título principal" hint="Breve, directo y fácil de leer sobre la imagen.">
               <input
                 type="text"
                 value={heroContent.title}
@@ -115,7 +144,7 @@ export function AdminHeroPage() {
               />
             </FormField>
 
-            <FormField label="Subtitulo" hint="Opcional. Una sola frase corta para apoyar el titulo.">
+            <FormField label="Descripción" hint="Opcional. Una sola frase corta para apoyar el título.">
               <textarea
                 value={heroContent.subtitle ?? ''}
                 onChange={(event) => updateHero('subtitle', event.target.value)}
@@ -124,7 +153,7 @@ export function AdminHeroPage() {
               />
             </FormField>
 
-            <FormField label="Texto del CTA principal">
+            <FormField label="Texto del botón">
               <input
                 type="text"
                 value={heroContent.primary_cta_text}
@@ -133,19 +162,39 @@ export function AdminHeroPage() {
               />
             </FormField>
 
-            <FormField label="Link del CTA principal" hint="Ruta interna (/tienda), ancla (#productos) o URL https.">
-              <input
-                type="text"
-                value={heroContent.primary_cta_link}
-                onChange={(event) => updateHero('primary_cta_link', event.target.value)}
+            <FormField label="A dónde lleva el botón" hint="Elegí una sección de la tienda o escribí un enlace.">
+              <select
+                value={ctaDestination}
+                onChange={(event) => {
+                  const next = event.target.value as CtaDestinationId;
+                  const preset = CTA_DESTINATIONS.find((option) => option.id === next);
+                  if (preset) updateHero('primary_cta_link', preset.link);
+                }}
                 className="admin-input"
-              />
+              >
+                {CTA_DESTINATIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value="custom">Enlace personalizado</option>
+              </select>
+              {ctaDestination === 'custom' ? (
+                <input
+                  type="text"
+                  value={heroContent.primary_cta_link}
+                  onChange={(event) => updateHero('primary_cta_link', event.target.value)}
+                  placeholder="Pegá o escribí el enlace completo"
+                  className="admin-input mt-3"
+                  aria-label="Enlace personalizado para el botón"
+                />
+              ) : null}
             </FormField>
           </div>
-        </section>
+        </div>
 
         <FormActions onCancel={handleCancel} saving={saving} />
       </form>
-    </div>
+    </section>
   );
 }
