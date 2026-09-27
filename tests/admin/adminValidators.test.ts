@@ -116,6 +116,39 @@ test('parseCreateProductPayload rejects a gallery item with a malformed mediaAss
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: 'not-an-array' })), false);
 });
 
+test('parseCreateProductPayload accepts a legacyUrl gallery item (RELEASE-ADMIN-02-PREFLIGHT) shaped like a real image URL', () => {
+  const result = parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ legacyUrl: 'https://res.cloudinary.com/demo/image/upload/legacy.jpg', isPrimary: true }] });
+  assert.equal(isValid(result), true);
+});
+
+test('parseCreateProductPayload rejects a gallery item with both mediaAssetId and legacyUrl, or neither', () => {
+  assert.equal(
+    isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ mediaAssetId: ASSET_ID_1, legacyUrl: 'https://x.test/a.jpg', isPrimary: true }] })),
+    false,
+  );
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ isPrimary: true }] })), false);
+});
+
+test('parseCreateProductPayload rejects a malformed or oversized legacyUrl, and a duplicated legacyUrl', () => {
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ legacyUrl: 'not-a-url', isPrimary: true }] })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ legacyUrl: 'javascript:alert(1)', isPrimary: true }] })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ legacyUrl: `https://x.test/${'a'.repeat(2000)}.jpg`, isPrimary: true }] })), false);
+
+  const duplicateUrl = 'https://res.cloudinary.com/demo/image/upload/legacy.jpg';
+  assert.equal(
+    isValid(
+      parseCreateProductPayload({
+        ...VALID_PRODUCT,
+        gallery: [
+          { legacyUrl: duplicateUrl, isPrimary: true },
+          { legacyUrl: duplicateUrl, isPrimary: false },
+        ],
+      }),
+    ),
+    false,
+  );
+});
+
 test('parseCreateProductPayload rejects a non-boolean isFeatured and a negative or oversized displayOrder', () => {
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, isFeatured: 'true' })), false);
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, displayOrder: -1 })), false);
