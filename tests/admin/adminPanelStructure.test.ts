@@ -88,18 +88,15 @@ function renderEditPage() {
   );
 }
 
-test('Editar pagina shows the three plain-language blocks with their relabeled fields', () => {
+test('Editar pagina shows five plain-language summaries and keeps editing fields closed initially', () => {
   const markup = renderEditPage();
   assert.match(markup, /Portada principal/);
+  assert.match(markup, /Productos destacados/);
   assert.match(markup, /Acerca de Rehabex/);
   assert.match(markup, /Datos destacados/);
-  assert.match(markup, /Título principal/);
-  assert.match(markup, /Texto del botón/);
-  assert.match(markup, /A dónde lleva el botón/);
-  assert.match(markup, /Imagen de portada/);
-  assert.match(markup, /Imagen de la sección/);
-  assert.match(markup, /Valor destacado/);
-  assert.match(markup, /Explicación/);
+  assert.match(markup, /Catálogo de productos/);
+  assert.equal((markup.match(/aria-expanded="false"/g) ?? []).length, 5);
+  assert.doesNotMatch(markup, /<form/);
 });
 
 test('Editar pagina never leaks internal/technical vocabulary to a non-technical admin', () => {

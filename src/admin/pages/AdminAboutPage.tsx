@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { defaultLandingContent } from '../../lib/defaultContent';
-import { hasSupabaseConfig } from '../../lib/supabase';
-import { getLandingContent } from '../../services/cms';
-import { AdminApiError, getSettingVersion, saveAboutContent } from '../../services/adminApi';
-import type { AboutContent } from '../../types/cms';
 import { DEFAULT_FRAMING } from '../../lib/imageFraming';
+import { hasSupabaseConfig } from '../../lib/supabase';
+import { AdminApiError, getSettingVersion, saveAboutContent } from '../../services/adminApi';
+import { getLandingContent } from '../../services/cms';
+import type { AboutContent } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ImageField } from '../components/ImageField';
-import { ImageFramerField } from '../components/ImageFramerField';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 function messageForApiError(error: unknown, fallback: string) {
@@ -19,7 +18,13 @@ function messageForApiError(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function AdminAboutPage() {
+type AdminAboutPageProps = {
+  part?: 'about' | 'metrics';
+  onSaved?: (message: string) => void;
+  onCancel?: () => void;
+};
+
+export function AdminAboutPage({ part = 'about', onSaved, onCancel }: AdminAboutPageProps = {}) {
   const [content, setContent] = useState<AboutContent>(defaultLandingContent.about);
   const [initialContent, setInitialContent] = useState<AboutContent>(defaultLandingContent.about);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
@@ -29,6 +34,7 @@ export function AdminAboutPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { setDirty } = useUnsavedChanges();
+  const dirtyKey = part === 'about' ? 'about-copy' : 'about-metrics';
 
   useEffect(() => {
     async function load() {
@@ -43,12 +49,12 @@ export function AdminAboutPage() {
         setIsLoading(false);
       }
     }
-
-    load();
+    void load();
   }, []);
 
   const isDirty = JSON.stringify(content) !== JSON.stringify(initialContent);
-  useEffect(() => setDirty('about', isDirty), [isDirty, setDirty]);
+  useEffect(() => setDirty(dirtyKey, isDirty), [dirtyKey, isDirty, setDirty]);
+  useEffect(() => () => setDirty(dirtyKey, false), [dirtyKey, setDirty]);
 
   const updateMetric = (metricId: string, field: 'value' | 'label', value: string) => {
     setContent((current) => ({
@@ -62,6 +68,8 @@ export function AdminAboutPage() {
     setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
+    setDirty(dirtyKey, false);
+    onCancel?.();
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -69,15 +77,16 @@ export function AdminAboutPage() {
     setSaving(true);
     setMessage(null);
     setError(null);
-
     try {
       const saved = await saveAboutContent(content, expectedUpdatedAt, pendingImageAssetId);
       setContent(saved.content);
       setInitialContent(saved.content);
       setExpectedUpdatedAt(saved.updatedAt);
       setPendingImageAssetId(null);
-      setDirty('about', false);
-      setMessage('Sección guardada correctamente.');
+      setDirty(dirtyKey, false);
+      const savedMessage = part === 'about' ? 'Acerca de Rehabex guardado correctamente.' : 'Datos destacados guardados correctamente.';
+      setMessage(savedMessage);
+      onSaved?.(savedMessage);
     } catch (submitError) {
       setError(messageForApiError(submitError, 'No se pudo guardar la sección.'));
     } finally {
@@ -86,107 +95,56 @@ export function AdminAboutPage() {
   };
 
   return (
-    <section className="space-y-6 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
-      <header>
-        <h3 className="text-lg font-semibold text-slate-900">Acerca de Rehabex</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-600">
-          El mensaje y la imagen que cuentan quiénes son, junto con los datos destacados de la tienda.
-        </p>
-      </header>
-
+    <div className="space-y-5">
       {!hasSupabaseConfig ? (
-        <AdminNotice>
-          Sin Supabase, esta sección no puede guardarse. Configurá un entorno local o staging verificado para continuar.
-        </AdminNotice>
+        <AdminNotice>Esta sección no puede guardarse en este entorno. Probá nuevamente desde el entorno de administración habilitado.</AdminNotice>
       ) : null}
-
       {message ? <AdminNotice>{message}</AdminNotice> : null}
-      {error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
 
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <div className="space-y-4">
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        {part === 'about' ? (
+          <div className="grid gap-5 xl:grid-cols-2">
             <ImageField
               label="Imagen de la sección"
-              hint="Usá una foto de equipo o del espacio de trabajo."
+              hint="Usá una foto del equipo o del espacio de trabajo."
               value={content.image}
               intent="about"
               isLoading={isLoading}
+              framing={content.image_framing ?? DEFAULT_FRAMING}
+              onFramingChange={(framing) => setContent((current) => ({ ...current, image_framing: framing }))}
+              aspectRatio="4 / 5"
               onAssetReady={({ assetId, url }) => {
                 setPendingImageAssetId(assetId);
                 setContent((current) => ({ ...current, image: url }));
               }}
             />
-
-            {content.image ? (
-              <ImageFramerField
-                url={content.image}
-                framing={content.image_framing ?? DEFAULT_FRAMING}
-                onChange={(framing) => setContent((current) => ({ ...current, image_framing: framing }))}
-                aspectRatio="4 / 5"
-              />
-            ) : null}
+            <div className="space-y-4">
+              <FormField label="Título">
+                <input type="text" value={content.title} onChange={(event) => setContent((current) => ({ ...current, title: event.target.value }))} className="admin-input" />
+              </FormField>
+              <FormField label="Descripción">
+                <textarea value={content.description} onChange={(event) => setContent((current) => ({ ...current, description: event.target.value }))} rows={6} className="admin-input" />
+              </FormField>
+            </div>
           </div>
-
-          <div className="space-y-4">
-            <FormField label="Título">
-              <input
-                type="text"
-                value={content.title}
-                onChange={(event) => setContent((current) => ({ ...current, title: event.target.value }))}
-                className="admin-input"
-              />
-            </FormField>
-
-            <FormField label="Descripción">
-              <textarea
-                value={content.description}
-                onChange={(event) => setContent((current) => ({ ...current, description: event.target.value }))}
-                rows={6}
-                className="admin-input"
-              />
-            </FormField>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-          <h4 className="text-base font-semibold text-slate-900">Datos destacados</h4>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Usá esta sección para comunicar experiencia, atención o beneficios de Rehabex.
-          </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-2">
             {content.metrics.map((metric, index) => (
-              <div key={metric.id} className="rounded-2xl border border-slate-200 bg-stone-50 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Dato destacado {index + 1}</p>
-                <div className="mt-4 space-y-4">
-                  <FormField label="Valor destacado">
-                    <input
-                      type="text"
-                      value={metric.value}
-                      onChange={(event) => updateMetric(metric.id, 'value', event.target.value)}
-                      className="admin-input"
-                    />
-                  </FormField>
-                  <FormField label="Explicación">
-                    <textarea
-                      value={metric.label}
-                      onChange={(event) => updateMetric(metric.id, 'label', event.target.value)}
-                      rows={3}
-                      className="admin-input"
-                    />
-                  </FormField>
-                </div>
-              </div>
+              <fieldset key={metric.id} className="space-y-4 border-t border-slate-200 pt-4 first:border-t-0 first:pt-0 xl:border-t-0 xl:border-l xl:pl-6 xl:first:border-l-0 xl:first:pl-0">
+                <legend className="mb-3 text-sm font-semibold text-slate-900">Dato destacado {index + 1}</legend>
+                <FormField label="Valor destacado">
+                  <input type="text" value={metric.value} onChange={(event) => updateMetric(metric.id, 'value', event.target.value)} className="admin-input" />
+                </FormField>
+                <FormField label="Explicación">
+                  <textarea value={metric.label} onChange={(event) => updateMetric(metric.id, 'label', event.target.value)} rows={3} className="admin-input" />
+                </FormField>
+              </fieldset>
             ))}
           </div>
-        </div>
-
-        <FormActions onCancel={handleCancel} saving={saving} />
+        )}
+        <FormActions onCancel={handleCancel} saving={saving} sticky />
       </form>
-    </section>
+    </div>
   );
 }

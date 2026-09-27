@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { getLandingContent } from '../../services/cms';
 import { AdminApiError } from '../../services/adminApi';
+import { getLandingContent } from '../../services/cms';
+import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 import { AdminNotice } from './AdminNotice';
 import { FormActions } from './FormActions';
 import { FormField } from './FormField';
-import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 export type SectionCopy = { title: string; subtitle: string };
 
@@ -17,8 +17,8 @@ function messageForApiError(error: unknown, fallback: string): string {
 
 type SectionCopyEditorProps = {
   dirtyKey: string;
-  heading: string;
-  description: string;
+  heading?: string;
+  description?: string;
   titleLabel: string;
   titleHint?: string;
   subtitleLabel: string;
@@ -27,6 +27,8 @@ type SectionCopyEditorProps = {
   getVersion: () => Promise<string | null>;
   save: (content: SectionCopy, expectedUpdatedAt: string | null) => Promise<{ content: SectionCopy; updatedAt: string }>;
   savedMessage: string;
+  onSaved?: (message: string) => void;
+  onCancel?: () => void;
 };
 
 export function SectionCopyEditor({
@@ -41,6 +43,8 @@ export function SectionCopyEditor({
   getVersion,
   save,
   savedMessage,
+  onSaved,
+  onCancel,
 }: SectionCopyEditorProps) {
   const [content, setContent] = useState<SectionCopy>({ title: '', subtitle: '' });
   const [initialContent, setInitialContent] = useState<SectionCopy>({ title: '', subtitle: '' });
@@ -67,20 +71,22 @@ export function SectionCopyEditor({
         if (mounted) setIsLoading(false);
       }
     }
-    load();
-    return () => {
-      mounted = false;
-    };
+    void load();
+    return () => { mounted = false; };
+    // The editor intentionally loads once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isDirty = JSON.stringify(content) !== JSON.stringify(initialContent);
-  useEffect(() => setDirty(dirtyKey, isDirty), [isDirty, setDirty, dirtyKey]);
+  useEffect(() => setDirty(dirtyKey, isDirty), [dirtyKey, isDirty, setDirty]);
+  useEffect(() => () => setDirty(dirtyKey, false), [dirtyKey, setDirty]);
 
   const handleCancel = () => {
     setContent(initialContent);
     setMessage(null);
     setError(null);
+    setDirty(dirtyKey, false);
+    onCancel?.();
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -88,7 +94,6 @@ export function SectionCopyEditor({
     setSaving(true);
     setMessage(null);
     setError(null);
-
     try {
       const saved = await save(content, expectedUpdatedAt);
       setContent(saved.content);
@@ -96,6 +101,7 @@ export function SectionCopyEditor({
       setExpectedUpdatedAt(saved.updatedAt);
       setDirty(dirtyKey, false);
       setMessage(savedMessage);
+      onSaved?.(savedMessage);
     } catch (submitError) {
       setError(messageForApiError(submitError, 'No se pudo guardar esta sección.'));
     } finally {
@@ -104,44 +110,28 @@ export function SectionCopyEditor({
   };
 
   return (
-    <section className="space-y-6 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
-      <header>
-        <h3 className="text-lg font-semibold text-slate-900">{heading}</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
-      </header>
-
-      {message ? <AdminNotice>{message}</AdminNotice> : null}
-      {error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {isLoading ? (
-        <div aria-busy="true" className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
-          Cargando...
+    <div className="space-y-4">
+      {heading ? (
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">{heading}</h3>
+          {description ? <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p> : null}
         </div>
+      ) : null}
+      {message ? <AdminNotice>{message}</AdminNotice> : null}
+      {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
+      {isLoading ? (
+        <div aria-busy="true" className="py-4 text-sm text-slate-600">Cargando...</div>
       ) : (
         <form className="space-y-4" onSubmit={handleSubmit}>
           <FormField label={titleLabel} hint={titleHint}>
-            <input
-              type="text"
-              value={content.title}
-              onChange={(event) => setContent((current) => ({ ...current, title: event.target.value }))}
-              className="admin-input"
-            />
+            <input type="text" value={content.title} onChange={(event) => setContent((current) => ({ ...current, title: event.target.value }))} className="admin-input" />
           </FormField>
           <FormField label={subtitleLabel} hint={subtitleHint}>
-            <textarea
-              value={content.subtitle}
-              onChange={(event) => setContent((current) => ({ ...current, subtitle: event.target.value }))}
-              rows={3}
-              className="admin-input"
-            />
+            <textarea value={content.subtitle} onChange={(event) => setContent((current) => ({ ...current, subtitle: event.target.value }))} rows={3} className="admin-input" />
           </FormField>
-          <FormActions onCancel={handleCancel} saving={saving} />
+          <FormActions onCancel={handleCancel} saving={saving} sticky />
         </form>
       )}
-    </section>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
-import { DEFAULT_FRAMING, MAX_ZOOM, MIN_ZOOM, framingToImageStyle, type ImageFraming } from '../../lib/imageFraming';
+import { FramedImage } from '../../components/media/FramedImage';
+import { DEFAULT_FRAMING, MAX_ZOOM, MIN_ZOOM, type ImageFraming } from '../../lib/imageFraming';
 
 type ImageFramerFieldProps = {
   /** The image to frame. When empty, the editor renders nothing (there is nothing to frame yet). */
@@ -20,7 +21,6 @@ export function ImageFramerField({ url, framing, onChange, aspectRatio = '4 / 5'
 
   if (!url) return null;
 
-  const style = framingToImageStyle(framing);
   const isFill = framing.mode === 'fill';
 
   const moveFocalTo = (clientX: number, clientY: number) => {
@@ -52,7 +52,7 @@ export function ImageFramerField({ url, framing, onChange, aspectRatio = '4 / 5'
   };
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="space-y-4">
       <div>
         <p className="text-sm font-medium text-slate-800">Acomodar imagen</p>
         <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -83,12 +83,9 @@ export function ImageFramerField({ url, framing, onChange, aspectRatio = '4 / 5'
         className={`relative mx-auto w-full max-w-xs touch-none overflow-hidden rounded-xl border border-slate-300 bg-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${isFill ? 'cursor-move' : ''}`}
         style={{ aspectRatio }}
       >
-        <img
-          src={url}
+        <FramedImage
+          media={{ kind: 'image', url, framing }}
           alt=""
-          aria-hidden="true"
-          draggable={false}
-          style={{ objectFit: style.objectFit, objectPosition: style.objectPosition, transform: style.transform }}
           className="pointer-events-none h-full w-full select-none"
         />
       </div>

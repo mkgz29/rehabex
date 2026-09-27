@@ -1,34 +1,45 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { getProducts } from '../../services/cms';
 import { AdminApiError, saveFeaturedProducts } from '../../services/adminApi';
+import { getProducts } from '../../services/cms';
 import type { Product } from '../../types/cms';
+import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 import { AdminNotice } from './AdminNotice';
 import { FormActions } from './FormActions';
-import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
-type DraftProduct = { id: string; name: string; category: string; active: boolean; isFeatured: boolean; displayOrder: number };
+export type FeaturedDraftProduct = {
+  id: string;
+  name: string;
+  category: string;
+  imageUrl: string;
+  active: boolean;
+  isFeatured: boolean;
+  displayOrder: number;
+};
 
 const RESERVED_CATEGORIES = new Set(['test', 'prueba']);
 
-function isReservedCategory(category: string): boolean {
+export function isReservedFeaturedCategory(category: string): boolean {
   return RESERVED_CATEGORIES.has(category.trim().toLowerCase());
 }
 
-function canBeFeatured(product: DraftProduct): boolean {
-  return product.active && !isReservedCategory(product.category);
+function canBeFeatured(product: FeaturedDraftProduct): boolean {
+  return product.active && !isReservedFeaturedCategory(product.category);
 }
 
-function toDraft(products: Product[]): DraftProduct[] {
-  return products.map((product) => ({
-    id: product.id,
-    name: product.name,
-    category: product.category ?? '',
-    active: product.active,
-    isFeatured: product.featured,
-    displayOrder: product.sortOrder,
-  }));
+export function toFeaturedDraft(products: Product[]): FeaturedDraftProduct[] {
+  return products
+    .filter((product) => !isReservedFeaturedCategory(product.category ?? ''))
+    .map((product) => ({
+      id: product.id,
+      name: product.name,
+      category: product.category ?? '',
+      imageUrl: product.imageUrl,
+      active: product.active,
+      isFeatured: product.featured,
+      displayOrder: product.sortOrder,
+    }));
 }
 
 function messageForApiError(error: unknown, fallback: string): string {
@@ -36,9 +47,27 @@ function messageForApiError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function FeaturedProductsEditor() {
-  const [products, setProducts] = useState<DraftProduct[] | null>(null);
-  const [initialProducts, setInitialProducts] = useState<DraftProduct[] | null>(null);
+export function productVisibilityLabel(product: Pick<FeaturedDraftProduct, 'active'>): 'Visible' | 'Oculto' {
+  return product.active ? 'Visible' : 'Oculto';
+}
+
+export function ProductThumbnail({ product, small = false }: { product: FeaturedDraftProduct; small?: boolean }) {
+  const size = small ? 'h-14 w-14' : 'h-16 w-16';
+  return product.imageUrl ? (
+    <img src={product.imageUrl} alt="" className={`${size} shrink-0 rounded-xl object-cover object-center`} />
+  ) : (
+    <div className={`${size} flex shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-1 text-center text-[10px] leading-3 text-slate-500`}>
+      Sin imagen
+    </div>
+  );
+}
+
+type FeaturedProductsEditorProps = { onSaved?: (message: string) => void; onCancel?: () => void };
+
+export function FeaturedProductsEditor({ onSaved, onCancel }: FeaturedProductsEditorProps = {}) {
+  const [products, setProducts] = useState<FeaturedDraftProduct[] | null>(null);
+  const [initialProducts, setInitialProducts] = useState<FeaturedDraftProduct[] | null>(null);
+  const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,29 +80,35 @@ export function FeaturedProductsEditor() {
       try {
         const loaded = await getProducts();
         if (!mounted) return;
-        const draft = toDraft(loaded);
+        const draft = toFeaturedDraft(loaded);
         setProducts(draft);
         setInitialProducts(draft);
-      } catch (loadError) {
-        if (mounted) setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los productos.');
+      } catch {
+        if (mounted) setError('No se pudieron cargar los productos.');
       } finally {
         if (mounted) setIsLoading(false);
       }
     }
-    load();
-    return () => {
-      mounted = false;
-    };
+    void load();
+    return () => { mounted = false; };
   }, []);
 
   const isDirty = useMemo(() => JSON.stringify(products) !== JSON.stringify(initialProducts), [products, initialProducts]);
   useEffect(() => setDirty('featured-products', isDirty), [isDirty, setDirty]);
+  useEffect(() => () => setDirty('featured-products', false), [setDirty]);
 
   const featured = useMemo(
     () => (products ?? []).filter((product) => product.isFeatured).sort((a, b) => a.displayOrder - b.displayOrder),
     [products],
   );
-  const notFeatured = useMemo(() => (products ?? []).filter((product) => !product.isFeatured), [products]);
+  const notFeatured = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('es');
+    return (products ?? []).filter((product) => {
+      if (product.isFeatured) return false;
+      if (!query) return true;
+      return `${product.name} ${product.category}`.toLocaleLowerCase('es').includes(query);
+    });
+  }, [products, search]);
 
   const toggleFeatured = (id: string, next: boolean) => {
     setProducts((current) => {
@@ -106,6 +141,8 @@ export function FeaturedProductsEditor() {
     setProducts(initialProducts);
     setMessage(null);
     setError(null);
+    setDirty('featured-products', false);
+    onCancel?.();
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -114,18 +151,18 @@ export function FeaturedProductsEditor() {
     setSaving(true);
     setMessage(null);
     setError(null);
-
     const initialById = new Map(initialProducts.map((product) => [product.id, product]));
     const changed = products.filter((product) => {
       const before = initialById.get(product.id);
       return !before || before.isFeatured !== product.isFeatured || before.displayOrder !== product.displayOrder;
     });
-
     try {
       await saveFeaturedProducts(changed.map((product) => ({ id: product.id, isFeatured: product.isFeatured, displayOrder: product.displayOrder })));
       setInitialProducts(products);
       setDirty('featured-products', false);
-      setMessage('Productos destacados actualizados correctamente.');
+      const savedMessage = 'Productos destacados actualizados correctamente.';
+      setMessage(savedMessage);
+      onSaved?.(savedMessage);
     } catch (submitError) {
       setError(messageForApiError(submitError, 'No se pudieron guardar los productos destacados.'));
     } finally {
@@ -134,104 +171,78 @@ export function FeaturedProductsEditor() {
   };
 
   return (
-    <section className="space-y-6 rounded-[2rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
-      <header>
-        <h3 className="text-lg font-semibold text-slate-900">Productos destacados</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-600">Elegí qué productos aparecen primero en la portada de la tienda, y en qué orden.</p>
-      </header>
-
+    <div className="space-y-4">
       {message ? <AdminNotice>{message}</AdminNotice> : null}
-      {error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
+      {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
       {isLoading ? (
-        <div aria-busy="true" className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
-          Cargando productos...
-        </div>
+        <div aria-busy="true" className="py-4 text-sm text-slate-600">Cargando productos...</div>
       ) : (
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
-            <h4 className="text-sm font-semibold text-slate-800">Productos que se mostrarán</h4>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="text-base font-semibold text-slate-900">Productos seleccionados</h3>
+              <p className="text-sm font-medium text-slate-600">{featured.length} {featured.length === 1 ? 'producto seleccionado' : 'productos seleccionados'}</p>
+            </div>
             {featured.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-500">Todavía no elegiste ningún producto destacado.</p>
+              <p className="mt-3 text-sm text-slate-500">Todavía no elegiste ningún producto destacado.</p>
             ) : (
-              <ul className="mt-3 space-y-2">
+              <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
                 {featured.map((product, index) => (
-                  <li key={product.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3">
-                    <span className="text-sm font-medium text-slate-900">{product.name}</span>
-                    <span className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={index === 0}
-                        onClick={() => moveFeatured(product.id, -1)}
-                        aria-label={`Mover ${product.name} antes`}
-                        className="min-h-11 min-w-11 rounded-full border border-slate-300 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        disabled={index === featured.length - 1}
-                        onClick={() => moveFeatured(product.id, 1)}
-                        aria-label={`Mover ${product.name} después`}
-                        className="min-h-11 min-w-11 rounded-full border border-slate-300 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        ↓
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleFeatured(product.id, false)}
-                        className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900"
-                      >
-                        Quitar
-                      </button>
-                    </span>
+                  <li key={product.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ProductThumbnail product={product} small />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">{product.name}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{product.category || 'Sin categoría'} · Orden {index + 1}</p>
+                        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${product.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {productVisibilityLabel(product)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                      <button type="button" disabled={index === 0} onClick={() => moveFeatured(product.id, -1)} aria-label={`Mover ${product.name} antes`} className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40">Mover antes</button>
+                      <button type="button" disabled={index === featured.length - 1} onClick={() => moveFeatured(product.id, 1)} aria-label={`Mover ${product.name} después`} className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40">Mover después</button>
+                      <button type="button" onClick={() => toggleFeatured(product.id, false)} className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900">Quitar</button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-2 text-xs leading-5 text-slate-500">El orden de aparición acá es el mismo con el que se ordenan los productos en toda la tienda.</p>
           </div>
 
-          <div>
-            <h4 className="text-sm font-semibold text-slate-800">Otros productos</h4>
-            <ul className="mt-3 space-y-2">
-              {notFeatured.map((product) => {
-                const eligible = canBeFeatured(product);
-                const reason = !product.active
-                  ? 'Este producto está oculto. Mostralo en Productos antes de destacarlo.'
-                  : isReservedCategory(product.category)
-                    ? 'Los productos de prueba no pueden mostrarse públicamente.'
-                    : null;
-                return (
-                  <li key={product.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-3">
-                    <span className="text-sm text-slate-800">
-                      {product.name}
-                      {!product.active ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">Oculto</span> : null}
-                    </span>
-                    <span className="flex flex-col items-end gap-1">
-                      <button
-                        type="button"
-                        disabled={!eligible}
-                        onClick={() => toggleFeatured(product.id, true)}
-                        className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Destacar
-                      </button>
-                      {reason ? <span className="text-[11px] text-slate-500">{reason}</span> : null}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+          <div className="border-t border-slate-200 pt-5">
+            <h3 className="text-base font-semibold text-slate-900">Otros productos</h3>
+            <label htmlFor="featured-product-search" className="mt-3 block text-sm font-medium text-slate-800">Buscar producto</label>
+            <input id="featured-product-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o categoría..." className="admin-input mt-2 sm:max-w-sm" />
+            {notFeatured.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-500">No hay productos para mostrar con esta búsqueda.</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                {notFeatured.map((product) => {
+                  const eligible = canBeFeatured(product);
+                  return (
+                    <li key={product.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ProductThumbnail product={product} small />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{product.name}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">{product.category || 'Sin categoría'}</p>
+                          <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${product.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{productVisibilityLabel(product)}</span>
+                        </div>
+                      </div>
+                      <div className="sm:text-right">
+                        <button type="button" disabled={!eligible} onClick={() => toggleFeatured(product.id, true)} className="min-h-11 rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50">Agregar</button>
+                        {!product.active ? <p className="mt-1 text-xs text-slate-500">Primero mostralo en la tienda.</p> : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-
-          <FormActions onCancel={handleCancel} saving={saving} submitLabel="Guardar" />
+          <FormActions onCancel={handleCancel} saving={saving} sticky />
         </form>
       )}
-    </section>
+    </div>
   );
 }
