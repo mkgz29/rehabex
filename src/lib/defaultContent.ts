@@ -23,4 +23,16 @@ export const defaultLandingContent: LandingContent = {
       { id: 'metric-2', value: '24/7', label: 'foco en continuidad terapeutica y respuesta postventa.' },
     ],
   },
+  // Backfill/fallback for the two documents ADMIN-02E introduces: exactly the
+  // copy that was hardcoded in FeaturedProductsSection/CatalogCtaSection
+  // before this phase, so nothing visibly changes until an admin edits it
+  // and no document-not-found flash of different text ever appears.
+  featuredSection: {
+    title: 'Elegidos para acompañar tu recuperación',
+    subtitle: 'Conocé una selección del catálogo activo de Rehabex.',
+  },
+  catalogSection: {
+    title: 'Encontrá la solución adecuada para cada etapa.',
+    subtitle: 'Explorá productos seleccionados para rehabilitación, movilidad y bienestar, con información clara y disponibilidad actualizada.',
+  },
 };

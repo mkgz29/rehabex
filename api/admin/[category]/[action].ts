@@ -19,8 +19,18 @@
 //
 // api/admin/reconcile-payment.ts is a separate, more specific static route
 // and is matched by Vercel before this dynamic one; it is untouched.
-import { createAdminCreateProductHandler, createAdminSetProductActiveHandler, createAdminUpdateProductHandler } from '../../../server/admin/handlers/products.js';
-import { createAdminAboutSettingsHandler, createAdminHeroSettingsHandler } from '../../../server/admin/handlers/settings.js';
+import {
+  createAdminCreateProductHandler,
+  createAdminSetFeaturedProductsHandler,
+  createAdminSetProductActiveHandler,
+  createAdminUpdateProductHandler,
+} from '../../../server/admin/handlers/products.js';
+import {
+  createAdminAboutSettingsHandler,
+  createAdminCatalogSectionSettingsHandler,
+  createAdminFeaturedSectionSettingsHandler,
+  createAdminHeroSettingsHandler,
+} from '../../../server/admin/handlers/settings.js';
 import { createAdminMediaFinalizeHandler, createAdminMediaSignHandler } from '../../../server/admin/handlers/media.js';
 import type { ApiRequest, ApiResponse } from '../../../server/commerce/commerce.js';
 
@@ -32,8 +42,11 @@ const routes: Record<string, AdminRouteHandler> = {
   'products/create': createAdminCreateProductHandler(),
   'products/update': createAdminUpdateProductHandler(),
   'products/set-active': createAdminSetProductActiveHandler(),
+  'products/set-featured': createAdminSetFeaturedProductsHandler(),
   'settings/hero': createAdminHeroSettingsHandler(),
   'settings/about': createAdminAboutSettingsHandler(),
+  'settings/featured-section': createAdminFeaturedSectionSettingsHandler(),
+  'settings/catalog-section': createAdminCatalogSectionSettingsHandler(),
   'media/sign': createAdminMediaSignHandler(),
   'media/finalize': createAdminMediaFinalizeHandler(),
 };

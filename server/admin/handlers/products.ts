@@ -4,7 +4,13 @@
 import { mapAdminRpcError } from '../adminErrors.js';
 import { defaultRequireAdminDependencies, requireAdmin, type RequireAdminDependencies } from '../requireAdmin.js';
 import { mapAdminGalleryRow, mapAdminProductRow, type AdminGalleryImageRow, type AdminProductRow } from '../serialize.js';
-import { isValid, parseCreateProductPayload, parseSetActiveProductPayload, parseUpdateProductPayload } from '../validators.js';
+import {
+  isValid,
+  parseCreateProductPayload,
+  parseFeaturedProductsPayload,
+  parseSetActiveProductPayload,
+  parseUpdateProductPayload,
+} from '../validators.js';
 import { applyAdminCors, logEvent, type ApiRequest, type ApiResponse } from '../../commerce/commerce.js';
 
 type ProductWithGalleryResult = { product: AdminProductRow; gallery: AdminGalleryImageRow[] };
@@ -127,5 +133,36 @@ export function createAdminSetProductActiveHandler(overrides: Partial<RequireAdm
 
     logEvent(payload.value.isActive ? 'admin_product_activated' : 'admin_product_deactivated');
     return response.status(200).json({ product: mapAdminProductRow(data as AdminProductRow), requestId: auth.requestId });
+  };
+}
+
+export function createAdminSetFeaturedProductsHandler(overrides: Partial<RequireAdminDependencies> = {}) {
+  const dependencies: RequireAdminDependencies = { ...defaultRequireAdminDependencies, ...overrides };
+
+  return async function handler(request: ApiRequest, response: ApiResponse) {
+    if (request.method === 'OPTIONS') {
+      if (!applyAdminCors(request, response)) return response.status(403).json({ error: 'No autorizado.' });
+      return response.status(204).end?.();
+    }
+
+    const auth = await requireAdmin(request, response, dependencies);
+    if (auth.kind === 'error') return response.status(auth.status).json({ error: auth.error });
+
+    const payload = parseFeaturedProductsPayload(auth.body);
+    if (!isValid(payload)) return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
+
+    const { data, error } = await auth.rpc.rpc('admin_set_featured_products', {
+      p_items: payload.value.map((item) => ({ id: item.id, isFeatured: item.isFeatured, displayOrder: item.displayOrder })),
+      p_request_id: auth.requestId,
+    });
+
+    if (error || !data) {
+      const mapped = mapAdminRpcError(error);
+      logEvent('admin_featured_products_update_failed', { status: mapped.status });
+      return response.status(mapped.status).json({ error: mapped.error, requestId: auth.requestId });
+    }
+
+    logEvent('admin_featured_products_updated');
+    return response.status(200).json({ requestId: auth.requestId });
   };
 }
