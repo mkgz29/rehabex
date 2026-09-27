@@ -86,7 +86,7 @@ export function AdminProductsPage() {
   }, []);
 
   const isDirty = isFormOpen && isProductFormDirty(editingProduct, initialProduct);
-  useEffect(() => setDirty(isDirty), [isDirty, setDirty]);
+  useEffect(() => setDirty('products', isDirty), [isDirty, setDirty]);
 
   const categoryDirectory = useMemo(() => buildCategoryDirectory(products.map((product) => product.category)), [products]);
   const categoryOptions = useMemo(
@@ -141,7 +141,7 @@ export function AdminProductsPage() {
   const closeForm = () => {
     if (!confirmDiscardIfDirty()) return;
     setIsFormOpen(false);
-    setDirty(false);
+    setDirty('products', false);
   };
 
   const updateField = <K extends keyof ProductInput>(field: K, value: ProductInput[K]) => {
@@ -194,7 +194,7 @@ export function AdminProductsPage() {
       setProducts((current) => mergeProductIntoList(current, saved, isNew));
       setMessage(isNew ? 'Producto creado correctamente.' : 'Producto actualizado correctamente.');
       setIsFormOpen(false);
-      setDirty(false);
+      setDirty('products', false);
     } catch (submitError) {
       // Nothing was persisted: a failure anywhere in the single save request
       // rolls back the whole transaction, so the form stays open with what
