@@ -14,10 +14,11 @@
     "test:admin:catalog": "tsx --test tests/admin/adminProductsCatalog.test.ts tests/admin/adminProductSaveOrchestration.test.ts tests/admin/adminProductGallery.test.ts tests/admin/adminProductGalleryRendering.test.ts",
     "test:admin:media": "tsx --test tests/admin/mediaValidators.test.ts tests/admin/mediaBoundary.contract.test.ts",
     "test:admin:panel": "tsx --test tests/admin/adminPanelStructure.test.ts tests/admin/orderStatusTranslation.test.ts tests/admin/adminUnsavedChangesAndSummary.test.ts",
-    "test:admin:concurrency": "tsx --test tests/db/adminBoundaryConcurrency.test.ts tests/db/adminProductAtomicity.test.ts tests/db/adminProductGallery.test.ts tests/db/adminProductGalleryLegacyImages.test.ts",
+    "test:admin:content-media": "tsx --test tests/admin/imageFraming.test.ts tests/admin/imageOptimization.test.ts tests/admin/adminValidatorsContentMedia.test.ts tests/admin/adminEditPageContentBlocks.test.ts",
+    "test:admin:concurrency": "tsx --test tests/db/adminBoundaryConcurrency.test.ts tests/db/adminProductAtomicity.test.ts tests/db/adminProductGallery.test.ts tests/db/adminProductGalleryLegacyImages.test.ts tests/db/adminContentMedia.test.ts",
     "test:api": "tsx --test tests/api/commerce.contract.test.ts tests/api/paymentRecovery.contract.test.ts",
     "test:cart": "tsx --test tests/cart/cartState.test.ts tests/ui/paymentPresentation.test.ts",
-    "test:cms:ui": "tsx --test tests/cms/cmsImageLoading.test.ts tests/cms/cmsImageRendering.test.ts",
+    "test:cms:ui": "tsx --test tests/cms/cmsImageLoading.test.ts tests/cms/cmsImageRendering.test.ts tests/cms/landingContentNormalization.test.ts tests/cms/publicContentRendering.test.ts",
     "test:db:concurrency": "tsx --test tests/db/paymentAtomicConcurrency.test.ts",
     "check:api": "tsc -p tsconfig.api.json && tsc -p tsconfig.vercel-api.json"
   },
