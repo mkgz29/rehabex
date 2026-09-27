@@ -5,8 +5,8 @@ export function AdminOrdersPage() {
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Ventas"
-        description="Consulta las ventas reales confirmadas por los webhooks de Mercado Pago."
+        title="Pedidos"
+        description="Consultá los pedidos reales de la tienda y su estado de pago."
       />
 
       <OrdersTable />
