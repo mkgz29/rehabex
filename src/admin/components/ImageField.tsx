@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { MediaUploadError, uploadSecureImage, validateFileForUpload, type MediaIntent } from '../../services/mediaApi';
+import { ImagePreparationError, optimizeImageForUpload } from '../../lib/imageOptimization';
 import { resolveMediaSlotState } from '../../components/media/mediaSlotState';
 import { FormField } from './FormField';
 
@@ -21,7 +22,7 @@ type UploadState =
   | { kind: 'preparing'; previewUrl: string }
   | { kind: 'uploading'; previewUrl: string; percent: number }
   | { kind: 'verifying'; previewUrl: string }
-  | { kind: 'ready'; previewUrl: string }
+  | { kind: 'ready'; previewUrl: string; warning: string | null }
   | { kind: 'error'; previewUrl: string | null; message: string };
 
 export function ImageField({ label, hint, value, intent, isLoading = false, onAssetReady }: ImageFieldProps) {
@@ -35,10 +36,25 @@ export function ImageField({ label, hint, value, intent, isLoading = false, onAs
   const busy = state.kind === 'preparing' || state.kind === 'uploading' || state.kind === 'verifying';
 
   const handleFileSelected = async (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    setState({ kind: 'preparing', previewUrl });
+    const originalPreviewUrl = URL.createObjectURL(file);
+    setState({ kind: 'preparing', previewUrl: originalPreviewUrl });
 
-    const validation = await validateFileForUpload(file);
+    let optimized: File;
+    let warning: string | null;
+    try {
+      const result = await optimizeImageForUpload(file);
+      optimized = result.file;
+      warning = result.warning;
+    } catch (error) {
+      const message = error instanceof ImagePreparationError ? error.message : 'No pudimos preparar esta imagen. Probá con otro archivo.';
+      setState({ kind: 'error', previewUrl: originalPreviewUrl, message });
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(optimized);
+    URL.revokeObjectURL(originalPreviewUrl);
+
+    const validation = await validateFileForUpload(optimized);
     if (!validation.ok) {
       setState({ kind: 'error', previewUrl, message: validation.message });
       return;
@@ -48,12 +64,12 @@ export function ImageField({ label, hint, value, intent, isLoading = false, onAs
     abortRef.current = controller;
     try {
       setState({ kind: 'uploading', previewUrl, percent: 0 });
-      const result = await uploadSecureImage(file, intent, {
+      const result = await uploadSecureImage(optimized, intent, {
         signal: controller.signal,
         onProgress: (percent) => setState((current) => (current.kind === 'uploading' ? { ...current, percent } : current)),
         onUploaded: () => setState({ kind: 'verifying', previewUrl }),
       });
-      setState({ kind: 'ready', previewUrl: result.url });
+      setState({ kind: 'ready', previewUrl: result.url, warning });
       onAssetReady(result);
     } catch (error) {
       const message = error instanceof MediaUploadError ? error.message : 'No se pudo subir la imagen.';
@@ -129,20 +145,25 @@ export function ImageField({ label, hint, value, intent, isLoading = false, onAs
           }}
           className="admin-input"
         />
-        <p className="text-xs leading-5 text-slate-500">JPG, PNG o WebP. Maximo 8 MB. Entre 400x400 y 6000x6000 px.</p>
+        <p className="text-xs leading-5 text-slate-500">JPG, PNG o WebP, hasta 20 MB. La ajustamos automáticamente antes de subirla.</p>
 
-        {state.kind === 'preparing' ? <p className="text-xs text-slate-500">Preparando carga...</p> : null}
+        {state.kind === 'preparing' ? <p className="text-xs text-slate-500" aria-live="polite">Preparando imagen...</p> : null}
         {state.kind === 'uploading' ? (
-          <div className="space-y-1">
+          <div className="space-y-1" aria-live="polite">
             <p className="text-xs text-slate-500">Subiendo imagen... {state.percent}%</p>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full bg-[var(--color-primary)] transition-all" style={{ width: `${state.percent}%` }} />
             </div>
           </div>
         ) : null}
-        {state.kind === 'verifying' ? <p className="text-xs text-slate-500">Verificando imagen...</p> : null}
-        {state.kind === 'ready' ? <p className="text-xs text-emerald-600">Imagen lista. Guarda el formulario para confirmar el cambio.</p> : null}
-        {state.kind === 'error' ? <p className="text-xs text-red-600">{state.message}</p> : null}
+        {state.kind === 'verifying' ? <p className="text-xs text-slate-500" aria-live="polite">Verificando imagen...</p> : null}
+        {state.kind === 'ready' ? (
+          <div aria-live="polite">
+            <p className="text-xs text-emerald-600">Imagen lista. Guarda el formulario para confirmar el cambio.</p>
+            {state.warning ? <p className="mt-1 text-xs text-amber-600">{state.warning}</p> : null}
+          </div>
+        ) : null}
+        {state.kind === 'error' ? <p className="text-xs text-red-600" role="alert">{state.message}</p> : null}
 
         {busy || state.kind === 'error' ? (
           <div className="flex gap-2">
