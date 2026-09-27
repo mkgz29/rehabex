@@ -47,7 +47,7 @@ test('a new product calls createProduct exactly once, never updateProduct', asyn
 
   const result = await saveProduct(
     baseInput({ active: true }),
-    { editingUpdatedAt: null, pendingImageAssetId: null },
+    { editingUpdatedAt: null, gallery: [] },
     {
       createProduct: async (input) => {
         createCalls += 1;
@@ -70,7 +70,7 @@ test('an existing product calls updateProduct exactly once, never createProduct,
 
   const result = await saveProduct(
     baseInput({ id: 'p1', active: false }),
-    { editingUpdatedAt: '2026-01-01T00:00:00.000Z', pendingImageAssetId: null },
+    { editingUpdatedAt: '2026-01-01T00:00:00.000Z', gallery: [] },
     {
       createProduct: async () => {
         throw new Error('must not be called for an existing product');
@@ -92,7 +92,7 @@ test('editing without a known version is refused before any request is made', as
   await assert.rejects(
     saveProduct(
       baseInput({ id: 'p1' }),
-      { editingUpdatedAt: null, pendingImageAssetId: null },
+      { editingUpdatedAt: null, gallery: [] },
       {
         createProduct: async () => {
           throw new Error('must not be called');
@@ -109,7 +109,7 @@ test('a rejected save (thrown error) never touches the list: nothing to merge', 
   await assert.rejects(
     saveProduct(
       baseInput({ active: true }),
-      { editingUpdatedAt: null, pendingImageAssetId: null },
+      { editingUpdatedAt: null, gallery: [] },
       {
         createProduct: async () => {
           throw new Error('ADM09 conflict');

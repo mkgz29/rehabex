@@ -14,12 +14,15 @@ import {
 const PRODUCT_ID = '22222222-2222-4222-8222-222222222222';
 const NOW = new Date().toISOString();
 
+const ASSET_ID_1 = 'a0000000-0000-4000-8000-000000000001';
+const ASSET_ID_2 = 'a0000000-0000-4000-8000-000000000002';
+
 const VALID_PRODUCT = {
   name: 'Producto de prueba',
   description: 'Descripcion',
   category: 'Ortopedia',
   price: 100,
-  imageUrl: 'https://images.example.test/a.jpg',
+  gallery: [{ mediaAssetId: ASSET_ID_1, isPrimary: true }],
   isFeatured: false,
   displayOrder: 0,
   isActive: false,
@@ -63,12 +66,54 @@ test('parseCreateProductPayload rejects an empty or oversized name', () => {
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, name: 'x'.repeat(161) })), false);
 });
 
-test('parseCreateProductPayload allows an empty image URL but rejects unsafe protocols', () => {
-  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, imageUrl: '' })), true);
-  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, imageUrl: null })), true);
-  for (const imageUrl of ['javascript:alert(1)', 'data:text/html;base64,abc', 'http://images.example.test/a.jpg', 'ftp://images.example.test/a.jpg']) {
-    assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, imageUrl })), false, `expected ${imageUrl} to be rejected`);
-  }
+test('parseCreateProductPayload allows an empty gallery and a full 5-image gallery', () => {
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [] })), true);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: undefined })), true);
+  const fiveImages = Array.from({ length: 5 }, (_, i) => ({ mediaAssetId: `a0000000-0000-4000-8000-00000000000${i}`, isPrimary: i === 0 }));
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: fiveImages })), true);
+});
+
+test('parseCreateProductPayload rejects a gallery of more than 5 images', () => {
+  const sixImages = Array.from({ length: 6 }, (_, i) => ({ mediaAssetId: `a0000000-0000-4000-8000-00000000000${i}`, isPrimary: i === 0 }));
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: sixImages })), false);
+});
+
+test('parseCreateProductPayload rejects a gallery with a repeated mediaAssetId', () => {
+  const result = parseCreateProductPayload({
+    ...VALID_PRODUCT,
+    gallery: [
+      { mediaAssetId: ASSET_ID_1, isPrimary: true },
+      { mediaAssetId: ASSET_ID_1, isPrimary: false },
+    ],
+  });
+  assert.equal(isValid(result), false);
+});
+
+test('parseCreateProductPayload rejects a non-empty gallery with zero or more than one primary image', () => {
+  const zeroPrimary = parseCreateProductPayload({
+    ...VALID_PRODUCT,
+    gallery: [
+      { mediaAssetId: ASSET_ID_1, isPrimary: false },
+      { mediaAssetId: ASSET_ID_2, isPrimary: false },
+    ],
+  });
+  assert.equal(isValid(zeroPrimary), false);
+
+  const twoPrimary = parseCreateProductPayload({
+    ...VALID_PRODUCT,
+    gallery: [
+      { mediaAssetId: ASSET_ID_1, isPrimary: true },
+      { mediaAssetId: ASSET_ID_2, isPrimary: true },
+    ],
+  });
+  assert.equal(isValid(twoPrimary), false);
+});
+
+test('parseCreateProductPayload rejects a gallery item with a malformed mediaAssetId or a non-boolean isPrimary', () => {
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ mediaAssetId: 'not-a-uuid', isPrimary: true }] })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ mediaAssetId: ASSET_ID_1, isPrimary: 'yes' }] })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: [{ mediaAssetId: ASSET_ID_1, isPrimary: true, extra: 'x' }] })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, gallery: 'not-an-array' })), false);
 });
 
 test('parseCreateProductPayload rejects a non-boolean isFeatured and a negative or oversized displayOrder', () => {

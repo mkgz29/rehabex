@@ -91,6 +91,11 @@ function productRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Shape admin_create/update_product_with_media actually return since ADMIN-02C: product + gallery together. */
+function productWithGallery(overrides: Record<string, unknown> = {}, gallery: unknown[] = []) {
+  return { product: productRow(overrides), gallery };
+}
+
 function settingsRow(value: unknown, overrides: Record<string, unknown> = {}) {
   return { key: 'hero_content', value, updated_at: NOW, ...overrides };
 }
@@ -104,7 +109,7 @@ const VALID_CREATE_BODY = {
   description: '',
   category: 'Ortopedia',
   price: 100,
-  imageUrl: null,
+  gallery: [],
   isFeatured: false,
   displayOrder: 0,
   isActive: false,
@@ -235,7 +240,7 @@ test('admin boundary: OPTIONS answers 204 for an allowed origin without requirin
 
 test('admin boundary: successful responses include a requestId and never a token or session', async () => {
   const handler = createAdminCreateProductHandler(
-    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productRow(), error: null }) }),
+    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productWithGallery(), error: null }) }),
   );
   const result = mockResponse();
   await handler(jsonRequest(VALID_CREATE_BODY), result.response);
@@ -259,7 +264,8 @@ test('create product: rejects unknown fields, stock, and role with 422', async (
     { ...VALID_CREATE_BODY, price: -5 },
     { ...VALID_CREATE_BODY, category: 'TEST' },
     { ...VALID_CREATE_BODY, name: '' },
-    { ...VALID_CREATE_BODY, imageUrl: 'javascript:alert(1)' },
+    { ...VALID_CREATE_BODY, gallery: Array.from({ length: 6 }, (_, i) => ({ mediaAssetId: `a0000000-0000-4000-8000-00000000000${i}`, isPrimary: i === 0 })) },
+    { ...VALID_CREATE_BODY, gallery: [{ mediaAssetId: '22222222-2222-4222-8222-222222222222', isPrimary: true }, { mediaAssetId: '33333333-3333-4333-8333-333333333333', isPrimary: true }] },
   ]) {
     const result = mockResponse();
     await handler(jsonRequest(badBody), result.response);
@@ -269,7 +275,7 @@ test('create product: rejects unknown fields, stock, and role with 422', async (
 
 test('create product: a valid admin request creates an inactive product', async () => {
   const handler = createAdminCreateProductHandler(
-    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productRow({ is_active: false }), error: null }) }),
+    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productWithGallery({ is_active: false }), error: null }) }),
   );
   const result = mockResponse();
   await handler(jsonRequest(VALID_CREATE_BODY), result.response);
@@ -334,7 +340,7 @@ test('update product: an unmapped internal error is sanitized to 500', async () 
 
 test('update product: a valid admin request succeeds', async () => {
   const handler = createAdminUpdateProductHandler(
-    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productRow({ name: 'Actualizado' }), error: null }) }),
+    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productWithGallery({ name: 'Actualizado' }), error: null }) }),
   );
   const result = mockResponse();
   await handler(jsonRequest(VALID_UPDATE_BODY), result.response);
