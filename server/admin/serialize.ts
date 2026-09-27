@@ -33,10 +33,10 @@ export function mapAdminProductRow(row: AdminProductRow) {
   };
 }
 
-export type AdminGalleryImageRow = { mediaAssetId: string | null; url: string; isPrimary: boolean; displayOrder: number };
+export type AdminGalleryImageRow = { mediaAssetId: string | null; url: string; isPrimary: boolean; displayOrder: number; framing?: unknown };
 
 export function mapAdminGalleryRow(row: AdminGalleryImageRow) {
-  return { mediaAssetId: row.mediaAssetId, url: row.url, isPrimary: row.isPrimary, displayOrder: row.displayOrder };
+  return { mediaAssetId: row.mediaAssetId, url: row.url, isPrimary: row.isPrimary, displayOrder: row.displayOrder, framing: row.framing ?? null };
 }
 
 export type AdminSettingsRow = { key: string; value: unknown; updated_at: string };

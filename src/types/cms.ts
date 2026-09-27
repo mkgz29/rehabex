@@ -1,7 +1,11 @@
+import type { ImageFraming } from '../lib/imageFraming';
+
 export type HeroContent = {
   title: string;
   subtitle?: string;
   image_url: string;
+  /** How image_url is positioned in the portada frame. Optional on read for older documents; always normalized to a full value before use. */
+  image_framing?: ImageFraming;
   primary_cta_text: string;
   primary_cta_link: string;
 };
@@ -14,9 +18,22 @@ export type AboutMetric = {
 
 export type AboutContent = {
   image: string;
+  image_framing?: ImageFraming;
   title: string;
   description: string;
   metrics: AboutMetric[];
+};
+
+/** Editable copy for the public "Productos destacados" section (ADMIN-02E). */
+export type FeaturedSectionContent = {
+  title: string;
+  subtitle: string;
+};
+
+/** Editable copy for the public "Catálogo Rehabex" call-to-action section (ADMIN-02E). */
+export type CatalogSectionContent = {
+  title: string;
+  subtitle: string;
 };
 
 export type ProductImage = {
@@ -24,6 +41,8 @@ export type ProductImage = {
   mediaAssetId: string | null;
   url: string;
   isPrimary: boolean;
+  /** How this image is positioned wherever it is shown (product card, detail). Belongs to this gallery slot, not to the file. */
+  framing?: ImageFraming;
   /** Informational only when read back from the server; while editing, array position is the order and this is unused. */
   displayOrder?: number;
 };
@@ -49,6 +68,8 @@ export type Product = {
 export type LandingContent = {
   hero: HeroContent;
   about: AboutContent;
+  featuredSection: FeaturedSectionContent;
+  catalogSection: CatalogSectionContent;
 };
 
 export type ProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & {
