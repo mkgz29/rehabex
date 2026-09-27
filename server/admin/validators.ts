@@ -79,13 +79,6 @@ function isHttpsUrl(value: string) {
   }
 }
 
-/** Empty is allowed (keep the existing image, per ADMIN-01A); if present it must be a safe HTTPS URL. */
-function optionalImageUrl(value: unknown): { ok: true; value: string | null } | { ok: false } {
-  if (value === undefined || value === null || value === '') return { ok: true, value: null };
-  if (typeof value !== 'string' || value.length > MAX_IMAGE_URL) return { ok: false };
-  return isHttpsUrl(value) ? { ok: true, value: value.trim() } : { ok: false };
-}
-
 function requiredImageUrl(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0 || value.length > MAX_IMAGE_URL) return null;
   return isHttpsUrl(value) ? value.trim() : null;
@@ -104,25 +97,64 @@ function isSafeCtaLink(value: string) {
 
 // --- Products ---------------------------------------------------------------
 
+/** Absent/null is fine (no new upload this edit); if present it must be a UUID naming a media asset. Still used by the Hero/About settings RPCs, which keep their single-image shape (only products moved to a gallery). */
+function optionalAssetId(value: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  return typeof value === 'string' && UUID.test(value) ? { ok: true, value } : { ok: false };
+}
+
+export type GalleryItemInput = { mediaAssetId: string; isPrimary: boolean };
+
+export const MAX_GALLERY_IMAGES = 5;
+
+/**
+ * Mirrors the checks admin_sync_product_gallery repeats server-side (the RPC
+ * is the actual security boundary); this pass exists only to reject an
+ * obviously-malformed gallery with a specific, friendly message before ever
+ * reaching the database.
+ */
+function parseGallery(value: unknown): ValidationResult<GalleryItemInput[]> {
+  if (value === undefined || value === null) return { ok: true, value: [] };
+  if (!Array.isArray(value)) return { ok: false, error: 'invalid_gallery' };
+  if (value.length > MAX_GALLERY_IMAGES) return { ok: false, error: 'too_many_images' };
+
+  const items: GalleryItemInput[] = [];
+  const seen = new Set<string>();
+  let primaryCount = 0;
+
+  for (const raw of value) {
+    const entry = asObject(raw);
+    if (!entry) return { ok: false, error: 'invalid_gallery' };
+    if (!hasOnlyAllowedKeys(entry, ['mediaAssetId', 'isPrimary'])) return { ok: false, error: 'unknown_field' };
+
+    const mediaAssetId = entry.mediaAssetId;
+    if (typeof mediaAssetId !== 'string' || !UUID.test(mediaAssetId)) return { ok: false, error: 'invalid_gallery' };
+    if (seen.has(mediaAssetId)) return { ok: false, error: 'duplicate_image' };
+    seen.add(mediaAssetId);
+
+    if (typeof entry.isPrimary !== 'boolean') return { ok: false, error: 'invalid_gallery' };
+    if (entry.isPrimary) primaryCount += 1;
+
+    items.push({ mediaAssetId, isPrimary: entry.isPrimary });
+  }
+
+  if (items.length > 0 && primaryCount !== 1) return { ok: false, error: 'invalid_primary' };
+
+  return { ok: true, value: items };
+}
+
 export type ProductFieldsInput = {
   name: string;
   description: string;
   category: string;
   price: number;
-  imageUrl: string | null;
-  imageAssetId: string | null;
+  gallery: GalleryItemInput[];
   isFeatured: boolean;
   displayOrder: number;
   isActive: boolean;
 };
 
-const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'imageUrl', 'imageAssetId', 'isFeatured', 'displayOrder', 'isActive'] as const;
-
-/** Absent/null is fine (no new upload this edit); if present it must be a UUID naming a media asset. */
-function optionalAssetId(value: unknown): { ok: true; value: string | null } | { ok: false } {
-  if (value === undefined || value === null) return { ok: true, value: null };
-  return typeof value === 'string' && UUID.test(value) ? { ok: true, value } : { ok: false };
-}
+const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'gallery', 'isFeatured', 'displayOrder', 'isActive'] as const;
 
 function parseProductFields(input: Record<string, unknown>, options: { rejectReservedCategory: boolean }): ValidationResult<ProductFieldsInput> {
   const name = requiredText(input.name, MAX_NAME);
@@ -137,13 +169,8 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
   const description = optionalText(input.description, MAX_DESCRIPTION);
   if (description === null) return { ok: false, error: 'invalid_description' };
 
-  const image = optionalImageUrl(input.imageUrl);
-  if (!image.ok) return { ok: false, error: 'invalid_image_url' };
-  const imageAssetId = optionalAssetId(input.imageAssetId);
-  if (!imageAssetId.ok) return { ok: false, error: 'invalid_image_asset_id' };
-  // A brand-new upload (imageAssetId) and a client-chosen URL are mutually
-  // exclusive: the server always resolves the canonical URL from the asset.
-  if (imageAssetId.value && image.value) return { ok: false, error: 'ambiguous_image' };
+  const gallery = parseGallery(input.gallery);
+  if (!isValid(gallery)) return { ok: false, error: gallery.error };
 
   if (typeof input.isFeatured !== 'boolean') return { ok: false, error: 'invalid_is_featured' };
   if (!isNonNegativeInt(input.displayOrder, MAX_DISPLAY_ORDER)) return { ok: false, error: 'invalid_display_order' };
@@ -156,8 +183,7 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
       description,
       category,
       price: input.price as number,
-      imageUrl: image.value,
-      imageAssetId: imageAssetId.value,
+      gallery: gallery.value,
       isFeatured: input.isFeatured,
       displayOrder: input.displayOrder as number,
       isActive: input.isActive,

@@ -1,7 +1,7 @@
 import { defaultLandingContent } from '../lib/defaultContent';
 import { isPublicCatalogProduct } from '../lib/catalog';
 import { supabase } from '../lib/supabase';
-import type { AboutContent, HeroContent, LandingContent, Product } from '../types/cms';
+import type { AboutContent, HeroContent, LandingContent, Product, ProductImage } from '../types/cms';
 
 type SettingRow = {
   key: string;
@@ -23,8 +23,15 @@ type ProductRow = {
   stock_on_hand?: number | null;
 };
 
+type ProductImageRow = { product_id: string; media_asset_id: string; url: string; is_primary: boolean; display_order: number };
+
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
 const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, updated_at, stock_on_hand';
+const GALLERY_SELECT = 'product_id, media_asset_id, url, is_primary, display_order';
+
+function mapGalleryRow(row: ProductImageRow): ProductImage {
+  return { mediaAssetId: row.media_asset_id, url: row.url, isPrimary: row.is_primary, displayOrder: row.display_order };
+}
 
 function cloneLandingContent() {
   return JSON.parse(JSON.stringify(defaultLandingContent)) as LandingContent;
@@ -159,7 +166,27 @@ export async function getProducts() {
     throw new Error(formatSupabaseError('No se pudieron cargar los productos'));
   }
 
-  return ((data ?? []) as ProductRow[]).map(mapProductRow);
+  const products = ((data ?? []) as ProductRow[]).map(mapProductRow);
+  if (products.length === 0) return products;
+
+  const { data: galleryRows, error: galleryError } = await supabase
+    .from('product_images')
+    .select(GALLERY_SELECT)
+    .in('product_id', products.map((product) => product.id))
+    .order('display_order', { ascending: true });
+
+  if (galleryError) {
+    throw new Error(formatSupabaseError('No se pudieron cargar las imagenes de los productos'));
+  }
+
+  const galleryByProductId = new Map<string, ProductImage[]>();
+  for (const row of (galleryRows ?? []) as ProductImageRow[]) {
+    const list = galleryByProductId.get(row.product_id) ?? [];
+    list.push(mapGalleryRow(row));
+    galleryByProductId.set(row.product_id, list);
+  }
+
+  return products.map((product) => ({ ...product, gallery: galleryByProductId.get(product.id) ?? [] }));
 }
 
 export async function getActiveProducts() {
@@ -202,5 +229,17 @@ export async function getProductById(productId: string) {
   }
 
   const product = mapProductRow(data as ProductRow);
-  return isPublicCatalogProduct(product) ? product : null;
+  if (!isPublicCatalogProduct(product)) return null;
+
+  const { data: galleryRows, error: galleryError } = await supabase
+    .from('product_images')
+    .select(GALLERY_SELECT)
+    .eq('product_id', productId)
+    .order('display_order', { ascending: true });
+
+  if (galleryError) {
+    throw new Error(formatSupabaseError('No se pudieron cargar las imagenes del producto'));
+  }
+
+  return { ...product, gallery: ((galleryRows ?? []) as ProductImageRow[]).map(mapGalleryRow) };
 }

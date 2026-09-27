@@ -2,7 +2,8 @@
 // through /api/admin/*, carrying the caller's own Supabase access token; the
 // panel never writes to products/settings directly anymore.
 import { supabase } from '../lib/supabase';
-import type { AboutContent, HeroContent, Product, ProductInput } from '../types/cms';
+import type { AboutContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
+import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
 
 export type AdminApiErrorKind = 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'validation' | 'unavailable';
 
@@ -94,52 +95,48 @@ type ProductApiResponse = {
   updatedAt: string;
 };
 
-function mapProductResponse(product: ProductApiResponse): Product {
-  return { ...product };
+// gallery is omitted (not `undefined` merged in) when the caller doesn't
+// have one to report -- e.g. setProductActive's RPC never touches the
+// gallery, so its response carries none; the caller preserves whatever
+// gallery it already had locally instead of this overwriting it with nothing.
+function mapProductResponse(product: ProductApiResponse, gallery?: ProductImage[]): Product {
+  return gallery === undefined ? { ...product } : { ...product, gallery };
 }
 
-/**
- * A freshly uploaded asset (from *this* edit only) always wins over the
- * existing imageUrl; the two are mutually exclusive server-side. Never pass
- * a product's own already-attached imageAssetId back here: it is no longer
- * `pending` once attached, and resending it would be rejected. Passing
- * `null` (no new upload this edit) keeps the existing image via imageUrl.
- */
-function imageFieldsForRequest(imageUrl: string, imageAssetId: string | null) {
-  return imageAssetId ? { imageUrl: null, imageAssetId } : { imageUrl: imageUrl || null, imageAssetId: null };
-}
-
-export async function createProduct(input: Omit<ProductInput, 'id' | 'imageAssetId'>, imageAssetId: string | null = null): Promise<Product> {
-  const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/create', {
+export async function createProduct(
+  input: Omit<ProductInput, 'id' | 'imageAssetId' | 'gallery'>,
+  gallery: GalleryPayloadItem[] = [],
+): Promise<Product> {
+  const { product, gallery: savedGallery } = await postAdmin<{ product: ProductApiResponse; gallery: ProductImage[] }>('/api/admin/products/create', {
     name: input.name,
     description: input.description,
     category: input.category ?? '',
     price: input.price,
-    ...imageFieldsForRequest(input.imageUrl, imageAssetId),
+    gallery,
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
     isActive: input.active,
   });
-  return mapProductResponse(product);
+  return mapProductResponse(product, savedGallery);
 }
 
 export async function updateProduct(
   input: ProductInput & { id: string; expectedUpdatedAt: string },
-  imageAssetId: string | null = null,
+  gallery: GalleryPayloadItem[] = [],
 ): Promise<Product> {
-  const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/update', {
+  const { product, gallery: savedGallery } = await postAdmin<{ product: ProductApiResponse; gallery: ProductImage[] }>('/api/admin/products/update', {
     id: input.id,
     expectedUpdatedAt: input.expectedUpdatedAt,
     name: input.name,
     description: input.description,
     category: input.category ?? '',
     price: input.price,
-    ...imageFieldsForRequest(input.imageUrl, imageAssetId),
+    gallery,
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
     isActive: input.active,
   });
-  return mapProductResponse(product);
+  return mapProductResponse(product, savedGallery);
 }
 
 export async function setProductActive(id: string, isActive: boolean, expectedUpdatedAt: string): Promise<Product> {

@@ -102,10 +102,26 @@ export function ProductDetailPage() {
 
           {!loading && !error && product ? (
             <article className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)] lg:items-start">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] h-full w-full object-cover object-center" />
-                ) : <div className="flex aspect-[4/3] items-center justify-center text-sm text-slate-500">Sin imagen</div>}
+              <div className="space-y-3">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] h-full w-full object-cover object-center" />
+                  ) : <div className="flex aspect-[4/3] items-center justify-center text-sm text-slate-500">Sin imagen</div>}
+                </div>
+                {/* Ordered gallery, no carousel: every image is always visible, in the
+                    order set from the admin panel. The first (primary) image already
+                    shown above is not repeated here. */}
+                {product.gallery && product.gallery.length > 1 ? (
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                    {product.gallery
+                      .filter((image) => !image.isPrimary)
+                      .map((image) => (
+                        <div key={image.mediaAssetId} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                          <img src={image.url} alt={product.name} className="aspect-square h-full w-full object-cover object-center" />
+                        </div>
+                      ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="lg:pt-4">

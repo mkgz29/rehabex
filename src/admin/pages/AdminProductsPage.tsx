@@ -10,11 +10,12 @@ import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
-import { ImageField } from '../components/ImageField';
+import { ProductGalleryField } from '../components/ProductGalleryField';
 import { buildCategoryDirectory, resolveCategoryInput } from '../catalog/categoryOptions';
 import { isProductFormDirty } from '../catalog/productDirtyState';
 import { filterProducts, type VisibilityFilter } from '../catalog/productListFilters';
 import { firstErrorField, validateProductForm, type ProductFormErrors } from '../catalog/productFormValidation';
+import type { GalleryDraftItem } from '../catalog/productGallery';
 import { mergeProductIntoList, saveProduct } from '../catalog/productSaveOrchestration';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
@@ -27,6 +28,7 @@ const emptyProduct: ProductInput = {
   featured: false,
   sortOrder: 0,
   active: false,
+  gallery: [],
 };
 
 function messageForApiError(error: unknown, fallback: string) {
@@ -49,7 +51,6 @@ export function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<ProductInput>(emptyProduct);
   const [initialProduct, setInitialProduct] = useState<ProductInput>(emptyProduct);
   const [editingUpdatedAt, setEditingUpdatedAt] = useState<string | null>(null);
-  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ProductFormErrors>({});
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -93,6 +94,8 @@ export function AdminProductsPage() {
     [categoryDirectory],
   );
 
+  const initialGalleryIds = useMemo(() => new Set((initialProduct.gallery ?? []).map((item) => item.mediaAssetId)), [initialProduct]);
+
   const visibleProducts = useMemo(
     () =>
       filterProducts(products, { query: searchQuery, visibility: visibilityFilter, category: categoryFilter }).sort(
@@ -106,7 +109,6 @@ export function AdminProductsPage() {
     setEditingProduct(emptyProduct);
     setInitialProduct(emptyProduct);
     setEditingUpdatedAt(null);
-    setPendingImageAssetId(null);
     setFieldErrors({});
     setMessage(null);
     setError(null);
@@ -125,11 +127,11 @@ export function AdminProductsPage() {
       featured: product.featured,
       sortOrder: product.sortOrder,
       active: product.active,
+      gallery: product.gallery ?? [],
     };
     setEditingProduct(values);
     setInitialProduct(values);
     setEditingUpdatedAt(product.updatedAt ?? null);
-    setPendingImageAssetId(null);
     setFieldErrors({});
     setMessage(null);
     setError(null);
@@ -185,10 +187,10 @@ export function AdminProductsPage() {
     const isNew = !candidate.id;
 
     try {
-      // One request, one database transaction: content, main image and
+      // One request, one database transaction: content, gallery and
       // visibility are committed together or not at all (admin_create_product
-      // _with_media / admin_update_product_with_media, ADMIN-02B).
-      const saved = await saveProduct(candidate, { editingUpdatedAt, pendingImageAssetId }, { createProduct, updateProduct });
+      // _with_media / admin_update_product_with_media, ADMIN-02C).
+      const saved = await saveProduct(candidate, { editingUpdatedAt, gallery: candidate.gallery ?? [] }, { createProduct, updateProduct });
       setProducts((current) => mergeProductIntoList(current, saved, isNew));
       setMessage(isNew ? 'Producto creado correctamente.' : 'Producto actualizado correctamente.');
       setIsFormOpen(false);
@@ -212,7 +214,8 @@ export function AdminProductsPage() {
     try {
       if (!product.updatedAt) throw new Error('No pudimos identificar la version actual del producto. Volve a cargar el listado.');
       const updated = await setProductActive(product.id, nextActive, product.updatedAt);
-      setProducts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      // setProductActive never touches the gallery; keep the one already known locally.
+      setProducts((current) => current.map((item) => (item.id === updated.id ? { ...updated, gallery: item.gallery } : item)));
       setMessage(updated.active ? 'Producto visible en la tienda.' : 'Producto oculto de la tienda.');
     } catch (toggleError) {
       setError(messageForApiError(toggleError, 'No pudimos actualizar la visibilidad del producto.'));
@@ -493,15 +496,11 @@ export function AdminProductsPage() {
             </fieldset>
 
             <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-slate-800">Imagen principal</legend>
-              <ImageField
-                label="Imagen"
-                value={editingProduct.imageUrl}
-                intent="product"
-                onAssetReady={({ assetId, url }) => {
-                  setPendingImageAssetId(assetId);
-                  updateField('imageUrl', url);
-                }}
+              <legend className="text-sm font-semibold text-slate-800">Imágenes del producto</legend>
+              <ProductGalleryField
+                items={(editingProduct.gallery ?? []) as GalleryDraftItem[]}
+                onChange={(nextGallery) => updateField('gallery', nextGallery)}
+                persistedIds={initialGalleryIds}
               />
             </fieldset>
 

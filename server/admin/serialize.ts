@@ -33,6 +33,12 @@ export function mapAdminProductRow(row: AdminProductRow) {
   };
 }
 
+export type AdminGalleryImageRow = { mediaAssetId: string; url: string; isPrimary: boolean; displayOrder: number };
+
+export function mapAdminGalleryRow(row: AdminGalleryImageRow) {
+  return { mediaAssetId: row.mediaAssetId, url: row.url, isPrimary: row.isPrimary, displayOrder: row.displayOrder };
+}
+
 export type AdminSettingsRow = { key: string; value: unknown; updated_at: string };
 
 export function mapAdminSettingsRow(row: AdminSettingsRow) {
