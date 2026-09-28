@@ -3,20 +3,21 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useCart } from '../cart/useCart';
-import type { Product } from '../types/cms';
+import type { FeaturedSectionContent, Product } from '../types/cms';
 import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
 import { ProductGrid } from './ProductGrid';
 import { SectionHeading } from './SectionHeading';
 
 type FeaturedProductsSectionProps = {
+  content: FeaturedSectionContent;
   products: Product[];
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
 };
 
-export function FeaturedProductsSection({ products, isLoading, error, onRetry }: FeaturedProductsSectionProps) {
+export function FeaturedProductsSection({ content, products, isLoading, error, onRetry }: FeaturedProductsSectionProps) {
   const [productStatus, setProductStatus] = useState<{ id: string; status: 'added' | 'error' } | null>(null);
   const { addItem } = useCart();
 
@@ -39,7 +40,7 @@ export function FeaturedProductsSection({ products, isLoading, error, onRetry }:
       <div className="site-container">
         <div className="flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
           <div id="featured-products-title">
-            <SectionHeading eyebrow="Productos destacados" title="Elegidos para acompañar tu recuperación" description="Conocé una selección del catálogo activo de Rehabex." />
+            <SectionHeading eyebrow="Productos destacados" title={content.title} description={content.subtitle} />
           </div>
           <Link to="/tienda" className="secondary-button w-fit gap-2">
             Ver todo el catálogo

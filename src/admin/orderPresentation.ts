@@ -41,12 +41,45 @@ export function attentionLevel(order: AdminOrder): AttentionLevel {
   return 'waiting';
 }
 
+// Exhaustive translations of the real Postgres enums (payment_status,
+// order_status -- supabase/migrations/202609110103_orders_commerce_foundation.sql).
+// Anything not in these maps (there should be nothing, since Postgres enforces
+// the enum) falls back to "Estado sin identificar" rather than ever leaking a
+// raw technical value to a non-technical admin.
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  unpaid: 'Pago pendiente',
+  pending: 'Pago en proceso',
+  approved: 'Pago aprobado',
+  rejected: 'Pago rechazado',
+  cancelled: 'Pago cancelado',
+  refunded: 'Pago reembolsado',
+  charged_back: 'Contracargo',
+};
+
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  draft: 'Borrador',
+  pending_payment: 'Esperando el pago',
+  confirmed: 'Confirmado',
+  on_hold: 'En revisión',
+  cancelled: 'Cancelado',
+  completed: 'Completado',
+  expired: 'Vencido',
+  refunded: 'Reembolsado',
+  failed: 'Fallido',
+};
+
+const UNKNOWN_STATUS_LABEL = 'Estado sin identificar';
+
 export function paymentLabel(order: AdminOrder) {
-  return order.payment_status?.trim() || 'sin estado';
+  const status = order.payment_status?.trim();
+  if (!status) return UNKNOWN_STATUS_LABEL;
+  return PAYMENT_STATUS_LABELS[status] ?? UNKNOWN_STATUS_LABEL;
 }
 
 export function orderLabel(order: AdminOrder) {
-  return order.order_status?.trim() || 'sin estado';
+  const status = order.order_status?.trim();
+  if (!status) return UNKNOWN_STATUS_LABEL;
+  return ORDER_STATUS_LABELS[status] ?? UNKNOWN_STATUS_LABEL;
 }
 
 export function orderReference(order: AdminOrder) {

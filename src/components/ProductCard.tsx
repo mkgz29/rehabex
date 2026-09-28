@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { formatCurrency } from '../lib/format';
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
+import { FramedImage } from './media/FramedImage';
 import type { Product } from '../types/cms';
 
 type ProductCardProps = {
@@ -14,21 +15,21 @@ type ProductCardProps = {
 export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCardProps) {
   const isOutOfStock = product.stockOnHand !== undefined && product.stockOnHand <= 0;
   const detailHref = `/productos/${product.id}`;
+  const primaryImage = product.gallery?.find((image) => image.isPrimary);
 
   return (
     <article data-reveal-item className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line/90 bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:border-accent/70 hover:shadow-card focus-within:shadow-card">
       <Link to={detailHref} className="relative block aspect-[4/5] overflow-hidden bg-canvas" aria-label={`Ver ${product.name}`}>
         {product.imageUrl ? (
-          <img
-            src={getOptimizedImageUrl(product.imageUrl, { width: 720 })}
+          <FramedImage
+            media={{ kind: 'image', url: getOptimizedImageUrl(product.imageUrl, { width: 720 }), framing: primaryImage?.framing }}
             srcSet={getResponsiveImageSrcSet(product.imageUrl, [320, 480, 720])}
             sizes="(min-width: 1024px) 25vw, (min-width: 500px) 50vw, calc(100vw - 2rem)"
             alt={product.name}
-            width="800"
-            height="1000"
+            width={800}
+            height={1000}
             loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover object-center transition duration-500 ease-out group-hover:scale-[1.025]"
+            className="h-full w-full transition duration-500 ease-out group-hover:scale-[1.025]"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted">

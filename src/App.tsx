@@ -1,11 +1,11 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { AdminAboutPage } from './admin/pages/AdminAboutPage';
+import { AdminEditPagePage } from './admin/pages/AdminEditPagePage';
 import { AdminHomePage } from './admin/pages/AdminHomePage';
 import { AdminLayout } from './admin/components/AdminLayout';
-import { AdminHeroPage } from './admin/pages/AdminHeroPage';
 import { AdminOrdersPage } from './admin/pages/AdminOrdersPage';
 import { AdminProductsPage } from './admin/pages/AdminProductsPage';
+import { LEGACY_ADMIN_REDIRECTS } from './admin/legacyRedirects';
 import { AppLayout } from './components/AppLayout';
 import { CartPage } from './pages/CartPage';
 import { FailurePage } from './pages/FailurePage';
@@ -40,10 +40,12 @@ function App() {
           }
         >
           <Route index element={<AdminHomePage />} />
-          <Route path="hero" element={<AdminHeroPage />} />
-          <Route path="quienes-somos" element={<AdminAboutPage />} />
+          <Route path="pagina" element={<AdminEditPagePage />} />
           <Route path="productos" element={<AdminProductsPage />} />
-          <Route path="ordenes" element={<AdminOrdersPage />} />
+          <Route path="pedidos" element={<AdminOrdersPage />} />
+          {Object.entries(LEGACY_ADMIN_REDIRECTS).map(([path, to]) => (
+            <Route key={path} path={path} element={<Navigate to={to} replace />} />
+          ))}
         </Route>
       </Route>
     </Routes>

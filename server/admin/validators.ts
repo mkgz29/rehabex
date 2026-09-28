@@ -79,13 +79,6 @@ function isHttpsUrl(value: string) {
   }
 }
 
-/** Empty is allowed (keep the existing image, per ADMIN-01A); if present it must be a safe HTTPS URL. */
-function optionalImageUrl(value: unknown): { ok: true; value: string | null } | { ok: false } {
-  if (value === undefined || value === null || value === '') return { ok: true, value: null };
-  if (typeof value !== 'string' || value.length > MAX_IMAGE_URL) return { ok: false };
-  return isHttpsUrl(value) ? { ok: true, value: value.trim() } : { ok: false };
-}
-
 function requiredImageUrl(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0 || value.length > MAX_IMAGE_URL) return null;
   return isHttpsUrl(value) ? value.trim() : null;
@@ -102,26 +95,120 @@ function isSafeCtaLink(value: string) {
   return isHttpsUrl(value);
 }
 
+// --- Image framing (ADMIN-02E) -----------------------------------------------
+// Shared by Hero/About settings and each product gallery item: where an
+// image is positioned in the box that shows it. Mirrors src/lib/imageFraming.ts's
+// shape and bounds so client and server never disagree on what is valid.
+
+export type ImageFramingInput = { mode: 'fill' | 'contain'; focalX: number; focalY: number; zoom: number };
+
+function isUnitFraction(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isValidZoom(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 && value <= 3;
+}
+
+/** Absent is fine (defaults apply downstream); present must be a fully well-formed object. */
+function optionalFraming(value: unknown): { ok: true; value: ImageFramingInput | null } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  const input = asObject(value);
+  if (!input) return { ok: false };
+  if (!hasOnlyAllowedKeys(input, ['mode', 'focalX', 'focalY', 'zoom'])) return { ok: false };
+  if (input.mode !== 'fill' && input.mode !== 'contain') return { ok: false };
+  if (!isUnitFraction(input.focalX) || !isUnitFraction(input.focalY) || !isValidZoom(input.zoom)) return { ok: false };
+  return { ok: true, value: { mode: input.mode, focalX: input.focalX, focalY: input.focalY, zoom: input.zoom } };
+}
+
 // --- Products ---------------------------------------------------------------
+
+/** Absent/null is fine (no new upload this edit); if present it must be a UUID naming a media asset. Still used by the Hero/About settings RPCs, which keep their single-image shape (only products moved to a gallery). */
+function optionalAssetId(value: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  return typeof value === 'string' && UUID.test(value) ? { ok: true, value } : { ok: false };
+}
+
+export type GalleryItemInput =
+  | { mediaAssetId: string; isPrimary: boolean; framing: ImageFramingInput | null }
+  | { legacyUrl: string; isPrimary: boolean; framing: ImageFramingInput | null };
+
+export const MAX_GALLERY_IMAGES = 5;
+
+/**
+ * Mirrors the checks admin_sync_product_gallery repeats server-side (the RPC
+ * is the actual security boundary); this pass exists only to reject an
+ * obviously-malformed gallery with a specific, friendly message before ever
+ * reaching the database.
+ *
+ * Each entry is either a media_assets-backed image (mediaAssetId) or a
+ * legacy image carried over from before the gallery existed (legacyUrl,
+ * RELEASE-ADMIN-02-PREFLIGHT backfill) -- never both. This pass only checks
+ * shape; the RPC is what actually verifies a legacyUrl already exists as a
+ * legacy row on that exact product, which is what stops a client from
+ * fabricating an arbitrary image by claiming it is "legacy".
+ */
+function parseGallery(value: unknown): ValidationResult<GalleryItemInput[]> {
+  if (value === undefined || value === null) return { ok: true, value: [] };
+  if (!Array.isArray(value)) return { ok: false, error: 'invalid_gallery' };
+  if (value.length > MAX_GALLERY_IMAGES) return { ok: false, error: 'too_many_images' };
+
+  const items: GalleryItemInput[] = [];
+  const seenAssetIds = new Set<string>();
+  const seenLegacyUrls = new Set<string>();
+  let primaryCount = 0;
+
+  for (const raw of value) {
+    const entry = asObject(raw);
+    if (!entry) return { ok: false, error: 'invalid_gallery' };
+
+    const hasAssetId = 'mediaAssetId' in entry;
+    const hasLegacyUrl = 'legacyUrl' in entry;
+    if (hasAssetId === hasLegacyUrl) return { ok: false, error: 'invalid_gallery' };
+    if (!hasOnlyAllowedKeys(entry, hasAssetId ? ['mediaAssetId', 'isPrimary', 'framing'] : ['legacyUrl', 'isPrimary', 'framing'])) {
+      return { ok: false, error: 'unknown_field' };
+    }
+
+    if (typeof entry.isPrimary !== 'boolean') return { ok: false, error: 'invalid_gallery' };
+    if (entry.isPrimary) primaryCount += 1;
+
+    const framing = optionalFraming(entry.framing);
+    if (!framing.ok) return { ok: false, error: 'invalid_gallery' };
+
+    if (hasAssetId) {
+      const mediaAssetId = entry.mediaAssetId;
+      if (typeof mediaAssetId !== 'string' || !UUID.test(mediaAssetId)) return { ok: false, error: 'invalid_gallery' };
+      if (seenAssetIds.has(mediaAssetId)) return { ok: false, error: 'duplicate_image' };
+      seenAssetIds.add(mediaAssetId);
+      items.push({ mediaAssetId, isPrimary: entry.isPrimary, framing: framing.value });
+    } else {
+      const legacyUrl = entry.legacyUrl;
+      if (typeof legacyUrl !== 'string' || legacyUrl.length > MAX_IMAGE_URL || !isHttpsUrl(legacyUrl)) {
+        return { ok: false, error: 'invalid_gallery' };
+      }
+      if (seenLegacyUrls.has(legacyUrl)) return { ok: false, error: 'duplicate_image' };
+      seenLegacyUrls.add(legacyUrl);
+      items.push({ legacyUrl, isPrimary: entry.isPrimary, framing: framing.value });
+    }
+  }
+
+  if (items.length > 0 && primaryCount !== 1) return { ok: false, error: 'invalid_primary' };
+
+  return { ok: true, value: items };
+}
 
 export type ProductFieldsInput = {
   name: string;
   description: string;
   category: string;
   price: number;
-  imageUrl: string | null;
-  imageAssetId: string | null;
+  gallery: GalleryItemInput[];
   isFeatured: boolean;
   displayOrder: number;
+  isActive: boolean;
 };
 
-const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'imageUrl', 'imageAssetId', 'isFeatured', 'displayOrder'] as const;
-
-/** Absent/null is fine (no new upload this edit); if present it must be a UUID naming a media asset. */
-function optionalAssetId(value: unknown): { ok: true; value: string | null } | { ok: false } {
-  if (value === undefined || value === null) return { ok: true, value: null };
-  return typeof value === 'string' && UUID.test(value) ? { ok: true, value } : { ok: false };
-}
+const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'gallery', 'isFeatured', 'displayOrder', 'isActive'] as const;
 
 function parseProductFields(input: Record<string, unknown>, options: { rejectReservedCategory: boolean }): ValidationResult<ProductFieldsInput> {
   const name = requiredText(input.name, MAX_NAME);
@@ -136,16 +223,12 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
   const description = optionalText(input.description, MAX_DESCRIPTION);
   if (description === null) return { ok: false, error: 'invalid_description' };
 
-  const image = optionalImageUrl(input.imageUrl);
-  if (!image.ok) return { ok: false, error: 'invalid_image_url' };
-  const imageAssetId = optionalAssetId(input.imageAssetId);
-  if (!imageAssetId.ok) return { ok: false, error: 'invalid_image_asset_id' };
-  // A brand-new upload (imageAssetId) and a client-chosen URL are mutually
-  // exclusive: the server always resolves the canonical URL from the asset.
-  if (imageAssetId.value && image.value) return { ok: false, error: 'ambiguous_image' };
+  const gallery = parseGallery(input.gallery);
+  if (!isValid(gallery)) return { ok: false, error: gallery.error };
 
   if (typeof input.isFeatured !== 'boolean') return { ok: false, error: 'invalid_is_featured' };
   if (!isNonNegativeInt(input.displayOrder, MAX_DISPLAY_ORDER)) return { ok: false, error: 'invalid_display_order' };
+  if (typeof input.isActive !== 'boolean') return { ok: false, error: 'invalid_is_active' };
 
   return {
     ok: true,
@@ -154,10 +237,10 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
       description,
       category,
       price: input.price as number,
-      imageUrl: image.value,
-      imageAssetId: imageAssetId.value,
+      gallery: gallery.value,
       isFeatured: input.isFeatured,
       displayOrder: input.displayOrder as number,
+      isActive: input.isActive,
     },
   };
 }
@@ -216,11 +299,12 @@ export type HeroContentInput = {
   title: string;
   subtitle: string;
   image_url: string;
+  image_framing: ImageFramingInput | null;
   primary_cta_text: string;
   primary_cta_link: string;
 };
 
-const HERO_VALUE_FIELD_KEYS = ['title', 'subtitle', 'image_url', 'primary_cta_text', 'primary_cta_link'] as const;
+const HERO_VALUE_FIELD_KEYS = ['title', 'subtitle', 'image_url', 'image_framing', 'primary_cta_text', 'primary_cta_link'] as const;
 const SETTINGS_PAYLOAD_KEYS = ['value', 'expectedUpdatedAt', 'imageAssetId'] as const;
 
 export type SettingsMutationInput<T> = { content: T; expectedUpdatedAt: string | null; imageAssetId: string | null };
@@ -256,11 +340,13 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
   if (!ctaText) return { ok: false, error: 'invalid_cta_text' };
   const ctaLink = requiredText(input.primary_cta_link, MAX_CTA_LINK);
   if (!ctaLink || !isSafeCtaLink(ctaLink)) return { ok: false, error: 'invalid_cta_link' };
+  const framing = optionalFraming(input.image_framing);
+  if (!framing.ok) return { ok: false, error: 'invalid_image_framing' };
 
   return {
     ok: true,
     value: {
-      content: { title, subtitle, image_url: imageUrl ?? '', primary_cta_text: ctaText, primary_cta_link: ctaLink },
+      content: { title, subtitle, image_url: imageUrl ?? '', image_framing: framing.value, primary_cta_text: ctaText, primary_cta_link: ctaLink },
       expectedUpdatedAt: expectedUpdatedAt.value,
       imageAssetId: imageAssetId.value,
     },
@@ -268,22 +354,32 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
 }
 
 export type AboutMetricInput = { id: string; value: string; label: string };
-export type AboutContentInput = { image: string; title: string; description: string; metrics: AboutMetricInput[] };
+export type AboutContentInput = {
+  image: string;
+  image_framing: ImageFramingInput | null;
+  title: string;
+  description: string;
+  metrics: AboutMetricInput[];
+};
 
-const ABOUT_VALUE_FIELD_KEYS = ['image', 'title', 'description', 'metrics'] as const;
+const ABOUT_VALUE_FIELD_KEYS = ['image', 'image_framing', 'title', 'description', 'metrics'] as const;
 const ABOUT_METRIC_FIELD_KEYS = ['id', 'value', 'label'] as const;
 const METRIC_ID_PATTERN = /^[a-z0-9-]{1,40}$/i;
 
+// A metric's value/label may each be empty on purpose (ADMIN-02E: clearing
+// one hides just that metric publicly, clearing both hides the whole "Datos
+// destacados" block) -- only the id is required, so the empty state can be
+// saved at all instead of being rejected as incomplete.
 function parseAboutMetric(value: unknown): AboutMetricInput | null {
   const input = asObject(value);
   if (!input) return null;
   if (!hasOnlyAllowedKeys(input, ABOUT_METRIC_FIELD_KEYS)) return null;
   const id = typeof input.id === 'string' && METRIC_ID_PATTERN.test(input.id) ? input.id : null;
   if (!id) return null;
-  const metricValue = requiredText(input.value, MAX_METRIC_VALUE);
-  if (!metricValue) return null;
-  const label = requiredText(input.label, MAX_METRIC_LABEL);
-  if (!label) return null;
+  const metricValue = optionalText(input.value, MAX_METRIC_VALUE);
+  if (metricValue === null) return null;
+  const label = optionalText(input.label, MAX_METRIC_LABEL);
+  if (label === null) return null;
   return { id, value: metricValue, label };
 }
 
@@ -309,6 +405,8 @@ export function parseAboutContentPayload(value: unknown): ValidationResult<Setti
   if (!title) return { ok: false, error: 'invalid_title' };
   const description = requiredText(input.description, MAX_ABOUT_DESCRIPTION);
   if (!description) return { ok: false, error: 'invalid_description' };
+  const framing = optionalFraming(input.image_framing);
+  if (!framing.ok) return { ok: false, error: 'invalid_image_framing' };
 
   if (!Array.isArray(input.metrics) || input.metrics.length > MAX_METRICS) return { ok: false, error: 'invalid_metrics' };
   const metrics: AboutMetricInput[] = [];
@@ -320,6 +418,87 @@ export function parseAboutContentPayload(value: unknown): ValidationResult<Setti
 
   return {
     ok: true,
-    value: { content: { image: image ?? '', title, description, metrics }, expectedUpdatedAt: expectedUpdatedAt.value, imageAssetId: imageAssetId.value },
+    value: {
+      content: { image: image ?? '', image_framing: framing.value, title, description, metrics },
+      expectedUpdatedAt: expectedUpdatedAt.value,
+      imageAssetId: imageAssetId.value,
+    },
   };
+}
+
+// --- Featured/Catalog section copy (ADMIN-02E) -------------------------------
+
+export type SectionCopyInput = { title: string; subtitle: string };
+export type SectionCopyMutationInput = { content: SectionCopyInput; expectedUpdatedAt: string | null };
+
+const SECTION_COPY_PAYLOAD_KEYS = ['value', 'expectedUpdatedAt'] as const;
+const SECTION_COPY_VALUE_KEYS = ['title', 'subtitle'] as const;
+const MAX_SECTION_TITLE = 200;
+const MAX_SECTION_SUBTITLE = 300;
+
+function parseSectionCopyPayload(value: unknown): ValidationResult<SectionCopyMutationInput> {
+  const outer = asObject(value);
+  if (!outer) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(outer, SECTION_COPY_PAYLOAD_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const expectedUpdatedAt = parseExpectedUpdatedAtOrNull(outer.expectedUpdatedAt);
+  if (!expectedUpdatedAt.ok) return { ok: false, error: 'invalid_version' };
+
+  const input = asObject(outer.value);
+  if (!input) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(input, SECTION_COPY_VALUE_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const title = requiredText(input.title, MAX_SECTION_TITLE);
+  if (!title) return { ok: false, error: 'invalid_title' };
+  const subtitle = optionalText(input.subtitle, MAX_SECTION_SUBTITLE);
+  if (subtitle === null) return { ok: false, error: 'invalid_subtitle' };
+
+  return { ok: true, value: { content: { title, subtitle }, expectedUpdatedAt: expectedUpdatedAt.value } };
+}
+
+export function parseFeaturedSectionContentPayload(value: unknown): ValidationResult<SectionCopyMutationInput> {
+  return parseSectionCopyPayload(value);
+}
+
+export function parseCatalogSectionContentPayload(value: unknown): ValidationResult<SectionCopyMutationInput> {
+  return parseSectionCopyPayload(value);
+}
+
+// --- Featured products curation (ADMIN-02E) ----------------------------------
+// Bulk, atomic selection + order for the public "Productos destacados"
+// section. products.is_featured/display_order stay the only source of
+// truth; the RPC (not this pass) rejects marking a hidden or TEST/PRUEBA
+// product featured, since that needs a fresh read of the product row.
+
+export type FeaturedProductItemInput = { id: string; isFeatured: boolean; displayOrder: number };
+
+const FEATURED_PRODUCTS_PAYLOAD_KEYS = ['items'] as const;
+const FEATURED_PRODUCT_ITEM_KEYS = ['id', 'isFeatured', 'displayOrder'] as const;
+const MAX_FEATURED_ITEMS = 100;
+
+export function parseFeaturedProductsPayload(value: unknown): ValidationResult<FeaturedProductItemInput[]> {
+  const outer = asObject(value);
+  if (!outer) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(outer, FEATURED_PRODUCTS_PAYLOAD_KEYS)) return { ok: false, error: 'unknown_field' };
+  if (!Array.isArray(outer.items) || outer.items.length > MAX_FEATURED_ITEMS) return { ok: false, error: 'invalid_request' };
+
+  const items: FeaturedProductItemInput[] = [];
+  const seen = new Set<string>();
+  for (const raw of outer.items) {
+    const entry = asObject(raw);
+    if (!entry) return { ok: false, error: 'invalid_request' };
+    if (!hasOnlyAllowedKeys(entry, FEATURED_PRODUCT_ITEM_KEYS)) return { ok: false, error: 'unknown_field' };
+
+    const id = typeof entry.id === 'string' && UUID.test(entry.id) ? entry.id : null;
+    if (!id) return { ok: false, error: 'invalid_request' };
+    if (seen.has(id)) return { ok: false, error: 'duplicate_product' };
+    seen.add(id);
+
+    if (typeof entry.isFeatured !== 'boolean') return { ok: false, error: 'invalid_request' };
+    if (!isNonNegativeInt(entry.displayOrder, MAX_DISPLAY_ORDER)) return { ok: false, error: 'invalid_request' };
+
+    items.push({ id, isFeatured: entry.isFeatured, displayOrder: entry.displayOrder as number });
+  }
+
+  return { ok: true, value: items };
 }

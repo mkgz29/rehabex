@@ -2,7 +2,8 @@
 // through /api/admin/*, carrying the caller's own Supabase access token; the
 // panel never writes to products/settings directly anymore.
 import { supabase } from '../lib/supabase';
-import type { AboutContent, HeroContent, Product, ProductInput } from '../types/cms';
+import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
+import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
 
 export type AdminApiErrorKind = 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'validation' | 'unavailable';
 
@@ -28,7 +29,7 @@ function messageForStatus(status: number) {
     case 409:
       return 'Este contenido fue modificado en otra sesion. Recarga los datos antes de guardar.';
     case 422:
-      return 'Revisa los datos del formulario.';
+      return 'No pudimos guardar los cambios. Revisa que todos los campos esten completos y sean validos.';
     default:
       return 'No se pudo completar la operacion. Intenta nuevamente.';
   }
@@ -94,50 +95,48 @@ type ProductApiResponse = {
   updatedAt: string;
 };
 
-function mapProductResponse(product: ProductApiResponse): Product {
-  return { ...product };
+// gallery is omitted (not `undefined` merged in) when the caller doesn't
+// have one to report -- e.g. setProductActive's RPC never touches the
+// gallery, so its response carries none; the caller preserves whatever
+// gallery it already had locally instead of this overwriting it with nothing.
+function mapProductResponse(product: ProductApiResponse, gallery?: ProductImage[]): Product {
+  return gallery === undefined ? { ...product } : { ...product, gallery };
 }
 
-/**
- * A freshly uploaded asset (from *this* edit only) always wins over the
- * existing imageUrl; the two are mutually exclusive server-side. Never pass
- * a product's own already-attached imageAssetId back here: it is no longer
- * `pending` once attached, and resending it would be rejected. Passing
- * `null` (no new upload this edit) keeps the existing image via imageUrl.
- */
-function imageFieldsForRequest(imageUrl: string, imageAssetId: string | null) {
-  return imageAssetId ? { imageUrl: null, imageAssetId } : { imageUrl: imageUrl || null, imageAssetId: null };
-}
-
-export async function createProduct(input: Omit<ProductInput, 'id' | 'active' | 'imageAssetId'>, imageAssetId: string | null = null): Promise<Product> {
-  const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/create', {
+export async function createProduct(
+  input: Omit<ProductInput, 'id' | 'imageAssetId' | 'gallery'>,
+  gallery: GalleryPayloadItem[] = [],
+): Promise<Product> {
+  const { product, gallery: savedGallery } = await postAdmin<{ product: ProductApiResponse; gallery: ProductImage[] }>('/api/admin/products/create', {
     name: input.name,
     description: input.description,
     category: input.category ?? '',
     price: input.price,
-    ...imageFieldsForRequest(input.imageUrl, imageAssetId),
+    gallery,
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
+    isActive: input.active,
   });
-  return mapProductResponse(product);
+  return mapProductResponse(product, savedGallery);
 }
 
 export async function updateProduct(
   input: ProductInput & { id: string; expectedUpdatedAt: string },
-  imageAssetId: string | null = null,
+  gallery: GalleryPayloadItem[] = [],
 ): Promise<Product> {
-  const { product } = await postAdmin<{ product: ProductApiResponse }>('/api/admin/products/update', {
+  const { product, gallery: savedGallery } = await postAdmin<{ product: ProductApiResponse; gallery: ProductImage[] }>('/api/admin/products/update', {
     id: input.id,
     expectedUpdatedAt: input.expectedUpdatedAt,
     name: input.name,
     description: input.description,
     category: input.category ?? '',
     price: input.price,
-    ...imageFieldsForRequest(input.imageUrl, imageAssetId),
+    gallery,
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
+    isActive: input.active,
   });
-  return mapProductResponse(product);
+  return mapProductResponse(product, savedGallery);
 }
 
 export async function setProductActive(id: string, isActive: boolean, expectedUpdatedAt: string): Promise<Product> {
@@ -177,8 +176,40 @@ export async function saveAboutContent(
   return { content: setting.value, updatedAt: setting.updatedAt };
 }
 
+export async function saveFeaturedSectionContent(
+  content: FeaturedSectionContent,
+  expectedUpdatedAt: string | null,
+): Promise<{ content: FeaturedSectionContent; updatedAt: string }> {
+  const { setting } = await postAdmin<{ setting: SettingApiResponse<FeaturedSectionContent> }>('/api/admin/settings/featured-section', {
+    value: content,
+    expectedUpdatedAt,
+  });
+  return { content: setting.value, updatedAt: setting.updatedAt };
+}
+
+export async function saveCatalogSectionContent(
+  content: CatalogSectionContent,
+  expectedUpdatedAt: string | null,
+): Promise<{ content: CatalogSectionContent; updatedAt: string }> {
+  const { setting } = await postAdmin<{ setting: SettingApiResponse<CatalogSectionContent> }>('/api/admin/settings/catalog-section', {
+    value: content,
+    expectedUpdatedAt,
+  });
+  return { content: setting.value, updatedAt: setting.updatedAt };
+}
+
+export type FeaturedProductUpdate = { id: string; isFeatured: boolean; displayOrder: number };
+
+/** Atomic bulk selection/order update for the public "Productos destacados" section. */
+export async function saveFeaturedProducts(items: FeaturedProductUpdate[]): Promise<void> {
+  if (items.length === 0) return;
+  await postAdmin<{ requestId: string }>('/api/admin/products/set-featured', { items });
+}
+
 /** Reads the current version of a CMS document, for the initial expectedUpdatedAt. */
-export async function getSettingVersion(key: 'hero_content' | 'about_content'): Promise<string | null> {
+export async function getSettingVersion(
+  key: 'hero_content' | 'about_content' | 'featured_section_content' | 'catalog_section_content',
+): Promise<string | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.from('settings').select('updated_at').eq('key', key).maybeSingle();
   if (error || !data) return null;

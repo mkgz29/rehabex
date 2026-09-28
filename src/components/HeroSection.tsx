@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
+import { FramedImage } from './media/FramedImage';
 import { resolveMediaSlotState } from './media/mediaSlotState';
 import type { HeroContent } from '../types/cms';
 
@@ -44,17 +45,16 @@ export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
           aria-busy={slotState === 'loading'}
         >
           {slotState === 'ready' ? (
-            <img
-              src={getOptimizedImageUrl(heroContent.image_url, { width: 1600 })}
+            <FramedImage
+              media={{ kind: 'image', url: getOptimizedImageUrl(heroContent.image_url, { width: 1600 }), framing: heroContent.image_framing }}
               srcSet={getResponsiveImageSrcSet(heroContent.image_url, [640, 960, 1280, 1600])}
               sizes="(min-width: 768px) 55vw, calc(100vw - 2rem)"
               alt="Equipo de rehabilitación seleccionado por Rehabex"
-              width="1600"
-              height="1800"
+              width={1600}
+              height={1800}
               fetchPriority="high"
-              decoding="async"
               onError={() => setImageFailed(true)}
-              className="absolute inset-0 h-full w-full object-cover object-center"
+              className="absolute inset-0 h-full w-full"
             />
           ) : slotState === 'loading' ? (
             <div className="absolute inset-0 bg-[rgb(var(--color-surface-muted))]">
