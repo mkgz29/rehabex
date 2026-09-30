@@ -1,9 +1,8 @@
 // Thin, dependency-injectable wrapper around the official Cloudinary SDK.
-// Signing and verification both reuse cloudinary.utils.api_sign_request
-// rather than reimplementing HMAC/SHA logic by hand. The API secret is read
-// once from server-only environment variables and never returned to a
-// caller; destroy() is the SDK's own supported operation, never a bespoke
-// deletion call.
+// Upload request signing is explicit so the exact serialized fields sent by
+// the browser are auditable. Response verification and administrative calls
+// continue to use the SDK. The API secret never leaves this server module.
+import { createHash } from 'node:crypto';
 import { v2 as cloudinary } from 'cloudinary';
 
 export type CloudinaryEnv = { cloudName: string; apiKey: string; apiSecret: string };
@@ -19,18 +18,56 @@ export function cloudinaryEnv(): CloudinaryEnv | null {
 export type SignedUploadParams = {
   cloudName: string;
   apiKey: string;
-  timestamp: number;
-  publicId: string;
-  folder: string;
-  overwrite: 'false';
-  allowedFormats: string;
-  maxFileSize: number;
+  uploadParams: CloudinaryUploadParams;
   signature: string;
   uploadUrl: string;
 };
 
 export const ALLOWED_UPLOAD_FORMATS = 'jpg,jpeg,png,webp';
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+export type CloudinaryUploadParams = {
+  allowed_formats: typeof ALLOWED_UPLOAD_FORMATS;
+  folder: string;
+  overwrite: 'false';
+  public_id: string;
+  timestamp: string;
+};
+
+type SignableValue = string | number | boolean | null | undefined;
+type SignableParams = Record<string, SignableValue>;
+
+const UNSIGNED_PARAMETER_NAMES = new Set(['file', 'api_key', 'cloud_name', 'resource_type', 'signature']);
+
+/** The single source for both the signed values and the browser FormData. */
+export function buildCloudinaryUploadParams(params: {
+  publicId: string;
+  folder: string;
+  timestamp: number;
+}): CloudinaryUploadParams {
+  return {
+    allowed_formats: ALLOWED_UPLOAD_FORMATS,
+    folder: params.folder,
+    overwrite: 'false',
+    public_id: params.publicId,
+    timestamp: String(params.timestamp),
+  };
+}
+
+/** Cloudinary's canonical request serialization, independent of object insertion order. */
+export function canonicalizeCloudinaryParams(params: SignableParams): string {
+  return Object.entries(params)
+    .filter(([name, value]) => !UNSIGNED_PARAMETER_NAMES.has(name) && value !== null && value !== undefined && value !== '')
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([name, value]) => `${name}=${String(value)}`)
+    .join('&');
+}
+
+/** Cloudinary signs SHA-1(canonicalString + apiSecret); this is not HMAC. */
+export function signCloudinaryParams(params: SignableParams, apiSecret: string): string {
+  const canonicalString = canonicalizeCloudinaryParams(params);
+  return createHash('sha1').update(canonicalString + apiSecret).digest('hex');
+}
 
 /**
  * Computes the signature for a fixed, server-chosen parameter set. The
@@ -42,24 +79,12 @@ export function signUploadParams(
   env: CloudinaryEnv,
   params: { publicId: string; folder: string; timestamp: number },
 ): SignedUploadParams {
-  const toSign = {
-    timestamp: params.timestamp,
-    public_id: params.publicId,
-    folder: params.folder,
-    overwrite: 'false',
-    allowed_formats: ALLOWED_UPLOAD_FORMATS,
-    max_file_size: MAX_UPLOAD_BYTES,
-  };
-  const signature = cloudinary.utils.api_sign_request(toSign, env.apiSecret);
+  const uploadParams = buildCloudinaryUploadParams(params);
+  const signature = signCloudinaryParams(uploadParams, env.apiSecret);
   return {
     cloudName: env.cloudName,
     apiKey: env.apiKey,
-    timestamp: params.timestamp,
-    publicId: params.publicId,
-    folder: params.folder,
-    overwrite: 'false',
-    allowedFormats: ALLOWED_UPLOAD_FORMATS,
-    maxFileSize: MAX_UPLOAD_BYTES,
+    uploadParams,
     signature,
     uploadUrl: `https://api.cloudinary.com/v1_1/${env.cloudName}/image/upload`,
   };
