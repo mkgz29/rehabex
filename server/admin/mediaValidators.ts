@@ -52,7 +52,8 @@ export type MediaFinalizeInput = { publicId: string; version: number; signature:
 
 const FINALIZE_FIELD_KEYS = ['publicId', 'version', 'signature'] as const;
 
-const PUBLIC_ID_PATTERN = /^[a-zA-Z0-9_-]{1,120}$/;
+const UUID_V4_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const PUBLIC_ID_PATTERN = new RegExp(`^rehabex/(?:products|hero|about)/${UUID_V4_PATTERN}$`);
 const SIGNATURE_PATTERN = /^[a-f0-9]{40,64}$/;
 const ALLOWED_FORMATS = new Set(ALLOWED_UPLOAD_FORMATS.split(','));
 const MIN_DIMENSION = 400;

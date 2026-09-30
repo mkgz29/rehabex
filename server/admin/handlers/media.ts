@@ -45,11 +45,12 @@ export function createAdminMediaSignHandler(overrides: Partial<SignDependencies>
     // The server -- never the client -- chooses the folder, the public ID and
     // the timestamp. The client only ever states its intent (product/hero/about).
     const folder = FOLDER_BY_INTENT[payload.value.intent];
-    const publicId = randomUUID();
+    const uploadPublicId = randomUUID();
+    const providerPublicId = `${folder}/${uploadPublicId}`;
     const timestamp = Math.floor(Date.now() / 1000);
 
     const { data, error } = await auth.rpc.rpc('admin_create_pending_media_asset', {
-      p_public_id: publicId,
+      p_public_id: providerPublicId,
       p_folder: folder,
       p_request_id: auth.requestId,
     });
@@ -60,7 +61,7 @@ export function createAdminMediaSignHandler(overrides: Partial<SignDependencies>
       return response.status(mapped.status).json({ error: mapped.error, requestId: auth.requestId });
     }
 
-    const signed = signUploadParams(env, { publicId, folder, timestamp });
+    const signed = signUploadParams(env, { publicId: uploadPublicId, folder, timestamp });
 
     logEvent('admin_media_sign_issued');
     return response.status(200).json({

@@ -28,13 +28,16 @@ test('parseMediaSignPayload rejects unknown fields, including a client-chosen fo
 });
 
 const VALID_FINALIZE = {
-  publicId: 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+  publicId: 'rehabex/products/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
   version: 1700000000,
   signature: 'a'.repeat(40),
 };
 
-test('parseMediaFinalizePayload accepts a well-formed payload', () => {
-  assert.equal(isValid(parseMediaFinalizePayload(VALID_FINALIZE)), true);
+test('parseMediaFinalizePayload accepts only a Cloudinary provider public ID in an intent folder', () => {
+  for (const folder of ['products', 'hero', 'about']) {
+    const publicId = `rehabex/${folder}/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7`;
+    assert.equal(isValid(parseMediaFinalizePayload({ ...VALID_FINALIZE, publicId })), true);
+  }
 });
 
 test('parseMediaFinalizePayload rejects unknown fields, including client-supplied format/size/dimensions', () => {
@@ -45,7 +48,18 @@ test('parseMediaFinalizePayload rejects unknown fields, including client-supplie
 });
 
 test('parseMediaFinalizePayload rejects a malformed public ID (folder/path injection attempts)', () => {
-  for (const publicId of ['../../etc/passwd', 'rehabex/products/x', 'a b c', '', 'x'.repeat(200)]) {
+  for (const publicId of [
+    '../../etc/passwd',
+    'rehabex/products/../../etc/passwd',
+    'rehabex/arbitrary/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+    'rehabex/products/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7/extra',
+    'rehabex/products/a1b2c3d4-e5f6-3789-a0b1-c2d3e4f5a6b7',
+    'rehabex/products/x',
+    'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+    'a b c',
+    '',
+    'x'.repeat(200),
+  ]) {
     assert.equal(isValid(parseMediaFinalizePayload({ ...VALID_FINALIZE, publicId })), false, `expected ${publicId} to be rejected`);
   }
 });
