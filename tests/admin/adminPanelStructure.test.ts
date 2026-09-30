@@ -129,9 +129,9 @@ test('Resumen: while loading, shows no invented numbers -- only a loading state'
   assert.doesNotMatch(markup, /Pedidos que requieren revisión/);
 });
 
-test('Resumen never advertises the excluded advanced-analytics features', () => {
+test('Resumen never advertises analytics that remain outside phase two', () => {
   const markup = renderWithAuth(React.createElement(AdminHomePage));
-  const excluded = [/grafico/i, /gráfico/i, /facturaci[oó]n/i, /mejores vendidos/i, /clientes recurrentes/i];
+  const excluded = [/visitas/i, /conversi[oó]n/i, /carritos? abandonados?/i, /clientes recurrentes/i];
   for (const pattern of excluded) {
     assert.doesNotMatch(markup, pattern, `Resumen unexpectedly references excluded feature: ${pattern}`);
   }

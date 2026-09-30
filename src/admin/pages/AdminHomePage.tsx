@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   CircleDollarSign,
@@ -16,14 +16,23 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { formatCurrency } from '../../lib/format';
 import { getProducts } from '../../services/cms';
+import type { Product } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
+import { SalesTrendChart } from '../components/SalesTrendChart';
+import { TopProductsCard } from '../components/TopProductsCard';
+import {
+  buildDailySalesSeries,
+  summarizePeriodSales,
+  summarizeTopProducts,
+  type DashboardPeriod,
+} from '../dashboardAnalytics';
 import { buyerLabel, formatOrderDate, orderAmount, orderLabel, orderReference, type AdminOrder } from '../orderPresentation';
 import { LOW_STOCK_THRESHOLD, summarizeBusinessDashboard, type BusinessDashboardSummary } from '../summary';
 
 type SummaryState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; summary: BusinessDashboardSummary; ordersAvailable: boolean };
+  | { status: 'ready'; products: Product[]; orders: AdminOrder[]; ordersAvailable: boolean };
 
 export function AdminHomePage() {
   const { session } = useAuth();
@@ -61,7 +70,8 @@ export function AdminHomePage() {
       if (mounted) {
         setState({
           status: 'ready',
-          summary: summarizeBusinessDashboard(orders ?? [], products),
+          products,
+          orders: orders ?? [],
           ordersAvailable: orders !== null,
         });
       }
@@ -98,14 +108,38 @@ export function AdminHomePage() {
       {state.status === 'error' ? <AdminNotice>{state.message}</AdminNotice> : null}
 
       {state.status === 'ready' ? (
-        <DashboardContent summary={state.summary} ordersAvailable={state.ordersAvailable} />
+        <DashboardContent products={state.products} orders={state.orders} ordersAvailable={state.ordersAvailable} />
       ) : null}
     </div>
   );
 }
 
-function DashboardContent({ summary, ordersAvailable }: { summary: BusinessDashboardSummary; ordersAvailable: boolean }) {
+function DashboardContent({
+  products,
+  orders,
+  ordersAvailable,
+}: {
+  products: Product[];
+  orders: AdminOrder[];
+  ordersAvailable: boolean;
+}) {
+  const [period, setPeriod] = useState<DashboardPeriod>(30);
   const orderValue = (value: number) => (ordersAvailable ? value : '—');
+  const summary: BusinessDashboardSummary = useMemo(
+    () => summarizeBusinessDashboard(orders, products),
+    [orders, products],
+  );
+  const analytics = useMemo(() => {
+    const now = new Date();
+    // La analítica opera sobre el conjunto administrativo ya cargado por
+    // /api/orders (máximo 200 registros). Más adelante puede reemplazarse
+    // por agregación server-side si el volumen lo requiere.
+    return {
+      series: buildDailySalesSeries(orders, period, now),
+      sales: summarizePeriodSales(orders, period, now),
+      topProducts: summarizeTopProducts(orders, period, now),
+    };
+  }, [orders, period]);
 
   return (
     <>
@@ -129,6 +163,25 @@ function DashboardContent({ summary, ordersAvailable }: { summary: BusinessDashb
           tone={ordersAvailable && summary.ordersNeedingAttention > 0 ? 'attention' : 'neutral'}
         />
       </section>
+
+      {ordersAvailable ? (
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+          <SalesTrendChart
+            series={analytics.series}
+            summary={analytics.sales}
+            period={period}
+            onPeriodChange={setPeriod}
+          />
+          <TopProductsCard products={analytics.topProducts} period={period} />
+        </div>
+      ) : (
+        <section className="rounded-[1.75rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
+          <h3 className="text-lg font-semibold text-slate-950">Analítica de ventas</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            La evolución de ventas y los productos más vendidos no están disponibles en este momento.
+          </p>
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
         <section className="rounded-[1.75rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
