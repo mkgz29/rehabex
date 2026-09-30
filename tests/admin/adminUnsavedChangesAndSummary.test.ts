@@ -2,9 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { anyDirty } from '../../src/admin/unsavedChanges/UnsavedChangesContext.tsx';
-import { summarizeOrders, summarizeProducts } from '../../src/admin/summary.ts';
+import {
+  LOW_STOCK_THRESHOLD,
+  summarizeBusinessDashboard,
+  summarizeOrders,
+  summarizeProducts,
+} from '../../src/admin/summary.ts';
 import type { Product } from '../../src/types/cms.ts';
-import type { AdminOrder } from '../../src/admin/orderPresentation.ts';
+import { attentionLevel, type AdminOrder } from '../../src/admin/orderPresentation.ts';
 
 test('anyDirty: clean when no source registered or every source is clean', () => {
   assert.equal(anyDirty({}), false);
@@ -55,4 +60,106 @@ test('summarizeOrders counts total, review-needing orders via the real review_re
 
 test('summarizeOrders on an empty list never fabricates a count', () => {
   assert.deepEqual(summarizeOrders([]), { orderCount: 0, ordersNeedingReview: 0, recentOrders: [] });
+});
+
+const SEPTEMBER_NOW = new Date('2026-09-15T12:00:00Z');
+
+test('business dashboard sums only approved payments paid in the current month', () => {
+  const orders: AdminOrder[] = [
+    { id: 'approved-1', payment_status: 'approved', order_status: 'confirmed', paid_at: '2026-09-02T10:00:00Z', total_amount: 10_000 },
+    { id: 'approved-2', payment_status: 'approved', order_status: 'completed', paid_at: '2026-09-12T10:00:00Z', total_amount: '20000' },
+    { id: 'pending', payment_status: 'pending', paid_at: '2026-09-03T10:00:00Z', total_amount: 99_000 },
+    { id: 'unpaid', payment_status: 'unpaid', paid_at: '2026-09-04T10:00:00Z', total_amount: 99_000 },
+    { id: 'rejected', payment_status: 'rejected', paid_at: '2026-09-04T11:00:00Z', total_amount: 99_000 },
+    { id: 'cancelled', payment_status: 'cancelled', paid_at: '2026-09-04T12:00:00Z', total_amount: 99_000 },
+    { id: 'refunded', payment_status: 'refunded', paid_at: '2026-09-05T10:00:00Z', total_amount: 99_000 },
+    { id: 'charged-back', payment_status: 'charged_back', paid_at: '2026-09-06T10:00:00Z', total_amount: 99_000 },
+    { id: 'other-month', payment_status: 'approved', paid_at: '2026-08-31T10:00:00Z', total_amount: 99_000 },
+    { id: 'no-paid-date', payment_status: 'approved', paid_at: null, total_amount: 99_000 },
+    { id: 'invalid-paid-date', payment_status: 'approved', paid_at: 'not-a-date', total_amount: 99_000 },
+  ];
+
+  const summary = summarizeBusinessDashboard(orders, [], SEPTEMBER_NOW);
+  assert.equal(summary.monthlyPaidSales, 30_000);
+  assert.equal(summary.monthlyPaidOrders, 2);
+  assert.equal(summary.averageTicket, 15_000);
+});
+
+test('business dashboard returns a zero average ticket when there are no paid sales', () => {
+  const summary = summarizeBusinessDashboard(
+    [{ payment_status: 'pending', paid_at: '2026-09-02T10:00:00Z', total_amount: 10_000 }],
+    [],
+    SEPTEMBER_NOW,
+  );
+  assert.equal(summary.monthlyPaidSales, 0);
+  assert.equal(summary.monthlyPaidOrders, 0);
+  assert.equal(summary.averageTicket, 0);
+});
+
+test('business dashboard order states are exclusive and attentionLevel remains the attention source', () => {
+  const orders: AdminOrder[] = [
+    { id: 'confirmed', payment_status: 'approved', order_status: 'confirmed' },
+    { id: 'completed', payment_status: 'approved', order_status: 'completed' },
+    { id: 'pending', payment_status: 'pending', order_status: 'pending_payment' },
+    { id: 'unpaid', payment_status: 'unpaid', order_status: 'draft' },
+    { id: 'chargeback', payment_status: 'charged_back', order_status: 'on_hold' },
+    { id: 'approved-review', payment_status: 'approved', order_status: 'pending_payment' },
+    { id: 'refund-review', payment_status: 'refunded', order_status: 'refunded', refund_required: true },
+    { id: 'rejected', payment_status: 'rejected', order_status: 'failed' },
+    { id: 'cancelled', payment_status: 'cancelled', order_status: 'cancelled' },
+    { id: 'refunded', payment_status: 'refunded', order_status: 'refunded' },
+    { id: 'expired', payment_status: 'unpaid', order_status: 'expired' },
+  ];
+
+  const summary = summarizeBusinessDashboard(orders, [], SEPTEMBER_NOW);
+  const attentionCount = orders.filter((order) => attentionLevel(order) === 'attention').length;
+  assert.equal(summary.ordersNeedingAttention, attentionCount);
+  assert.deepEqual(summary.orderStatus, {
+    confirmed: 2,
+    waitingForPayment: 2,
+    requiringReview: 3,
+    finalizedWithoutSale: 4,
+  });
+  assert.equal(Object.values(summary.orderStatus).reduce((total, count) => total + count, 0), orders.length);
+});
+
+test('business dashboard counts and orders only active products with real low stock', () => {
+  const products = [
+    product({ id: 'undefined', name: 'Sin dato', stockOnHand: undefined }),
+    product({ id: 'zero', name: 'Cero', stockOnHand: 0 }),
+    product({ id: 'two', name: 'Dos', stockOnHand: 2 }),
+    product({ id: 'five', name: 'Cinco', stockOnHand: LOW_STOCK_THRESHOLD }),
+    product({ id: 'six', name: 'Seis', stockOnHand: 6 }),
+    product({ id: 'negative', name: 'Negativo', stockOnHand: -1 }),
+    product({ id: 'hidden', name: 'Oculto', active: false, stockOnHand: 1 }),
+  ];
+
+  const summary = summarizeBusinessDashboard([], products, SEPTEMBER_NOW);
+  assert.equal(summary.catalog.activeProducts, 6);
+  assert.equal(summary.catalog.hiddenProducts, 1);
+  assert.equal(summary.catalog.lowStockProducts, 3);
+  assert.deepEqual(summary.catalog.lowestStockProducts.map((entry) => entry.id), ['zero', 'two', 'five']);
+  assert.equal(summary.catalog.lowestStockProducts.some((entry) => entry.id === 'undefined'), false);
+});
+
+test('business dashboard on empty inputs never invents metrics', () => {
+  assert.deepEqual(summarizeBusinessDashboard([], [], SEPTEMBER_NOW), {
+    monthlyPaidSales: 0,
+    monthlyPaidOrders: 0,
+    averageTicket: 0,
+    ordersNeedingAttention: 0,
+    orderStatus: {
+      confirmed: 0,
+      waitingForPayment: 0,
+      requiringReview: 0,
+      finalizedWithoutSale: 0,
+    },
+    catalog: {
+      activeProducts: 0,
+      hiddenProducts: 0,
+      lowStockProducts: 0,
+      lowestStockProducts: [],
+    },
+    recentOrders: [],
+  });
 });

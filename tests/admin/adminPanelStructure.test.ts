@@ -113,7 +113,13 @@ test('Editar pagina never leaks internal/technical vocabulary to a non-technical
 });
 
 function renderWithAuth(element: React.ReactElement) {
-  return renderToStaticMarkup(React.createElement(AuthContext.Provider, { value: fakeAuthValue }, element));
+  return renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      null,
+      React.createElement(AuthContext.Provider, { value: fakeAuthValue }, element),
+    ),
+  );
 }
 
 test('Resumen: while loading, shows no invented numbers -- only a loading state', () => {
