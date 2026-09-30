@@ -182,7 +182,7 @@ test('sign: an RPC failure maps to a sanitized error and never leaks the api sec
 
 // --- /api/admin/media/finalize -------------------------------------------------
 
-const VALID_FINALIZE_BODY = { publicId: 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7', version: 1700000000, signature: 'a'.repeat(40) };
+const VALID_FINALIZE_BODY = { publicId: 'rehabex/products/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7', version: 1700000000, signature: 'a'.repeat(40) };
 const VALID_RESOURCE = { format: 'jpg', resource_type: 'image', bytes: 250000, width: 1200, height: 900, secure_url: 'https://res.cloudinary.com/demo/image/upload/v1700000000/x.jpg' };
 
 function finalizeDeps(overrides: Partial<FinalizeDependencies>): Partial<FinalizeDependencies> {
@@ -276,8 +276,61 @@ test('finalize: a response belonging to another (unauthorized) upload is rejecte
   // signature does not verify against our secret either.
   const handler = createAdminMediaFinalizeHandler(finalizeDeps({ verifyUploadSignature: () => false }));
   const result = mockResponse();
-  await handler(jsonRequest({ publicId: 'someone-elses-public-id', version: 1234567890, signature: 'b'.repeat(40) }), result.response);
+  await handler(jsonRequest({ publicId: 'rehabex/products/b1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7', version: 1234567890, signature: 'b'.repeat(40) }), result.response);
   assert.equal(result.read().statusCode, 422);
+});
+
+test('sign -> Cloudinary -> finalize keeps the folder-qualified provider public ID canonical', async () => {
+  let pendingArgs: Record<string, unknown> | null = null;
+  const signHandler = createAdminMediaSignHandler(
+    signDeps({
+      userScopedClient: () => ({
+        rpc: async (name, args) => {
+          assert.equal(name, 'admin_create_pending_media_asset');
+          pendingArgs = args;
+          return { data: { id: 'asset-1' }, error: null };
+        },
+      }),
+    }),
+  );
+  const signResult = mockResponse();
+  await signHandler(jsonRequest({ intent: 'product' }), signResult.response);
+  assert.equal(signResult.read().statusCode, 200);
+
+  const signPayload = signResult.read().body as {
+    uploadParams: { folder: string; public_id: string };
+  };
+  const providerPublicId = `${signPayload.uploadParams.folder}/${signPayload.uploadParams.public_id}`;
+  assert.equal(signPayload.uploadParams.folder, 'rehabex/products');
+  assert.match(signPayload.uploadParams.public_id, /^[0-9a-f-]{36}$/);
+  assert.equal(pendingArgs?.p_public_id, providerPublicId);
+  assert.equal(pendingArgs?.p_folder, signPayload.uploadParams.folder);
+
+  let finalizedArgs: Record<string, unknown> | null = null;
+  const finalizeHandler = createAdminMediaFinalizeHandler(
+    finalizeDeps({
+      verifyUploadSignature: (_env, publicId) => publicId === providerPublicId,
+      fetchResourceMetadata: async (_env, publicId) => {
+        assert.equal(publicId, providerPublicId);
+        return VALID_RESOURCE;
+      },
+      userScopedClient: () => ({
+        rpc: async (name, args) => {
+          assert.equal(name, 'admin_finalize_media_asset');
+          finalizedArgs = args;
+          return { data: { id: 'asset-1', secure_url: VALID_RESOURCE.secure_url, status: 'pending' }, error: null };
+        },
+      }),
+    }),
+  );
+  const finalizeResult = mockResponse();
+  await finalizeHandler(
+    jsonRequest({ publicId: providerPublicId, version: 1_700_000_000, signature: 'a'.repeat(40) }),
+    finalizeResult.response,
+  );
+
+  assert.equal(finalizeResult.read().statusCode, 200);
+  assert.equal(finalizedArgs?.p_public_id, providerPublicId);
 });
 
 test('finalize: a verified-but-out-of-policy result (bad dimensions) is rejected and destroy is attempted', async () => {

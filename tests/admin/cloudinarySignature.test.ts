@@ -64,7 +64,9 @@ test('the upload signature contains exactly the five production contract fields'
     'timestamp',
   ]);
   assert.equal(uploadParams.allowed_formats, 'jpg,jpeg,png,webp');
+  assert.equal(uploadParams.folder, FIXED_INPUT.folder);
   assert.equal(uploadParams.overwrite, 'false');
+  assert.equal(uploadParams.public_id, FIXED_INPUT.publicId);
   assert.equal('max_file_size' in uploadParams, false);
 });
 
