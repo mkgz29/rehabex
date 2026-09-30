@@ -1,5 +1,11 @@
 import type { Product } from '../types/cms';
-import { attentionLevel, orderAmount, type AdminOrder } from './orderPresentation';
+import { attentionLevel, type AdminOrder } from './orderPresentation';
+import {
+  calculateMetricComparison,
+  paidSalesInWindow,
+  summarizePaidSales,
+  type MetricComparison,
+} from './salesMetrics';
 
 export const LOW_STOCK_THRESHOLD = 5;
 
@@ -7,6 +13,11 @@ export type BusinessDashboardSummary = {
   monthlyPaidSales: number;
   monthlyPaidOrders: number;
   averageTicket: number;
+  monthlyComparison: {
+    sales: MetricComparison;
+    orders: MetricComparison;
+    averageTicket: MetricComparison;
+  };
   ordersNeedingAttention: number;
   orderStatus: {
     confirmed: number;
@@ -40,13 +51,6 @@ export function summarizeOrders(orders: AdminOrder[]) {
   };
 }
 
-function isInCurrentMonth(value: string | null | undefined, now: Date) {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-}
-
 function isLowStockProduct(product: Product) {
   return product.active
     && typeof product.stockOnHand === 'number'
@@ -61,10 +65,23 @@ export function summarizeBusinessDashboard(
   products: Product[],
   now: Date = new Date(),
 ): BusinessDashboardSummary {
-  const paidOrdersThisMonth = orders.filter(
-    (order) => order.payment_status === 'approved' && isInCurrentMonth(order.paid_at, now),
-  );
-  const monthlyPaidSales = paidOrdersThisMonth.reduce((total, order) => total + orderAmount(order), 0);
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // Decisión deliberada: el mes calendario actual sólo hasta `now` se compara
+  // contra el mes calendario anterior completo. No se normaliza por días
+  // transcurridos ni se proyecta el resto del mes.
+  const currentMonth = summarizePaidSales(paidSalesInWindow(orders, {
+    start: currentMonthStart,
+    end: now,
+    includeEnd: true,
+  }));
+  const previousMonth = summarizePaidSales(paidSalesInWindow(orders, {
+    start: previousMonthStart,
+    end: currentMonthStart,
+    includeEnd: false,
+  }));
+  const averageTicket = currentMonth.orders > 0 ? currentMonth.revenue / currentMonth.orders : 0;
+  const previousAverageTicket = previousMonth.orders > 0 ? previousMonth.revenue / previousMonth.orders : 0;
 
   const orderStatus = {
     confirmed: 0,
@@ -112,9 +129,14 @@ export function summarizeBusinessDashboard(
   const orderSummary = summarizeOrders(orders);
 
   return {
-    monthlyPaidSales,
-    monthlyPaidOrders: paidOrdersThisMonth.length,
-    averageTicket: paidOrdersThisMonth.length > 0 ? monthlyPaidSales / paidOrdersThisMonth.length : 0,
+    monthlyPaidSales: currentMonth.revenue,
+    monthlyPaidOrders: currentMonth.orders,
+    averageTicket,
+    monthlyComparison: {
+      sales: calculateMetricComparison(currentMonth.revenue, previousMonth.revenue),
+      orders: calculateMetricComparison(currentMonth.orders, previousMonth.orders),
+      averageTicket: calculateMetricComparison(averageTicket, previousAverageTicket),
+    },
     ordersNeedingAttention: orderSummary.ordersNeedingReview,
     orderStatus,
     catalog: {

@@ -10,6 +10,7 @@ import {
 } from '../../src/admin/summary.ts';
 import type { Product } from '../../src/types/cms.ts';
 import { attentionLevel, type AdminOrder } from '../../src/admin/orderPresentation.ts';
+import { calculateMetricComparison } from '../../src/admin/salesMetrics.ts';
 
 test('anyDirty: clean when no source registered or every source is clean', () => {
   assert.equal(anyDirty({}), false);
@@ -83,6 +84,118 @@ test('business dashboard sums only approved payments paid in the current month',
   assert.equal(summary.monthlyPaidSales, 30_000);
   assert.equal(summary.monthlyPaidOrders, 2);
   assert.equal(summary.averageTicket, 15_000);
+  assert.equal(summary.monthlyComparison.sales.previous, 99_000);
+  assert.equal(summary.monthlyComparison.orders.previous, 1);
+  assert.equal(summary.monthlyComparison.averageTicket.previous, 99_000);
+});
+
+test('monthly comparison uses current month through now versus the complete previous calendar month', () => {
+  const orders: AdminOrder[] = [
+    { payment_status: 'approved', paid_at: '2026-09-02T10:00:00Z', total_amount: 10_000 },
+    { payment_status: 'approved', paid_at: '2026-09-12T10:00:00Z', total_amount: 20_000 },
+    { payment_status: 'approved', paid_at: '2026-09-20T10:00:00Z', total_amount: 500_000 },
+    { payment_status: 'approved', paid_at: '2026-08-02T10:00:00Z', total_amount: 10_000 },
+    { payment_status: 'approved', paid_at: '2026-08-12T10:00:00Z', total_amount: 10_000 },
+    { payment_status: 'approved', paid_at: '2026-08-22T10:00:00Z', total_amount: 10_000 },
+    { payment_status: 'approved', paid_at: '2026-08-31T23:00:00Z', total_amount: 10_000 },
+  ];
+  const summary = summarizeBusinessDashboard(orders, [], SEPTEMBER_NOW);
+
+  assert.equal(summary.monthlyPaidSales, 30_000);
+  assert.equal(summary.monthlyPaidOrders, 2);
+  assert.equal(summary.averageTicket, 15_000);
+  assert.deepEqual(summary.monthlyComparison.sales, {
+    current: 30_000,
+    previous: 40_000,
+    percentage: -25,
+    direction: 'down',
+  });
+  assert.deepEqual(summary.monthlyComparison.orders, {
+    current: 2,
+    previous: 4,
+    percentage: -50,
+    direction: 'down',
+  });
+  assert.deepEqual(summary.monthlyComparison.averageTicket, {
+    current: 15_000,
+    previous: 10_000,
+    percentage: 50,
+    direction: 'up',
+  });
+});
+
+test('metric comparison handles increases, decreases, equality and zero baselines without non-finite values', () => {
+  assert.deepEqual(calculateMetricComparison(120, 100), {
+    current: 120,
+    previous: 100,
+    percentage: 20,
+    direction: 'up',
+  });
+  assert.deepEqual(calculateMetricComparison(80, 100), {
+    current: 80,
+    previous: 100,
+    percentage: -20,
+    direction: 'down',
+  });
+  assert.deepEqual(calculateMetricComparison(100, 100), {
+    current: 100,
+    previous: 100,
+    percentage: 0,
+    direction: 'flat',
+  });
+  assert.deepEqual(calculateMetricComparison(100, 0), {
+    current: 100,
+    previous: 0,
+    percentage: null,
+    direction: 'new',
+  });
+  assert.deepEqual(calculateMetricComparison(0, 0), {
+    current: 0,
+    previous: 0,
+    percentage: 0,
+    direction: 'flat',
+  });
+  const nonFinite = calculateMetricComparison(Number.POSITIVE_INFINITY, Number.NaN);
+  assert.deepEqual(nonFinite, { current: 0, previous: 0, percentage: 0, direction: 'flat' });
+  assert.ok(Object.values(nonFinite).every((value) => value === null || typeof value === 'string' || Number.isFinite(value)));
+});
+
+test('monthly windows cross December to January using local calendar boundaries', () => {
+  const now = new Date(2027, 0, 10, 18, 0, 0, 0);
+  const summary = summarizeBusinessDashboard([
+    { payment_status: 'approved', paid_at: new Date(2027, 0, 1, 0, 0, 0, 0).toISOString(), total_amount: 20_000 },
+    { payment_status: 'approved', paid_at: new Date(2026, 11, 1, 0, 0, 0, 0).toISOString(), total_amount: 10_000 },
+    { payment_status: 'approved', paid_at: new Date(2026, 11, 31, 23, 59, 59, 999).toISOString(), total_amount: 5_000 },
+    { payment_status: 'approved', paid_at: new Date(2026, 10, 30, 23, 59, 59, 999).toISOString(), total_amount: 99_000 },
+  ], [], now);
+
+  assert.equal(summary.monthlyComparison.sales.current, 20_000);
+  assert.equal(summary.monthlyComparison.sales.previous, 15_000);
+});
+
+test('the previous calendar month includes all of February, including leap day', () => {
+  const now = new Date(2028, 2, 10, 18, 0, 0, 0);
+  const summary = summarizeBusinessDashboard([
+    { payment_status: 'approved', paid_at: new Date(2028, 2, 2, 10).toISOString(), total_amount: 20_000 },
+    { payment_status: 'approved', paid_at: new Date(2028, 1, 1, 0).toISOString(), total_amount: 10_000 },
+    { payment_status: 'approved', paid_at: new Date(2028, 1, 29, 23, 59, 59, 999).toISOString(), total_amount: 15_000 },
+  ], [], now);
+
+  assert.equal(summary.monthlyComparison.sales.current, 20_000);
+  assert.equal(summary.monthlyComparison.sales.previous, 25_000);
+});
+
+test('monthly comparison excludes invalid, out-of-range, refunded and charged-back payments', () => {
+  const summary = summarizeBusinessDashboard([
+    { payment_status: 'approved', paid_at: 'invalid', total_amount: 90_000 },
+    { payment_status: 'approved', paid_at: '2026-07-10T10:00:00Z', total_amount: 90_000 },
+    { payment_status: 'approved', paid_at: '2026-09-02T10:00:00Z', total_amount: 'invalid' },
+    { payment_status: 'refunded', paid_at: '2026-09-02T10:00:00Z', total_amount: 90_000 },
+    { payment_status: 'charged_back', paid_at: '2026-08-02T10:00:00Z', total_amount: 90_000 },
+  ], [], SEPTEMBER_NOW);
+
+  assert.deepEqual(summary.monthlyComparison.sales, calculateMetricComparison(0, 0));
+  assert.deepEqual(summary.monthlyComparison.orders, calculateMetricComparison(0, 0));
 });
 
 test('business dashboard returns a zero average ticket when there are no paid sales', () => {
@@ -147,6 +260,11 @@ test('business dashboard on empty inputs never invents metrics', () => {
     monthlyPaidSales: 0,
     monthlyPaidOrders: 0,
     averageTicket: 0,
+    monthlyComparison: {
+      sales: { current: 0, previous: 0, percentage: 0, direction: 'flat' },
+      orders: { current: 0, previous: 0, percentage: 0, direction: 'flat' },
+      averageTicket: { current: 0, previous: 0, percentage: 0, direction: 'flat' },
+    },
     ordersNeedingAttention: 0,
     orderStatus: {
       confirmed: 0,

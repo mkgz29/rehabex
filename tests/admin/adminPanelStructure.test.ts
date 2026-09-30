@@ -7,7 +7,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext } from '../../src/auth/AuthProvider.tsx';
 import { AdminLayout, adminLinks } from '../../src/admin/components/AdminLayout.tsx';
 import { AdminEditPagePage } from '../../src/admin/pages/AdminEditPagePage.tsx';
-import { AdminHomePage } from '../../src/admin/pages/AdminHomePage.tsx';
+import { AdminHomePage, DashboardContent } from '../../src/admin/pages/AdminHomePage.tsx';
 import { AdminOrdersPage } from '../../src/admin/pages/AdminOrdersPage.tsx';
 import { LEGACY_ADMIN_REDIRECTS } from '../../src/admin/legacyRedirects.ts';
 import { UnsavedChangesProvider } from '../../src/admin/unsavedChanges/UnsavedChangesContext.tsx';
@@ -135,6 +135,25 @@ test('Resumen never advertises analytics that remain outside phase two', () => {
   for (const pattern of excluded) {
     assert.doesNotMatch(markup, pattern, `Resumen unexpectedly references excluded feature: ${pattern}`);
   }
+});
+
+test('Resumen KPI and sales chart expose temporal comparisons without technical enums', () => {
+  const now = new Date();
+  const currentPaidAt = new Date(now.getFullYear(), now.getMonth(), 1, 10).toISOString();
+  const previousPaidAt = new Date(now.getFullYear(), now.getMonth() - 1, 15, 10).toISOString();
+  const markup = renderWithAuth(React.createElement(DashboardContent, {
+    products: [],
+    ordersAvailable: true,
+    orders: [
+      { payment_status: 'approved', paid_at: currentPaidAt, total_amount: 200 },
+      { payment_status: 'approved', paid_at: previousPaidAt, total_amount: 100 },
+    ],
+  }));
+
+  assert.equal((markup.match(/mes anterior/g) ?? []).length, 3);
+  assert.match(markup, /30 días anteriores/);
+  assert.doesNotMatch(markup, /not_started|preparing|ready_for_pickup|charged_back/);
+  assert.doesNotMatch(markup, /NaN|Infinity|-Infinity|>undefined</);
 });
 
 test('Pedidos: page title and description no longer say "Ventas"', () => {

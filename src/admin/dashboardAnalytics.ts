@@ -1,4 +1,11 @@
 import type { AdminOrder } from './orderPresentation';
+import {
+  calculateMetricComparison,
+  paidSalesInWindow,
+  summarizePaidSales,
+  type MetricComparison,
+  type SalesWindow,
+} from './salesMetrics';
 
 export type DashboardPeriod = 7 | 30 | 90;
 
@@ -19,10 +26,13 @@ export type ProductSalesSummary = {
   revenue: number;
 };
 
-type ValidSale = {
-  order: AdminOrder;
-  paidAt: Date;
-  revenue: number;
+export type PeriodSalesComparison = {
+  currentRevenue: number;
+  previousRevenue: number;
+  revenueComparison: MetricComparison;
+  currentOrders: number;
+  previousOrders: number;
+  ordersComparison: MetricComparison;
 };
 
 function startOfLocalDay(date: Date) {
@@ -52,22 +62,18 @@ function finiteTotal(current: number, amount: number) {
   return Number.isFinite(total) ? total : current;
 }
 
-function validSalesInPeriod(orders: AdminOrder[], days: DashboardPeriod, now: Date): ValidSale[] {
-  const nowTime = now.getTime();
-  if (!Number.isFinite(nowTime)) return [];
-
-  const periodStart = addLocalDays(startOfLocalDay(now), -(days - 1)).getTime();
-
-  return orders.flatMap((order) => {
-    if (order.payment_status !== 'approved' || !order.paid_at) return [];
-
-    const paidAt = new Date(order.paid_at);
-    const paidAtTime = paidAt.getTime();
-    const revenue = numericValue(order.total_amount);
-    if (!Number.isFinite(paidAtTime) || paidAtTime < periodStart || paidAtTime > nowTime || revenue === null) return [];
-
-    return [{ order, paidAt, revenue }];
-  });
+function periodWindows(days: DashboardPeriod, now: Date): { current: SalesWindow; previous: SalesWindow } {
+  const currentStart = addLocalDays(startOfLocalDay(now), -(days - 1));
+  // El bloque actual incluye currentStart y llega hasta now. El anterior tiene
+  // exactamente `days` días y termina de forma exclusiva en currentStart.
+  return {
+    current: { start: currentStart, end: now, includeEnd: true },
+    previous: {
+      start: addLocalDays(currentStart, -days),
+      end: currentStart,
+      includeEnd: false,
+    },
+  };
 }
 
 export function buildDailySalesSeries(
@@ -85,7 +91,7 @@ export function buildDailySalesSeries(
   }));
   const pointsByDate = new Map(points.map((point) => [point.date, point]));
 
-  for (const sale of validSalesInPeriod(orders, days, now)) {
+  for (const sale of paidSalesInWindow(orders, periodWindows(days, now).current)) {
     const point = pointsByDate.get(localDateKey(sale.paidAt));
     if (!point) continue;
     point.revenue = finiteTotal(point.revenue, sale.revenue);
@@ -100,10 +106,26 @@ export function summarizePeriodSales(
   days: DashboardPeriod,
   now: Date = new Date(),
 ): PeriodSalesSummary {
-  return validSalesInPeriod(orders, days, now).reduce<PeriodSalesSummary>(
-    (summary, sale) => ({ revenue: finiteTotal(summary.revenue, sale.revenue), orders: summary.orders + 1 }),
-    { revenue: 0, orders: 0 },
-  );
+  return summarizePaidSales(paidSalesInWindow(orders, periodWindows(days, now).current));
+}
+
+export function comparePeriodSales(
+  orders: AdminOrder[],
+  days: DashboardPeriod,
+  now: Date = new Date(),
+): PeriodSalesComparison {
+  const windows = periodWindows(days, now);
+  const current = summarizePaidSales(paidSalesInWindow(orders, windows.current));
+  const previous = summarizePaidSales(paidSalesInWindow(orders, windows.previous));
+
+  return {
+    currentRevenue: current.revenue,
+    previousRevenue: previous.revenue,
+    revenueComparison: calculateMetricComparison(current.revenue, previous.revenue),
+    currentOrders: current.orders,
+    previousOrders: previous.orders,
+    ordersComparison: calculateMetricComparison(current.orders, previous.orders),
+  };
 }
 
 export function summarizeTopProducts(
@@ -114,7 +136,7 @@ export function summarizeTopProducts(
 ): ProductSalesSummary[] {
   const products = new Map<string, ProductSalesSummary>();
 
-  for (const { order } of validSalesInPeriod(orders, days, now)) {
+  for (const { order } of paidSalesInWindow(orders, periodWindows(days, now).current)) {
     if (!Array.isArray(order.order_items)) continue;
 
     for (const entry of order.order_items) {

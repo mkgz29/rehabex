@@ -3,6 +3,8 @@ import { TrendingUp } from 'lucide-react';
 
 import { formatCurrency } from '../../lib/format';
 import type { DailySalesPoint, DashboardPeriod, PeriodSalesSummary } from '../dashboardAnalytics';
+import type { MetricComparison } from '../salesMetrics';
+import { MetricDelta } from './MetricDelta';
 
 const PERIODS: DashboardPeriod[] = [7, 30, 90];
 const CHART_WIDTH = 720;
@@ -46,11 +48,13 @@ function smoothPath(points: ChartPoint[]) {
 export function SalesTrendChart({
   series,
   summary,
+  comparison,
   period,
   onPeriodChange,
 }: {
   series: DailySalesPoint[];
   summary: PeriodSalesSummary;
+  comparison: MetricComparison;
   period: DashboardPeriod;
   onPeriodChange: (period: DashboardPeriod) => void;
 }) {
@@ -90,6 +94,14 @@ export function SalesTrendChart({
             {formatCurrency(summary.revenue)}
           </p>
           <p className="mt-1 text-sm text-slate-600">{summary.orders} {orderNoun} · últimos {period} días</p>
+          <div className="mt-2">
+            <MetricDelta
+              comparison={comparison}
+              comparisonLabel={`${period} días anteriores`}
+              newLabel="Nuevas ventas en este período"
+              flatLabel={`Igual que los ${period} días anteriores`}
+            />
+          </div>
         </div>
 
         <div className="inline-flex w-fit rounded-full border border-slate-200 bg-white p-1" aria-label="Período de ventas">

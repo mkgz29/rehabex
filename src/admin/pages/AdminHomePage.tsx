@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   CircleDollarSign,
@@ -18,12 +18,13 @@ import { formatCurrency } from '../../lib/format';
 import { getProducts } from '../../services/cms';
 import type { Product } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
+import { MetricDelta } from '../components/MetricDelta';
 import { OperationsCenter } from '../components/OperationsCenter';
 import { SalesTrendChart } from '../components/SalesTrendChart';
 import { TopProductsCard } from '../components/TopProductsCard';
 import {
   buildDailySalesSeries,
-  summarizePeriodSales,
+  comparePeriodSales,
   summarizeTopProducts,
   type DashboardPeriod,
 } from '../dashboardAnalytics';
@@ -116,7 +117,7 @@ export function AdminHomePage() {
   );
 }
 
-function DashboardContent({
+export function DashboardContent({
   products,
   orders,
   ordersAvailable,
@@ -133,12 +134,14 @@ function DashboardContent({
   );
   const analytics = useMemo(() => {
     const now = new Date();
-    // La analítica opera sobre el conjunto administrativo ya cargado por
+    // La analítica y sus comparaciones operan sobre el conjunto ya cargado por
     // /api/orders (máximo 200 registros). Más adelante puede reemplazarse
     // por agregación server-side si el volumen lo requiere.
+    const comparison = comparePeriodSales(orders, period, now);
     return {
       series: buildDailySalesSeries(orders, period, now),
-      sales: summarizePeriodSales(orders, period, now),
+      sales: { revenue: comparison.currentRevenue, orders: comparison.currentOrders },
+      comparison,
       topProducts: summarizeTopProducts(orders, period, now),
     };
   }, [orders, period]);
@@ -155,12 +158,40 @@ function DashboardContent({
           value={ordersAvailable ? formatCurrency(summary.monthlyPaidSales) : '—'}
           icon={CircleDollarSign}
           tone="success"
+          delta={ordersAvailable ? (
+            <MetricDelta
+              comparison={summary.monthlyComparison.sales}
+              comparisonLabel="mes anterior"
+              newLabel="Nuevas ventas este mes"
+              flatLabel="Igual que el mes anterior"
+            />
+          ) : null}
         />
-        <KpiCard label="Pedidos cobrados" value={orderValue(summary.monthlyPaidOrders)} icon={ReceiptText} />
+        <KpiCard
+          label="Pedidos cobrados"
+          value={orderValue(summary.monthlyPaidOrders)}
+          icon={ReceiptText}
+          delta={ordersAvailable ? (
+            <MetricDelta
+              comparison={summary.monthlyComparison.orders}
+              comparisonLabel="mes anterior"
+              newLabel="Nuevos pedidos este mes"
+              flatLabel="Igual que el mes anterior"
+            />
+          ) : null}
+        />
         <KpiCard
           label="Ticket promedio"
           value={ordersAvailable ? formatCurrency(summary.averageTicket) : '—'}
           icon={ClipboardCheck}
+          delta={ordersAvailable ? (
+            <MetricDelta
+              comparison={summary.monthlyComparison.averageTicket}
+              comparisonLabel="mes anterior"
+              newLabel="Sin comparación anterior"
+              flatLabel="Igual que el mes anterior"
+            />
+          ) : null}
         />
         <KpiCard
           label="Requieren atención"
@@ -175,6 +206,7 @@ function DashboardContent({
           <SalesTrendChart
             series={analytics.series}
             summary={analytics.sales}
+            comparison={analytics.comparison.revenueComparison}
             period={period}
             onPeriodChange={setPeriod}
           />
@@ -271,11 +303,13 @@ function KpiCard({
   value,
   icon: Icon,
   tone = 'neutral',
+  delta,
 }: {
   label: string;
   value: number | string;
   icon: LucideIcon;
   tone?: 'neutral' | 'success' | 'attention';
+  delta?: ReactNode;
 }) {
   const styles = {
     neutral: 'border-slate-200 bg-white text-slate-700',
@@ -290,6 +324,7 @@ function KpiCard({
         <Icon aria-hidden="true" size={19} />
       </div>
       <p className="mt-6 text-3xl font-semibold tracking-tight text-slate-950 sm:text-[2rem]">{value}</p>
+      {delta ? <div className="mt-2">{delta}</div> : null}
     </article>
   );
 }
