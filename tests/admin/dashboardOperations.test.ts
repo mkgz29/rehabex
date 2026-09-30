@@ -126,12 +126,12 @@ test('operations center translates active work and emphasizes order review', () 
   ], [product('out', 'Producto agotado', 0)]);
   const markup = renderOperations(operations);
 
-  assert.match(markup, /Por preparar/);
-  assert.match(markup, /En preparación/);
+  assert.match(markup, /Pedidos por preparar/);
+  assert.match(markup, /Pedidos en preparación/);
   assert.match(markup, /Listos para retiro/);
-  assert.match(markup, /Enviados/);
+  assert.match(markup, /Pedidos enviados/);
   assert.match(markup, /Revisar pedidos/);
-  assert.match(markup, /Sin stock/);
+  assert.match(markup, /Productos sin stock/);
   assert.doesNotMatch(markup, /not_started|ready_for_pickup/);
 });
 
@@ -141,7 +141,7 @@ test('operations center reports the full stock count but displays at most five p
   ));
   const markup = renderOperations(summarizeDashboardOperations([], products));
 
-  assert.match(markup, /Sin stock · 6/);
+  assert.match(markup, /aria-label="6 productos sin stock"/);
   assert.match(markup, /Agotado 5/);
   assert.doesNotMatch(markup, /Agotado 6/);
 });

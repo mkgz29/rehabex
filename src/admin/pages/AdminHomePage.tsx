@@ -87,15 +87,15 @@ export function AdminHomePage() {
   }, [session?.access_token]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <header className="border-b border-slate-200 pb-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Resumen</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">Estado general de tu tienda.</p>
           </div>
           <nav className="flex flex-wrap gap-2" aria-label="Acciones rápidas">
-            <QuickLink to="/admin/productos" label="Agregar producto" icon={PackagePlus} />
+            <QuickLink to="/admin/productos" label="Agregar producto" icon={PackagePlus} primary />
             <QuickLink to="/admin/pedidos" label="Ver pedidos" icon={ShoppingBag} />
             <QuickLink to="/admin/pagina" label="Editar página" icon={PencilLine} />
           </nav>
@@ -103,8 +103,8 @@ export function AdminHomePage() {
       </header>
 
       {state.status === 'loading' ? (
-        <div aria-busy="true" className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5 text-sm text-slate-600">
-          Cargando resumen...
+        <div aria-busy="true" className="rounded-2xl border border-slate-200 bg-stone-50 px-5 py-6 text-sm text-slate-600">
+          Cargando resumen…
         </div>
       ) : null}
 
@@ -151,7 +151,7 @@ export function DashboardContent({
   );
 
   return (
-    <>
+    <div className="space-y-8 lg:space-y-10">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores principales">
         <KpiCard
           label="Ventas del mes"
@@ -202,7 +202,10 @@ export function DashboardContent({
       </section>
 
       {ordersAvailable ? (
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <section
+          className="grid min-w-0 items-stretch gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]"
+          aria-label="Analítica de ventas"
+        >
           <SalesTrendChart
             series={analytics.series}
             summary={analytics.sales}
@@ -211,9 +214,9 @@ export function DashboardContent({
             onPeriodChange={setPeriod}
           />
           <TopProductsCard products={analytics.topProducts} period={period} />
-        </div>
+        </section>
       ) : (
-        <section className="rounded-[1.75rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
+        <section className="rounded-2xl border border-slate-200 bg-stone-50 p-5 sm:p-6">
           <h3 className="text-lg font-semibold text-slate-950">Analítica de ventas</h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             La evolución de ventas y los productos más vendidos no están disponibles en este momento.
@@ -223,78 +226,80 @@ export function DashboardContent({
 
       <OperationsCenter operations={operations} ordersAvailable={ordersAvailable} />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
-        <section className="rounded-[1.75rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 ring-1 ring-slate-200">
-              <ShoppingBag aria-hidden="true" size={18} />
-            </span>
-            <h3 className="text-lg font-semibold text-slate-950">Estado de pedidos</h3>
-          </div>
-          {ordersAvailable ? (
-            <dl className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              <StatusRow label="Confirmados" value={summary.orderStatus.confirmed} dotClassName="bg-emerald-500" />
-              <StatusRow label="Esperando pago" value={summary.orderStatus.waitingForPayment} dotClassName="bg-amber-400" />
-              <StatusRow label="Requieren revisión" value={summary.orderStatus.requiringReview} dotClassName="bg-red-500" />
-              <StatusRow label="Finalizados sin venta" value={summary.orderStatus.finalizedWithoutSale} dotClassName="bg-slate-400" />
+      <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-slate-700">
+                <ShoppingBag aria-hidden="true" size={18} />
+              </span>
+              <h3 className="text-base font-semibold text-slate-950">Estado de pedidos</h3>
+            </div>
+            {ordersAvailable ? (
+              <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
+                <StatusRow label="Confirmados" value={summary.orderStatus.confirmed} dotClassName="bg-emerald-500" />
+                <StatusRow label="Esperando pago" value={summary.orderStatus.waitingForPayment} dotClassName="bg-amber-400" />
+                <StatusRow label="Requieren revisión" value={summary.orderStatus.requiringReview} dotClassName="bg-red-500" />
+                <StatusRow label="Finalizados sin venta" value={summary.orderStatus.finalizedWithoutSale} dotClassName="bg-slate-400" />
+              </dl>
+            ) : (
+              <p className="mt-4 text-sm leading-6 text-slate-600">Los pedidos no están disponibles en este momento.</p>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-slate-950">Catálogo</h3>
+                <p className="mt-1 text-xs text-slate-500">Salud general del inventario</p>
+              </div>
+              <Link
+                to="/admin/productos"
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-stone-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                aria-label="Ver catálogo"
+              >
+                <ArrowRight aria-hidden="true" size={19} />
+              </Link>
+            </div>
+            <dl className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
+              <CatalogRow label="Productos activos" value={summary.catalog.activeProducts} />
+              <CatalogRow label="Productos ocultos" value={summary.catalog.hiddenProducts} />
+              <CatalogRow label={`Stock bajo (${LOW_STOCK_THRESHOLD} o menos)`} value={summary.catalog.lowStockProducts} />
             </dl>
-          ) : (
-            <p className="mt-5 text-sm leading-6 text-slate-600">Los pedidos no están disponibles en este momento.</p>
-          )}
-        </section>
+          </section>
+        </div>
 
-        <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
+        {ordersAvailable ? (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
             <div>
-              <h3 className="text-lg font-semibold text-slate-950">Catálogo</h3>
-              <p className="mt-1 text-xs text-slate-500">Stock bajo ({LOW_STOCK_THRESHOLD} o menos)</p>
-            </div>
-            <Link to="/admin/productos" className="text-slate-500 transition hover:text-slate-950" aria-label="Ver catálogo">
-              <ArrowRight aria-hidden="true" size={19} />
-            </Link>
-          </div>
-          <dl className="mt-5 space-y-3">
-            <CatalogRow label="Productos activos" value={summary.catalog.activeProducts} />
-            <CatalogRow label="Productos ocultos" value={summary.catalog.hiddenProducts} />
-            <CatalogRow label="Stock bajo" value={summary.catalog.lowStockProducts} />
-          </dl>
-          {summary.catalog.lowestStockProducts.length > 0 ? (
-            <div className="mt-5 border-t border-slate-200 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Menor disponibilidad</p>
-              <ul className="mt-3 space-y-2">
-                {summary.catalog.lowestStockProducts.map((product) => (
-                  <li key={product.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate text-slate-700">{product.name}</span>
-                    <span className="shrink-0 font-semibold tabular-nums text-slate-950">{product.stockOnHand} u.</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
-      </div>
-
-      {ordersAvailable ? (
-        <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-stone-50">
-          <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-950">Pedidos recientes</h3>
+              <h3 className="text-base font-semibold text-slate-950">Pedidos recientes</h3>
               <p className="mt-1 text-xs text-slate-500">Los últimos movimientos de la tienda</p>
             </div>
             <Clock3 aria-hidden="true" className="text-slate-400" size={20} />
-          </div>
-          {summary.recentOrders.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-slate-600 sm:px-6">Todavía no hay pedidos.</p>
-          ) : (
-            <ul className="divide-y divide-slate-200">
-              {summary.recentOrders.map((order) => (
-                <RecentOrderRow key={order.id ?? orderReference(order)} order={order} />
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
-    </>
+            </div>
+            {summary.recentOrders.length === 0 ? (
+              <p className="bg-stone-50/60 px-5 py-6 text-sm text-slate-600 sm:px-6">Todavía no hay pedidos.</p>
+            ) : (
+              <>
+                <div className="hidden grid-cols-[0.75fr_1.35fr_0.9fr_1fr_1fr] gap-4 border-b border-slate-100 bg-stone-50/60 px-6 py-2.5 text-xs font-medium text-slate-500 sm:grid">
+                  <span>Pedido</span>
+                  <span>Comprador</span>
+                  <span>Total</span>
+                  <span>Estado</span>
+                  <span className="text-right">Fecha</span>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {summary.recentOrders.map((order) => (
+                    <RecentOrderRow key={order.id ?? orderReference(order)} order={order} />
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -312,26 +317,26 @@ function KpiCard({
   delta?: ReactNode;
 }) {
   const styles = {
-    neutral: 'border-slate-200 bg-white text-slate-700',
-    success: 'border-emerald-200 bg-emerald-50/50 text-emerald-700',
-    attention: 'border-red-200 bg-red-50 text-red-700',
+    neutral: 'border-slate-200 text-slate-500',
+    success: 'border-slate-200 text-emerald-700',
+    attention: 'border-red-300 text-red-700',
   }[tone];
 
   return (
-    <article className={`min-h-36 rounded-[1.5rem] border p-5 ${styles}`}>
+    <article className={`flex min-h-36 flex-col rounded-2xl border bg-white p-5 ${styles}`}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-slate-600">{label}</p>
         <Icon aria-hidden="true" size={19} />
       </div>
-      <p className="mt-6 text-3xl font-semibold tracking-tight text-slate-950 sm:text-[2rem]">{value}</p>
-      {delta ? <div className="mt-2">{delta}</div> : null}
+      <p className="mt-auto pt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-[2rem]">{value}</p>
+      <div className="mt-2 min-h-5">{delta}</div>
     </article>
   );
 }
 
 function StatusRow({ label, value, dotClassName }: { label: string; value: number; dotClassName: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
+    <div className="flex items-center justify-between gap-4 border-t border-slate-100 py-3">
       <dt className="flex items-center gap-2 text-sm text-slate-600">
         <span className={`h-2 w-2 rounded-full ${dotClassName}`} aria-hidden="true" />
         {label}
@@ -343,7 +348,7 @@ function StatusRow({ label, value, dotClassName }: { label: string; value: numbe
 
 function CatalogRow({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-sm">
+    <div className="flex items-center justify-between gap-4 py-3 text-sm">
       <dt className="text-slate-600">{label}</dt>
       <dd className="font-semibold tabular-nums text-slate-950">{value}</dd>
     </div>
@@ -352,23 +357,37 @@ function CatalogRow({ label, value }: { label: string; value: number }) {
 
 function RecentOrderRow({ order }: { order: AdminOrder }) {
   return (
-    <li className="grid gap-2 px-5 py-4 text-sm sm:grid-cols-[0.75fr_1.35fr_0.9fr_1fr_1fr] sm:items-center sm:gap-4 sm:px-6">
-      <span className="font-mono text-xs font-semibold text-slate-950">#{orderReference(order)}</span>
-      <span className="truncate font-medium text-slate-800">{buyerLabel(order)}</span>
-      <span className="font-semibold tabular-nums text-slate-950">{formatCurrency(orderAmount(order))}</span>
-      <span className="w-fit rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+    <li className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-5 py-4 text-sm sm:grid-cols-[0.75fr_1.35fr_0.9fr_1fr_1fr] sm:items-center sm:gap-4 sm:px-6">
+      <span className="min-w-0 truncate text-xs font-semibold text-slate-950">#{orderReference(order)}</span>
+      <span className="col-start-1 row-start-2 min-w-0 truncate font-medium text-slate-800 sm:col-start-2 sm:row-start-1">{buyerLabel(order)}</span>
+      <span className="col-start-1 row-start-3 font-semibold tabular-nums text-slate-950 sm:col-start-3 sm:row-start-1">{formatCurrency(orderAmount(order))}</span>
+      <span className="col-start-2 row-start-1 max-w-full truncate rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-slate-600 sm:col-start-4">
         {orderLabel(order)}
       </span>
-      <span className="text-xs text-slate-500 sm:text-right">{formatOrderDate(order.created_at)}</span>
+      <span className="col-start-2 row-start-3 whitespace-nowrap text-right text-xs text-slate-500 sm:col-start-5 sm:row-start-1">{formatOrderDate(order.created_at)}</span>
     </li>
   );
 }
 
-function QuickLink({ to, label, icon: Icon }: { to: string; label: string; icon: LucideIcon }) {
+function QuickLink({
+  to,
+  label,
+  icon: Icon,
+  primary = false,
+}: {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  primary?: boolean;
+}) {
   return (
     <Link
       to={to}
-      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
+      className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${
+        primary
+          ? 'border-slate-950 bg-slate-950 text-white hover:bg-slate-800'
+          : 'border-slate-300 bg-white text-slate-700 hover:border-slate-900 hover:text-slate-950'
+      }`}
     >
       <Icon aria-hidden="true" size={16} />
       {label}
