@@ -18,6 +18,7 @@ import { formatCurrency } from '../../lib/format';
 import { getProducts } from '../../services/cms';
 import type { Product } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
+import { OperationsCenter } from '../components/OperationsCenter';
 import { SalesTrendChart } from '../components/SalesTrendChart';
 import { TopProductsCard } from '../components/TopProductsCard';
 import {
@@ -26,6 +27,7 @@ import {
   summarizeTopProducts,
   type DashboardPeriod,
 } from '../dashboardAnalytics';
+import { summarizeDashboardOperations } from '../dashboardOperations';
 import { buyerLabel, formatOrderDate, orderAmount, orderLabel, orderReference, type AdminOrder } from '../orderPresentation';
 import { LOW_STOCK_THRESHOLD, summarizeBusinessDashboard, type BusinessDashboardSummary } from '../summary';
 
@@ -140,6 +142,10 @@ function DashboardContent({
       topProducts: summarizeTopProducts(orders, period, now),
     };
   }, [orders, period]);
+  const operations = useMemo(
+    () => summarizeDashboardOperations(orders, products),
+    [orders, products],
+  );
 
   return (
     <>
@@ -182,6 +188,8 @@ function DashboardContent({
           </p>
         </section>
       )}
+
+      <OperationsCenter operations={operations} ordersAvailable={ordersAvailable} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
         <section className="rounded-[1.75rem] border border-slate-200 bg-stone-50 p-5 sm:p-6">
