@@ -89,12 +89,13 @@ type SignResponse = {
   uploadUrl: string;
   cloudName: string;
   apiKey: string;
-  timestamp: number;
-  publicId: string;
-  folder: string;
-  overwrite: string;
-  allowedFormats: string;
-  maxFileSize: number;
+  uploadParams: {
+    allowed_formats: string;
+    folder: string;
+    overwrite: 'false';
+    public_id: string;
+    timestamp: string;
+  };
   signature: string;
   requestId: string;
 };
@@ -112,6 +113,17 @@ async function requestSign(intent: MediaIntent): Promise<SignResponse> {
 
 type CloudinaryUploadResult = { publicId: string; version: number; signature: string };
 
+export function buildCloudinaryUploadFormData(file: File, sign: SignResponse): FormData {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('api_key', sign.apiKey);
+  for (const [name, value] of Object.entries(sign.uploadParams)) {
+    formData.append(name, value);
+  }
+  formData.append('signature', sign.signature);
+  return formData;
+}
+
 function uploadToCloudinary(
   file: File,
   sign: SignResponse,
@@ -119,19 +131,9 @@ function uploadToCloudinary(
   signal?: AbortSignal,
 ): Promise<CloudinaryUploadResult> {
   return new Promise((resolve, reject) => {
-    // Only the fields the server signed are sent. Adding, removing or
-    // changing any of them would invalidate Cloudinary's own signature
-    // check on their side, independently of anything our backend verifies.
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('api_key', sign.apiKey);
-    formData.append('timestamp', String(sign.timestamp));
-    formData.append('public_id', sign.publicId);
-    formData.append('folder', sign.folder);
-    formData.append('overwrite', sign.overwrite);
-    formData.append('allowed_formats', sign.allowedFormats);
-    formData.append('max_file_size', String(sign.maxFileSize));
-    formData.append('signature', sign.signature);
+    // The exact object signed by the server is serialized without rebuilding
+    // or renaming fields in the browser.
+    const formData = buildCloudinaryUploadFormData(file, sign);
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', sign.uploadUrl);

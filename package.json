@@ -12,7 +12,7 @@
     "test:admin:safety": "tsx --test tests/admin/safetyFoundation.test.ts tests/admin/adminContentMediaRollbackStatic.test.ts && node --test tests/admin/environmentSafety.test.mjs",
     "test:admin:boundary": "tsx --test tests/admin/adminValidators.test.ts tests/admin/adminBoundary.contract.test.ts tests/admin/adminRouteDispatch.contract.test.ts tests/admin/vercelRouting.test.ts",
     "test:admin:catalog": "tsx --test tests/admin/adminProductsCatalog.test.ts tests/admin/adminProductSaveOrchestration.test.ts tests/admin/adminProductGallery.test.ts tests/admin/adminProductGalleryRendering.test.ts",
-    "test:admin:media": "tsx --test tests/admin/mediaValidators.test.ts tests/admin/mediaBoundary.contract.test.ts",
+    "test:admin:media": "tsx --test tests/admin/mediaValidators.test.ts tests/admin/mediaBoundary.contract.test.ts tests/admin/cloudinarySignature.test.ts",
     "test:admin:panel": "tsx --test tests/admin/adminPanelStructure.test.ts tests/admin/orderStatusTranslation.test.ts tests/admin/adminUnsavedChangesAndSummary.test.ts",
     "test:admin:content-media": "tsx --test tests/admin/imageFraming.test.ts tests/admin/imageOptimization.test.ts tests/admin/adminValidatorsContentMedia.test.ts tests/admin/adminEditPageContentBlocks.test.ts",
     "test:admin:content-media-rollback": "tsx --test tests/db/adminContentMediaRollback.test.ts",

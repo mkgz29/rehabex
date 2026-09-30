@@ -68,12 +68,7 @@ export function createAdminMediaSignHandler(overrides: Partial<SignDependencies>
       uploadUrl: signed.uploadUrl,
       cloudName: signed.cloudName,
       apiKey: signed.apiKey,
-      timestamp: signed.timestamp,
-      publicId: signed.publicId,
-      folder: signed.folder,
-      overwrite: signed.overwrite,
-      allowedFormats: signed.allowedFormats,
-      maxFileSize: signed.maxFileSize,
+      uploadParams: signed.uploadParams,
       signature: signed.signature,
       requestId: auth.requestId,
     });

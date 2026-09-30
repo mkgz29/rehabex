@@ -151,7 +151,17 @@ test('sign: a valid admin request returns signed params scoped to the intent-der
   const { statusCode, body } = result.read();
   assert.equal(statusCode, 200);
   const payload = body as Record<string, unknown>;
-  assert.equal(payload.folder, 'rehabex/hero');
+  assert.deepEqual(payload.uploadParams, {
+    allowed_formats: 'jpg,jpeg,png,webp',
+    folder: 'rehabex/hero',
+    overwrite: 'false',
+    public_id: (payload.uploadParams as Record<string, unknown>).public_id,
+    timestamp: (payload.uploadParams as Record<string, unknown>).timestamp,
+  });
+  assert.equal(typeof (payload.uploadParams as Record<string, unknown>).public_id, 'string');
+  assert.match((payload.uploadParams as Record<string, string>).timestamp, /^\d+$/);
+  assert.equal('max_file_size' in (payload.uploadParams as Record<string, unknown>), false);
+  assert.equal('maxFileSize' in payload, false);
   assert.equal(payload.cloudName, TEST_ENV.cloudName);
   assert.equal(payload.apiKey, TEST_ENV.apiKey);
   assert.equal(typeof payload.signature, 'string');

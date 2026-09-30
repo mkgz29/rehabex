@@ -47,7 +47,7 @@ Server-only. Nunca existe `VITE_CLOUDINARY_*`. No se usa `upload_preset` unsigne
 
 ## Parámetros firmados y su caducidad
 
-El servidor decide, nunca el cliente: `timestamp`, `public_id` (`crypto.randomUUID()`), `folder` (mapeado 1:1 desde `intent`, ver más abajo), `overwrite=false`, `allowed_formats=jpg,jpeg,png,webp`, `max_file_size=8388608`. El cliente sólo envía `intent`.
+El servidor decide, nunca el cliente: `timestamp`, `public_id` (`crypto.randomUUID()`), `folder` (mapeado 1:1 desde `intent`, ver más abajo), `overwrite=false` y `allowed_formats=jpg,jpeg,png,webp`. El cliente sólo envía `intent`. Esos cinco campos salen de un único objeto que el servidor firma y el navegador serializa sin reconstruirlo.
 
 La caducidad de 5 minutos **no** depende de la tolerancia propia de Cloudinary sobre `timestamp` (que es más laxa): `admin_create_pending_media_asset` crea una fila `authorized` con `created_at = now()`, y `admin_finalize_media_asset` rechaza con `ADM10` (`409`) cualquier finalización cuya fila tenga más de 5 minutos, sin importar que Cloudinary hubiera aceptado el upload igual.
 
@@ -59,7 +59,7 @@ El cliente nunca elige folder, public ID, `overwrite`, `resource_type`, moderaci
 
 ## Formatos y límites
 
-JPEG/JPG, PNG, WebP. Rechazados: SVG, GIF, PDF, video, HTML, binarios desconocidos. Máximo 8 MB; dimensiones entre 400×400 y 6000×6000 px. Estos límites están triplicados: como parámetros firmados que Cloudinary mismo hace cumplir (`allowed_formats`, `max_file_size`), como validación del resultado autoritativo en `/finalize` (`validateResourceMetadata`), y como `CHECK` constraints en `media_assets`.
+JPEG/JPG, PNG, WebP. Rechazados: SVG, GIF, PDF, video, HTML, binarios desconocidos. Máximo 8 MB; dimensiones entre 400×400 y 6000×6000 px. `allowed_formats` viaja firmado a Cloudinary. El límite de 8 MB se valida antes del upload para UX y después contra los metadatos autoritativos en `/finalize`; además, `media_assets` conserva sus `CHECK` constraints. `max_file_size` no se envía al Upload API porque no es un parámetro admitido de esa operación.
 
 ## Verificación del resultado (la parte que importa)
 
