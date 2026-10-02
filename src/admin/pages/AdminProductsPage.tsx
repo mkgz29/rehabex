@@ -8,6 +8,9 @@ import { AdminApiError, createProduct, setProductActive, updateProduct } from '.
 import type { Product, ProductInput } from '../../types/cms';
 import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
+import { AdminCard } from '../components/AdminCard';
+import { AdminEmptyState } from '../components/AdminEmptyState';
+import { AdminPrimaryButton, AdminSecondaryButton } from '../components/AdminButton';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ProductGalleryField } from '../components/ProductGalleryField';
@@ -290,13 +293,9 @@ export function AdminProductsPage() {
               </select>
             </div>
 
-            <button
-              type="button"
-              onClick={openCreateForm}
-              className="brand-button inline-flex min-h-11 items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
-            >
+            <AdminPrimaryButton onClick={openCreateForm} className="rounded-full px-5 py-3 text-sm font-semibold">
               Agregar producto
-            </button>
+            </AdminPrimaryButton>
           </div>
 
           {productsLoading ? (
@@ -318,24 +317,20 @@ export function AdminProductsPage() {
               </button>
             </div>
           ) : products.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-stone-50 p-10 text-center">
-              <p className="text-sm text-slate-600">Todavia no cargaste ningun producto.</p>
-              <button
-                type="button"
-                onClick={openCreateForm}
-                className="brand-button inline-flex min-h-11 items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
-              >
-                Agregar el primer producto
-              </button>
-            </div>
+            <AdminEmptyState
+              title="Todavia no cargaste ningun producto."
+              action={
+                <AdminPrimaryButton onClick={openCreateForm} className="rounded-full px-5 py-3 text-sm font-semibold">
+                  Agregar el primer producto
+                </AdminPrimaryButton>
+              }
+            />
           ) : visibleProducts.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-300 bg-stone-50 p-6 text-center text-sm text-slate-600">
-              No encontramos productos con esos filtros.
-            </p>
+            <AdminEmptyState compact title="No encontramos productos con esos filtros." />
           ) : (
             <div className="space-y-3">
               {visibleProducts.map((product) => (
-                <article key={product.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <AdminCard key={product.id} as="article" padding="compact">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                       {product.imageUrl ? (
@@ -367,42 +362,28 @@ export function AdminProductsPage() {
                           >
                             Si, ocultar
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setPendingHideId(null)}
-                            className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900"
-                          >
-                            Cancelar
-                          </button>
+                          <AdminSecondaryButton onClick={() => setPendingHideId(null)}>Cancelar</AdminSecondaryButton>
                         </div>
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEditForm(product)}
-                          className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
+                        <AdminSecondaryButton onClick={() => openEditForm(product)}>Editar</AdminSecondaryButton>
+                        <AdminSecondaryButton
                           onClick={() => (product.active ? setPendingHideId(product.id) : handleSetActive(product, true))}
                           disabled={togglingId === product.id}
-                          className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {togglingId === product.id ? 'Actualizando...' : product.active ? 'Ocultar de la tienda' : 'Mostrar en la tienda'}
-                        </button>
+                        </AdminSecondaryButton>
                       </div>
                     )}
                   </div>
-                </article>
+                </AdminCard>
               ))}
             </div>
           )}
         </section>
       ) : (
-        <section className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5">
+        <AdminCard tone="muted">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-900">{editingProduct.id ? 'Editar producto' : 'Nuevo producto'}</h3>
             <button
@@ -555,7 +536,7 @@ export function AdminProductsPage() {
 
             <FormActions onCancel={closeForm} saving={saving} submitLabel="Guardar producto" />
           </form>
-        </section>
+        </AdminCard>
       )}
     </div>
   );

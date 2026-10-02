@@ -6,6 +6,8 @@ import { getProducts } from '../../services/cms';
 import type { Product } from '../../types/cms';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 import { AdminNotice } from './AdminNotice';
+import { AdminSecondaryButton } from './AdminButton';
+import { StatusBadge } from './StatusBadge';
 import { FormActions } from './FormActions';
 
 export type FeaturedDraftProduct = {
@@ -194,15 +196,15 @@ export function FeaturedProductsEditor({ onSaved, onCancel }: FeaturedProductsEd
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-900">{product.name}</p>
                         <p className="mt-0.5 text-xs text-slate-500">{product.category || 'Sin categoría'} · Orden {index + 1}</p>
-                        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${product.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                          {productVisibilityLabel(product)}
+                        <span className="mt-1 inline-block">
+                          <StatusBadge size="sm" tone={product.active ? 'success' : 'neutral'} label={productVisibilityLabel(product)} />
                         </span>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 sm:justify-end">
-                      <button type="button" disabled={index === 0} onClick={() => moveFeatured(product.id, -1)} aria-label={`Mover ${product.name} antes`} className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40">Mover antes</button>
-                      <button type="button" disabled={index === featured.length - 1} onClick={() => moveFeatured(product.id, 1)} aria-label={`Mover ${product.name} después`} className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40">Mover después</button>
-                      <button type="button" onClick={() => toggleFeatured(product.id, false)} className="min-h-11 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-900">Quitar</button>
+                      <AdminSecondaryButton size="sm" disabled={index === 0} onClick={() => moveFeatured(product.id, -1)} aria-label={`Mover ${product.name} antes`}>Mover antes</AdminSecondaryButton>
+                      <AdminSecondaryButton size="sm" disabled={index === featured.length - 1} onClick={() => moveFeatured(product.id, 1)} aria-label={`Mover ${product.name} después`}>Mover después</AdminSecondaryButton>
+                      <AdminSecondaryButton size="sm" onClick={() => toggleFeatured(product.id, false)}>Quitar</AdminSecondaryButton>
                     </div>
                   </li>
                 ))}
@@ -227,11 +229,13 @@ export function FeaturedProductsEditor({ onSaved, onCancel }: FeaturedProductsEd
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-slate-900">{product.name}</p>
                           <p className="mt-0.5 text-xs text-slate-500">{product.category || 'Sin categoría'}</p>
-                          <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${product.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{productVisibilityLabel(product)}</span>
+                          <span className="mt-1 inline-block">
+                            <StatusBadge size="sm" tone={product.active ? 'success' : 'neutral'} label={productVisibilityLabel(product)} />
+                          </span>
                         </div>
                       </div>
                       <div className="sm:text-right">
-                        <button type="button" disabled={!eligible} onClick={() => toggleFeatured(product.id, true)} className="min-h-11 rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50">Agregar</button>
+                        <AdminSecondaryButton disabled={!eligible} onClick={() => toggleFeatured(product.id, true)}>Agregar</AdminSecondaryButton>
                         {!product.active ? <p className="mt-1 text-xs text-slate-500">Primero mostralo en la tienda.</p> : null}
                       </div>
                     </li>

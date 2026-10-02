@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardList, Warehouse, type
 import { Link } from 'react-router-dom';
 
 import type { DashboardOperations } from '../dashboardOperations';
+import { AdminCard } from './AdminCard';
 
 function StockList({ products }: { products: DashboardOperations['outOfStockProducts'] }) {
   return (
@@ -104,7 +105,7 @@ export function OperationsCenter({
 
   if (allClear) {
     return (
-      <section className="rounded-2xl border border-slate-200 bg-white px-5 py-5 sm:px-6">
+      <AdminCard as="section" padding="none" className="px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -117,12 +118,12 @@ export function OperationsCenter({
           </div>
           <OperationsActions attentionCount={attentionCount} stockAlerts={stockAlerts} />
         </div>
-      </section>
+      </AdminCard>
     );
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <AdminCard as="section" padding="none" className="overflow-hidden">
       <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-start gap-3">
           <span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
@@ -186,6 +187,6 @@ export function OperationsCenter({
           <ActionRow value={operations.ordersShipped.length} label="Pedidos enviados" icon={ClipboardList} />
         ) : null}
       </ul>
-    </section>
+    </AdminCard>
   );
 }

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../auth/useAuth';
 import { formatCurrency } from '../../lib/format';
+import { AdminCard } from './AdminCard';
+import { AdminEmptyState } from './AdminEmptyState';
+import { StatusBadge } from './StatusBadge';
 import {
   attentionLevel,
   buyerLabel,
@@ -14,14 +17,14 @@ import {
   type AttentionLevel,
 } from '../orderPresentation';
 
-const paymentStyles: Record<string, string> = {
-  approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  pending: 'bg-amber-50 text-amber-700 ring-amber-200',
-  unpaid: 'bg-slate-100 text-slate-600 ring-slate-200',
-  rejected: 'bg-red-50 text-red-700 ring-red-200',
-  cancelled: 'bg-slate-100 text-slate-600 ring-slate-200',
-  refunded: 'bg-sky-50 text-sky-700 ring-sky-200',
-  charged_back: 'bg-red-50 text-red-700 ring-red-200',
+const paymentTones: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {
+  approved: 'success',
+  pending: 'warning',
+  unpaid: 'neutral',
+  rejected: 'danger',
+  cancelled: 'neutral',
+  refunded: 'info',
+  charged_back: 'danger',
 };
 
 const rowStyles: Record<AttentionLevel, string> = {
@@ -66,19 +69,27 @@ export function OrdersTable() {
   }, [session?.access_token]);
 
   if (loading) {
-    return <div className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5 text-sm font-medium text-slate-600">Cargando pedidos...</div>;
+    return (
+      <AdminCard tone="muted" aria-busy="true" className="text-sm font-medium text-slate-600">
+        Cargando pedidos...
+      </AdminCard>
+    );
   }
   if (error) {
-    return <div className="rounded-[2rem] border border-red-200 bg-red-50 p-5 text-sm text-red-700" role="alert">{error}</div>;
+    return (
+      <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        {error}
+      </div>
+    );
   }
   if (orders.length === 0) {
-    return <div className="rounded-[2rem] border border-slate-200 bg-stone-50 p-5 text-sm text-slate-600">Todavía no hay pedidos.</div>;
+    return <AdminEmptyState title="Todavía no hay pedidos." />;
   }
 
   const needsAttention = orders.filter((order) => attentionLevel(order) === 'attention').length;
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-stone-50">
+    <AdminCard padding="none" tone="muted" className="overflow-hidden">
       {needsAttention > 0 ? (
         <p className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700" aria-live="polite">
           {needsAttention} {needsAttention === 1 ? 'pedido requiere' : 'pedidos requieren'} revisión: pago aprobado sin confirmar, retención o devolución pendiente.
@@ -101,8 +112,8 @@ export function OrdersTable() {
               <tr key={order.id ?? orderReference(order)} className={`align-top ${rowStyles[attentionLevel(order)]}`}>
                 <td className="px-4 py-4 font-mono text-xs font-semibold text-slate-900">{orderReference(order)}</td>
                 <td className="px-4 py-4 font-medium text-slate-900">{buyerLabel(order)}</td>
-                <td className="px-4 py-4"><Badge label={paymentLabel(order)} className={paymentStyles[order.payment_status ?? ''] ?? 'bg-slate-100 text-slate-600 ring-slate-200'} /></td>
-                <td className="px-4 py-4"><Badge label={orderLabel(order)} className="bg-slate-100 text-slate-600 ring-slate-200" /></td>
+                <td className="px-4 py-4"><StatusBadge label={paymentLabel(order)} tone={paymentTones[order.payment_status ?? ''] ?? 'neutral'} /></td>
+                <td className="px-4 py-4"><StatusBadge label={orderLabel(order)} tone="neutral" /></td>
                 <td className="px-4 py-4 text-slate-600">{formatOrderDate(order.created_at)}</td>
                 <td className="px-4 py-4 font-semibold text-slate-950">{formatCurrency(orderAmount(order))}</td>
               </tr>
@@ -110,10 +121,6 @@ export function OrdersTable() {
           </tbody>
         </table>
       </div>
-    </section>
+    </AdminCard>
   );
-}
-
-function Badge({ label, className }: { label: string; className: string }) {
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${className}`}>{label}</span>;
 }

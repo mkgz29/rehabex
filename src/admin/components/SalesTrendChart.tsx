@@ -4,6 +4,7 @@ import { TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../../lib/format';
 import type { DailySalesPoint, DashboardPeriod, PeriodSalesSummary } from '../dashboardAnalytics';
 import type { MetricComparison } from '../salesMetrics';
+import { AdminCard } from './AdminCard';
 import { MetricDelta } from './MetricDelta';
 
 const PERIODS: DashboardPeriod[] = [7, 30, 90];
@@ -73,7 +74,7 @@ export function SalesTrendChart({
     : [];
 
   return (
-    <section className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+    <AdminCard as="section" className="flex min-w-0 flex-col">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-slate-950">
@@ -154,6 +155,6 @@ export function SalesTrendChart({
           </div>
         </div>
       )}
-    </section>
+    </AdminCard>
   );
 }

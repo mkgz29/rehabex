@@ -6,7 +6,7 @@ type AdminNoticeProps = {
 
 export function AdminNotice({ children }: AdminNoticeProps) {
   return (
-    <div role="status" className="brand-accent-soft rounded-[1.5rem] border border-[var(--color-primary-border)] px-4 py-3 text-sm leading-6 text-slate-700">
+    <div role="status" className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm leading-6 text-slate-700">
       {children}
     </div>
   );
