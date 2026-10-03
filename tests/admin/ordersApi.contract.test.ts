@@ -48,6 +48,7 @@ function fakeServiceClient(options: {
   role?: string | null;
   listResult?: { data: unknown[] | null; error: unknown };
   singleResult?: { data: unknown | null; error: unknown };
+  onOrdersSelect?: (columns: string) => void;
 }) {
   return () => ({
     auth: {
@@ -74,7 +75,8 @@ function fakeServiceClient(options: {
       // orders: .select(...).order(...).limit(...) for the list path,
       // .select(...).eq('id', ...).maybeSingle() for the single-order path.
       return {
-        select() {
+        select(columns: string) {
+          options.onOrdersSelect?.(columns);
           return this;
         },
         eq() {
@@ -158,6 +160,16 @@ test('GET /api/orders: a malformed id is rejected with 400 and never reaches the
     assert.equal(result.read().statusCode, 400, `expected 400 for id=${JSON.stringify(badId)}`);
   }
   assert.equal(queried, false);
+});
+
+test('GET /api/orders: the admin projection includes customer_phone (needed for the Soporte/Pedidos WhatsApp action)', async () => {
+  let selectedColumns = '';
+  const result = mockResponse();
+  await handler(request(), result.response, {
+    serviceClient: fakeServiceClient({ listResult: { data: [], error: null }, onOrdersSelect: (columns) => { selectedColumns = columns; } }),
+  });
+  assert.equal(result.read().statusCode, 200);
+  assert.match(selectedColumns, /\bcustomer_phone\b/);
 });
 
 test('GET /api/orders: only the first value of a repeated id query param is used', async () => {

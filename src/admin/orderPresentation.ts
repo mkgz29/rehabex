@@ -12,6 +12,7 @@ export type AdminOrder = {
   delivery_method?: string | null;
   customer_email?: string | null;
   customer_name?: string | null;
+  customer_phone?: string | null;
   mercadopago_payment_id?: string | null;
   mercadopago_preference_id?: string | null;
   review_required?: boolean | null;

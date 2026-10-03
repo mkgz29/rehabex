@@ -18,6 +18,7 @@ const ORDER_COLUMNS = [
   'delivery_method',
   'customer_email',
   'customer_name',
+  'customer_phone',
   'mercadopago_payment_id',
   'mercadopago_preference_id',
   'review_required',

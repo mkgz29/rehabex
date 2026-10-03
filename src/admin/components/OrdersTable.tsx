@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 
 import { useAuth } from '../../auth/useAuth';
 import { formatCurrency } from '../../lib/format';
+import { buildWhatsAppMessage, buildWhatsAppUrl, normalizePhoneForWhatsApp } from '../whatsapp';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
 import { StatusBadge } from './StatusBadge';
@@ -16,6 +18,11 @@ import {
   type AdminOrder,
   type AttentionLevel,
 } from '../orderPresentation';
+// buyerLabel (used for the Comprador column) is deliberately not reused for
+// the WhatsApp greeting: it falls back to the email or "sin datos" for
+// display, neither of which belongs in a message sent to the customer -- the
+// action only renders when a real customer_name exists (see
+// OrderWhatsAppAction below).
 
 const paymentTones: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {
   approved: 'success',
@@ -32,6 +39,37 @@ const rowStyles: Record<AttentionLevel, string> = {
   waiting: 'bg-amber-50/40',
   attention: 'bg-red-50/60',
 };
+
+/**
+ * Compact, declarative "Contactar" link -- no editable message here (unlike
+ * Soporte's WhatsAppContactButton), since a dense table row has no room for
+ * one and the spec only asks for the fixed order template in this context.
+ * Renders nothing at all when there is no phone, no customer_name to greet
+ * with, or the phone does not normalize -- it never shows a broken link or a
+ * disabled-looking control.
+ */
+export function OrderWhatsAppAction({ order }: { order: AdminOrder }) {
+  const name = order.customer_name?.trim();
+  const phone = order.customer_phone;
+  if (!name || !phone) return null;
+
+  const normalized = normalizePhoneForWhatsApp(phone);
+  if (!normalized.ok) return null;
+
+  const message = buildWhatsAppMessage(name, order.order_number);
+  return (
+    <a
+      href={buildWhatsAppUrl(normalized.digits, message)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-600 transition hover:border-slate-900 hover:text-slate-900"
+      aria-label={`Contactar a ${name} por WhatsApp`}
+      title={`Contactar a ${name} por WhatsApp`}
+    >
+      <MessageCircle aria-hidden="true" size={16} />
+    </a>
+  );
+}
 
 export function OrdersTable() {
   const { session } = useAuth();
@@ -105,6 +143,7 @@ export function OrdersTable() {
               <th className="px-4 py-4">Estado</th>
               <th className="px-4 py-4">Fecha</th>
               <th className="px-4 py-4">Total</th>
+              <th className="px-4 py-4">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-stone-50">
@@ -116,6 +155,7 @@ export function OrdersTable() {
                 <td className="px-4 py-4"><StatusBadge label={orderLabel(order)} tone="neutral" /></td>
                 <td className="px-4 py-4 text-slate-600">{formatOrderDate(order.created_at)}</td>
                 <td className="px-4 py-4 font-semibold text-slate-950">{formatCurrency(orderAmount(order))}</td>
+                <td className="px-4 py-4"><OrderWhatsAppAction order={order} /></td>
               </tr>
             ))}
           </tbody>

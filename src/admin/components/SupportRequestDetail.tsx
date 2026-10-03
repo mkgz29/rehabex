@@ -7,6 +7,7 @@ import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
 import { AdminSecondaryButton } from './AdminButton';
 import { StatusBadge } from './StatusBadge';
+import { WhatsAppContactButton } from './WhatsAppContactButton';
 
 export type OrderContextState =
   | { status: 'idle' }
@@ -171,6 +172,13 @@ export function SupportRequestDetail({
               </div>
             ) : null}
           </dl>
+          <div className="mt-3">
+            <WhatsAppContactButton
+              phone={supportRequest.customerPhone}
+              customerName={supportRequest.customerName}
+              orderNumber={orderContext.status === 'ready' ? orderContext.order.order_number : null}
+            />
+          </div>
         </section>
 
         <OrderContextSection state={orderContext} />

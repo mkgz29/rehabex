@@ -174,6 +174,21 @@ test('SupportRequestDetail: shows customer name, email and phone only when phone
   assert.doesNotMatch(withoutPhone, /Telefono/);
 });
 
+test('SupportRequestDetail: offers "Abrir WhatsApp" when the phone normalizes, preloaded with the order template once the order context is ready', () => {
+  const markup = renderDetail({
+    supportRequest: supportRequest({ customerPhone: '+54 9 11 1234-5678' }),
+    orderContext: { status: 'ready', order: { id: 'order-1', order_number: 'RHB-202610-000047', payment_status: 'approved', order_status: 'confirmed', fulfillment_status: 'shipped' } },
+  });
+  assert.match(markup, />\s*Abrir WhatsApp</);
+  assert.match(markup, /Te escribimos por tu pedido RHB-202610-000047\./);
+});
+
+test('SupportRequestDetail: shows no WhatsApp section at all when there is no phone', () => {
+  const markup = renderDetail({ supportRequest: supportRequest() });
+  assert.doesNotMatch(markup, /Abrir WhatsApp/);
+  assert.doesNotMatch(markup, /No se pudo abrir WhatsApp/);
+});
+
 test('SupportRequestDetail: an open ticket offers "responder"/"resolver" but never "reabrir"', () => {
   const markup = renderDetail({ supportRequest: supportRequest({ status: 'open' }) });
   assert.match(markup, />Marcar respondido</);
