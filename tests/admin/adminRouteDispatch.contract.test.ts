@@ -53,6 +53,11 @@ const KNOWN_ROUTES: Array<[string, string]> = [
   ['settings', 'about'],
   ['media', 'sign'],
   ['media', 'finalize'],
+  ['support', 'list'],
+  ['support', 'get'],
+  ['support', 'create'],
+  ['support', 'update-status'],
+  ['support', 'update-notes'],
 ];
 
 test('dispatch: every known admin route reaches its real handler (405 on GET, not 404)', async () => {

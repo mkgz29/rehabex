@@ -32,6 +32,13 @@ import {
   createAdminHeroSettingsHandler,
 } from '../../../server/admin/handlers/settings.js';
 import { createAdminMediaFinalizeHandler, createAdminMediaSignHandler } from '../../../server/admin/handlers/media.js';
+import {
+  createAdminCreateSupportRequestHandler,
+  createAdminGetSupportRequestHandler,
+  createAdminListSupportRequestsHandler,
+  createAdminUpdateSupportRequestNotesHandler,
+  createAdminUpdateSupportRequestStatusHandler,
+} from '../../../server/admin/handlers/support.js';
 import type { ApiRequest, ApiResponse } from '../../../server/commerce/commerce.js';
 
 export const config = { api: { bodyParser: false } };
@@ -49,6 +56,11 @@ const routes: Record<string, AdminRouteHandler> = {
   'settings/catalog-section': createAdminCatalogSectionSettingsHandler(),
   'media/sign': createAdminMediaSignHandler(),
   'media/finalize': createAdminMediaFinalizeHandler(),
+  'support/list': createAdminListSupportRequestsHandler(),
+  'support/get': createAdminGetSupportRequestHandler(),
+  'support/create': createAdminCreateSupportRequestHandler(),
+  'support/update-status': createAdminUpdateSupportRequestStatusHandler(),
+  'support/update-notes': createAdminUpdateSupportRequestNotesHandler(),
 };
 
 type DynamicSegmentRequest = ApiRequest & { query?: Record<string, string | string[] | undefined> };

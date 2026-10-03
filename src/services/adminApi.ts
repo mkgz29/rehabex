@@ -215,3 +215,72 @@ export async function getSettingVersion(
   if (error || !data) return null;
   return data.updated_at ?? null;
 }
+
+// --- Support (ADMIN-03A) ------------------------------------------------------
+// v1 is admin-only: there is no public contact form yet. Staff log a case
+// themselves when a customer reaches out by phone, email or WhatsApp.
+
+export type SupportRequestStatus = 'open' | 'answered' | 'resolved';
+
+export type SupportRequest = {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  subject: string;
+  message: string;
+  status: SupportRequestStatus;
+  orderId?: string;
+  internalNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function listSupportRequests(status?: SupportRequestStatus): Promise<SupportRequest[]> {
+  const { supportRequests } = await postAdmin<{ supportRequests: SupportRequest[] }>('/api/admin/support/list', {
+    status: status ?? null,
+  });
+  return supportRequests;
+}
+
+export async function getSupportRequest(id: string): Promise<SupportRequest> {
+  const { supportRequest } = await postAdmin<{ supportRequest: SupportRequest }>('/api/admin/support/get', { id });
+  return supportRequest;
+}
+
+export async function createSupportRequest(input: {
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  subject: string;
+  message: string;
+  orderId?: string | null;
+}): Promise<SupportRequest> {
+  const { supportRequest } = await postAdmin<{ supportRequest: SupportRequest }>('/api/admin/support/create', {
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
+    customerPhone: input.customerPhone ?? null,
+    subject: input.subject,
+    message: input.message,
+    orderId: input.orderId ?? null,
+  });
+  return supportRequest;
+}
+
+export async function updateSupportRequestStatus(id: string, status: SupportRequestStatus, expectedUpdatedAt: string): Promise<SupportRequest> {
+  const { supportRequest } = await postAdmin<{ supportRequest: SupportRequest }>('/api/admin/support/update-status', {
+    id,
+    status,
+    expectedUpdatedAt,
+  });
+  return supportRequest;
+}
+
+export async function updateSupportRequestNotes(id: string, internalNotes: string | null, expectedUpdatedAt: string): Promise<SupportRequest> {
+  const { supportRequest } = await postAdmin<{ supportRequest: SupportRequest }>('/api/admin/support/update-notes', {
+    id,
+    internalNotes,
+    expectedUpdatedAt,
+  });
+  return supportRequest;
+}
