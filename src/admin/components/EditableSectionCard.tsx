@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { AdminCard } from './AdminCard';
+
 type EditableSectionCardProps = {
   id: string;
   title: string;
@@ -24,7 +26,7 @@ export function EditableSectionCard({
   const contentId = `${id}-content`;
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-stone-50 shadow-sm shadow-slate-950/[0.02]">
+    <AdminCard as="section" tone="muted" padding="none" className="overflow-hidden shadow-sm shadow-slate-950/[0.02]">
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
@@ -53,6 +55,6 @@ export function EditableSectionCard({
           {children}
         </div>
       ) : null}
-    </section>
+    </AdminCard>
   );
 }

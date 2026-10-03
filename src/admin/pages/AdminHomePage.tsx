@@ -17,7 +17,10 @@ import { useAuth } from '../../auth/useAuth';
 import { formatCurrency } from '../../lib/format';
 import { getProducts } from '../../services/cms';
 import type { Product } from '../../types/cms';
+import { AdminCard } from '../components/AdminCard';
 import { AdminNotice } from '../components/AdminNotice';
+import { AdminPageHeader } from '../components/AdminPageHeader';
+import { AdminSectionHeading } from '../components/AdminSectionHeading';
 import { MetricDelta } from '../components/MetricDelta';
 import { OperationsCenter } from '../components/OperationsCenter';
 import { SalesTrendChart } from '../components/SalesTrendChart';
@@ -88,24 +91,22 @@ export function AdminHomePage() {
 
   return (
     <div className="space-y-7">
-      <header className="border-b border-slate-200 pb-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Resumen</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Estado general de tu tienda.</p>
-          </div>
+      <AdminPageHeader
+        title="Resumen"
+        description="Estado general de tu tienda."
+        actions={
           <nav className="flex flex-wrap gap-2" aria-label="Acciones rápidas">
             <QuickLink to="/admin/productos" label="Agregar producto" icon={PackagePlus} primary />
             <QuickLink to="/admin/pedidos" label="Ver pedidos" icon={ShoppingBag} />
             <QuickLink to="/admin/pagina" label="Editar página" icon={PencilLine} />
           </nav>
-        </div>
-      </header>
+        }
+      />
 
       {state.status === 'loading' ? (
-        <div aria-busy="true" className="rounded-2xl border border-slate-200 bg-stone-50 px-5 py-6 text-sm text-slate-600">
+        <AdminCard tone="muted" aria-busy="true" className="text-sm text-slate-600">
           Cargando resumen…
-        </div>
+        </AdminCard>
       ) : null}
 
       {state.status === 'error' ? <AdminNotice>{state.message}</AdminNotice> : null}
@@ -216,24 +217,25 @@ export function DashboardContent({
           <TopProductsCard products={analytics.topProducts} period={period} />
         </section>
       ) : (
-        <section className="rounded-2xl border border-slate-200 bg-stone-50 p-5 sm:p-6">
-          <h3 className="text-lg font-semibold text-slate-950">Analítica de ventas</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            La evolución de ventas y los productos más vendidos no están disponibles en este momento.
-          </p>
-        </section>
+        <AdminCard tone="muted">
+          <AdminSectionHeading
+            as="h3"
+            title="Analítica de ventas"
+            description="La evolución de ventas y los productos más vendidos no están disponibles en este momento."
+          />
+        </AdminCard>
       )}
 
       <OperationsCenter operations={operations} ordersAvailable={ordersAvailable} />
 
       <div className="space-y-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <AdminCard>
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-slate-700">
                 <ShoppingBag aria-hidden="true" size={18} />
               </span>
-              <h3 className="text-base font-semibold text-slate-950">Estado de pedidos</h3>
+              <h3 className="text-base font-semibold text-slate-900">Estado de pedidos</h3>
             </div>
             {ordersAvailable ? (
               <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
@@ -245,12 +247,12 @@ export function DashboardContent({
             ) : (
               <p className="mt-4 text-sm leading-6 text-slate-600">Los pedidos no están disponibles en este momento.</p>
             )}
-          </section>
+          </AdminCard>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <AdminCard>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-slate-950">Catálogo</h3>
+                <h3 className="text-base font-semibold text-slate-900">Catálogo</h3>
                 <p className="mt-1 text-xs text-slate-500">Salud general del inventario</p>
               </div>
               <Link
@@ -266,14 +268,14 @@ export function DashboardContent({
               <CatalogRow label="Productos ocultos" value={summary.catalog.hiddenProducts} />
               <CatalogRow label={`Stock bajo (${LOW_STOCK_THRESHOLD} o menos)`} value={summary.catalog.lowStockProducts} />
             </dl>
-          </section>
+          </AdminCard>
         </div>
 
         {ordersAvailable ? (
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <AdminCard padding="none" className="overflow-hidden">
             <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
             <div>
-              <h3 className="text-base font-semibold text-slate-950">Pedidos recientes</h3>
+              <h3 className="text-base font-semibold text-slate-900">Pedidos recientes</h3>
               <p className="mt-1 text-xs text-slate-500">Los últimos movimientos de la tienda</p>
             </div>
             <Clock3 aria-hidden="true" className="text-slate-400" size={20} />
@@ -296,7 +298,7 @@ export function DashboardContent({
                 </ul>
               </>
             )}
-          </section>
+          </AdminCard>
         ) : null}
       </div>
     </div>

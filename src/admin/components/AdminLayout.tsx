@@ -3,6 +3,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../auth/useAuth';
 import { UnsavedChangesProvider, useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
+import { AdminCard } from './AdminCard';
+import { AdminSecondaryButton } from './AdminButton';
 
 export const adminLinks = [
   { label: 'Resumen', to: '/admin', end: true },
@@ -30,7 +32,7 @@ function AdminNav() {
           className={({ isActive }) =>
             [
               'flex min-h-11 shrink-0 items-center rounded-2xl px-4 py-3 text-sm font-medium transition lg:w-full',
-              isActive ? 'brand-accent-soft brand-accent-text' : 'text-slate-700 hover:bg-slate-100',
+              isActive ? 'bg-accent-soft text-accent' : 'text-slate-700 hover:bg-slate-100',
             ].join(' ')
           }
         >
@@ -61,7 +63,7 @@ export function AdminLayout() {
     <UnsavedChangesProvider>
       <div className="min-h-screen bg-stone-100 text-slate-900">
         <div className="mx-auto grid min-h-screen w-full max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:px-6">
-          <aside className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+          <AdminCard as="aside" className="shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">REHABEX</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Panel de administración</h1>
             <p className="mt-3 hidden text-sm leading-6 text-slate-600 lg:block">
@@ -71,19 +73,15 @@ export function AdminLayout() {
 
             <AdminNav />
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:bg-slate-50"
-            >
+            <AdminSecondaryButton onClick={handleLogout} className="mt-8 w-full">
               Cerrar sesión
-            </button>
+            </AdminSecondaryButton>
             {logoutError ? <p className="mt-3 text-sm text-red-600" role="alert">{logoutError}</p> : null}
-          </aside>
+          </AdminCard>
 
-          <main className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <AdminCard as="main" className="shadow-sm">
             <Outlet />
-          </main>
+          </AdminCard>
         </div>
       </div>
     </UnsavedChangesProvider>

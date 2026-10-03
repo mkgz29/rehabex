@@ -139,14 +139,26 @@ test('Resumen never advertises analytics that remain outside phase two', () => {
 
 test('Resumen KPI and sales chart expose temporal comparisons without technical enums', () => {
   const now = new Date();
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+  // The monthly KPIs (Ventas del mes, Pedidos cobrados, Ticket promedio) compare
+  // literal calendar months, so these two stay calendar-relative.
   const currentPaidAt = new Date(now.getFullYear(), now.getMonth(), 1, 10).toISOString();
   const previousPaidAt = new Date(now.getFullYear(), now.getMonth() - 1, 15, 10).toISOString();
+  // The sales trend chart instead compares a rolling 30-day window against the
+  // 30 days before it. Calendar-month dates don't reliably land on either side
+  // of that boundary (it depends on which day of the month the suite runs), so
+  // these two extra orders pin the comparison with fixed day offsets: always
+  // inside the current window, and always inside the previous one.
+  const rollingCurrentPaidAt = daysAgo(10);
+  const rollingPreviousPaidAt = daysAgo(40);
   const markup = renderWithAuth(React.createElement(DashboardContent, {
     products: [],
     ordersAvailable: true,
     orders: [
       { payment_status: 'approved', paid_at: currentPaidAt, total_amount: 200 },
       { payment_status: 'approved', paid_at: previousPaidAt, total_amount: 100 },
+      { payment_status: 'approved', paid_at: rollingCurrentPaidAt, total_amount: 80 },
+      { payment_status: 'approved', paid_at: rollingPreviousPaidAt, total_amount: 40 },
     ],
   }));
 

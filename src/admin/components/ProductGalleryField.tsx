@@ -16,6 +16,7 @@ import {
   setPrimaryAt,
   type GalleryDraftItem,
 } from '../catalog/productGallery';
+import { AdminEmptyState } from './AdminEmptyState';
 import { FormField } from './FormField';
 import { ImageFramerField } from './ImageFramerField';
 
@@ -107,9 +108,7 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
     <FormField label="Imágenes del producto" hint={`Hasta ${MAX_GALLERY_IMAGES} imágenes. Arrastrá para cambiar el orden, o usá los botones para moverlas.`}>
       <div className="space-y-4">
         {items.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
-            Todavía no agregaste ninguna imagen. El producto puede guardarse igual.
-          </p>
+          <AdminEmptyState compact title="Todavía no agregaste ninguna imagen. El producto puede guardarse igual." />
         ) : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {items.map((item, index) => {

@@ -2,12 +2,13 @@ import { Trophy } from 'lucide-react';
 
 import { formatCurrency } from '../../lib/format';
 import type { DashboardPeriod, ProductSalesSummary } from '../dashboardAnalytics';
+import { AdminCard } from './AdminCard';
 
 export function TopProductsCard({ products, period }: { products: ProductSalesSummary[]; period: DashboardPeriod }) {
   const maximumQuantity = Math.max(0, ...products.map((product) => product.quantity));
 
   return (
-    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+    <AdminCard as="section" className="min-w-0">
       <div className="flex items-center gap-2 text-slate-950">
         <Trophy aria-hidden="true" className="text-slate-500" size={18} />
         <h3 className="text-lg font-semibold">Productos más vendidos</h3>
@@ -44,6 +45,6 @@ export function TopProductsCard({ products, period }: { products: ProductSalesSu
           })}
         </ol>
       )}
-    </section>
+    </AdminCard>
   );
 }
