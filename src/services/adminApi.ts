@@ -4,6 +4,7 @@
 import { supabase } from '../lib/supabase';
 import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
 import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
+import type { AdminOrder } from '../admin/orderPresentation';
 
 export type AdminApiErrorKind = 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'validation' | 'unavailable';
 
@@ -73,6 +74,24 @@ async function postAdmin<T>(path: string, body: unknown): Promise<T> {
     throw new AdminApiError(0, 'unavailable', 'No se pudo conectar con el servidor.');
   }
 
+  if (!response.ok) {
+    throw new AdminApiError(response.status, kindForStatus(response.status), messageForStatus(response.status));
+  }
+
+  return (await response.json()) as T;
+}
+
+/** GET variant for the admin-authenticated endpoints that predate the POST-only /api/admin/* dispatcher (currently just /api/orders). Returns null for a 404 instead of throwing, since "not found" is an expected outcome for some of these lookups, not a failure. */
+async function getAdmin<T>(path: string): Promise<T | null> {
+  const token = await getAccessToken();
+  let response: Response;
+  try {
+    response = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+  } catch {
+    throw new AdminApiError(0, 'unavailable', 'No se pudo conectar con el servidor.');
+  }
+
+  if (response.status === 404) return null;
   if (!response.ok) {
     throw new AdminApiError(response.status, kindForStatus(response.status), messageForStatus(response.status));
   }
@@ -283,4 +302,16 @@ export async function updateSupportRequestNotes(id: string, internalNotes: strin
     expectedUpdatedAt,
   });
   return supportRequest;
+}
+
+/** Order context for a Soporte ticket's linked order_id. Reuses the existing admin orders endpoint (ADMIN-03A's own table only stores the id) rather than querying Supabase directly or duplicating order presentation logic. Null when the order no longer exists. */
+export async function getOrderById(id: string): Promise<AdminOrder | null> {
+  const result = await getAdmin<{ orders: AdminOrder[] }>(`/api/orders?id=${encodeURIComponent(id)}`);
+  return result?.orders[0] ?? null;
+}
+
+/** The same capped, most-recent order list OrdersTable renders, reused here to let "Nueva consulta" offer a pick-by-reference field instead of asking for a raw order id the panel never otherwise shows. */
+export async function listRecentOrders(): Promise<AdminOrder[]> {
+  const result = await getAdmin<{ orders: AdminOrder[] }>('/api/orders');
+  return result?.orders ?? [];
 }

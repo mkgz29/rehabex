@@ -5,6 +5,7 @@ import { AdminHomePage } from './admin/pages/AdminHomePage';
 import { AdminLayout } from './admin/components/AdminLayout';
 import { AdminOrdersPage } from './admin/pages/AdminOrdersPage';
 import { AdminProductsPage } from './admin/pages/AdminProductsPage';
+import { AdminSupportPage } from './admin/pages/AdminSupportPage';
 import { LEGACY_ADMIN_REDIRECTS } from './admin/legacyRedirects';
 import { AppLayout } from './components/AppLayout';
 import { CartPage } from './pages/CartPage';
@@ -43,6 +44,7 @@ function App() {
           <Route path="pagina" element={<AdminEditPagePage />} />
           <Route path="productos" element={<AdminProductsPage />} />
           <Route path="pedidos" element={<AdminOrdersPage />} />
+          <Route path="soporte" element={<AdminSupportPage />} />
           {Object.entries(LEGACY_ADMIN_REDIRECTS).map(([path, to]) => (
             <Route key={path} path={path} element={<Navigate to={to} replace />} />
           ))}

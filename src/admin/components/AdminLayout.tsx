@@ -11,6 +11,7 @@ export const adminLinks = [
   { label: 'Editar página', to: '/admin/pagina' },
   { label: 'Productos', to: '/admin/productos' },
   { label: 'Pedidos', to: '/admin/pedidos' },
+  { label: 'Soporte', to: '/admin/soporte' },
 ];
 
 function AdminNav() {

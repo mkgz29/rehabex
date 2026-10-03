@@ -56,6 +56,16 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   charged_back: 'Contracargo',
 };
 
+export const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
+  not_started: 'Sin iniciar',
+  preparing: 'En preparación',
+  ready_for_pickup: 'Listo para retirar',
+  shipped: 'Enviado',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+  returned: 'Devuelto',
+};
+
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
   pending_payment: 'Esperando el pago',
@@ -80,6 +90,12 @@ export function orderLabel(order: AdminOrder) {
   const status = order.order_status?.trim();
   if (!status) return UNKNOWN_STATUS_LABEL;
   return ORDER_STATUS_LABELS[status] ?? UNKNOWN_STATUS_LABEL;
+}
+
+export function fulfillmentLabel(order: AdminOrder) {
+  const status = order.fulfillment_status?.trim();
+  if (!status) return UNKNOWN_STATUS_LABEL;
+  return FULFILLMENT_STATUS_LABELS[status] ?? UNKNOWN_STATUS_LABEL;
 }
 
 export function orderReference(order: AdminOrder) {
