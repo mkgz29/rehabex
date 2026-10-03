@@ -15,6 +15,7 @@ DECLARE
   v_order_id uuid;
   v_request public.support_requests;
   v_updated public.support_requests;
+  v_optional public.support_requests;
   v_count integer;
   v_denied boolean;
   v_sqlstate text;
@@ -153,6 +154,36 @@ BEGIN
   END;
   IF NOT v_denied THEN RAISE EXCEPTION 'a nonexistent order_id was accepted'; END IF;
   INSERT INTO admin_03a_results VALUES ('a nonexistent order_id is rejected with not_found', true, 'ADM04');
+
+  -- subject is optional end-to-end: absent, empty, and whitespace-only all
+  -- normalize to NULL (not rejected); only an actually oversized subject is.
+
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  SELECT * FROM public.admin_create_support_request('Cliente Sin Asunto', 'sinasunto@example.test', NULL, NULL, 'Mensaje sin asunto.', NULL, gen_random_uuid()) INTO v_optional;
+  EXECUTE 'RESET ROLE';
+  IF v_optional.subject IS NOT NULL THEN RAISE EXCEPTION 'a NULL subject was not stored as NULL'; END IF;
+  INSERT INTO admin_03a_results VALUES ('a NULL subject is accepted and stored as NULL', true, 'subject=NULL');
+
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  SELECT * FROM public.admin_create_support_request('Cliente Asunto Vacio', 'vacio@example.test', NULL, '   ', 'Mensaje con asunto en blanco.', NULL, gen_random_uuid()) INTO v_optional;
+  EXECUTE 'RESET ROLE';
+  IF v_optional.subject IS NOT NULL THEN RAISE EXCEPTION 'a whitespace-only subject was not normalized to NULL'; END IF;
+  INSERT INTO admin_03a_results VALUES ('a whitespace-only subject normalizes to NULL', true, 'subject=NULL');
+
+  v_denied := false;
+  BEGIN
+    PERFORM public.admin_create_support_request('Cliente', 'cliente@example.test', NULL, repeat('x', 201), 'Mensaje', NULL, gen_random_uuid());
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    v_denied := v_sqlstate = 'ADM22';
+  END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'an oversized subject was accepted'; END IF;
+  INSERT INTO admin_03a_results VALUES ('an oversized subject is rejected', true, 'ADM22');
+
+  -- The two optional-subject fixtures above are scratch rows for that check
+  -- only; remove them (as table owner, bypassing RLS) so the list/count
+  -- assertions below see exactly the one ticket they expect.
+  DELETE FROM public.support_requests WHERE customer_email IN ('sinasunto@example.test', 'vacio@example.test');
 
   EXECUTE 'SET LOCAL ROLE authenticated';
   SELECT * FROM public.admin_create_support_request('Cliente Real', 'cliente@example.test', '+54 9 11 1234-5678', 'No llego mi pedido', 'Hola, todavia no me llego el pedido.', v_order_id, gen_random_uuid()) INTO v_request;

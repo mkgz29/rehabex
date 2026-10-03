@@ -227,7 +227,7 @@ export type SupportRequest = {
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
-  subject: string;
+  subject?: string;
   message: string;
   status: SupportRequestStatus;
   orderId?: string;
@@ -252,7 +252,7 @@ export async function createSupportRequest(input: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
-  subject: string;
+  subject?: string | null;
   message: string;
   orderId?: string | null;
 }): Promise<SupportRequest> {
@@ -260,7 +260,7 @@ export async function createSupportRequest(input: {
     customerName: input.customerName,
     customerEmail: input.customerEmail,
     customerPhone: input.customerPhone ?? null,
-    subject: input.subject,
+    subject: input.subject ?? null,
     message: input.message,
     orderId: input.orderId ?? null,
   });

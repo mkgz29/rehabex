@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS "public"."support_requests" (
   "customer_name" text NOT NULL,
   "customer_email" text NOT NULL,
   "customer_phone" text,
-  "subject" text NOT NULL,
+  "subject" text,
   "message" text NOT NULL,
   "status" text NOT NULL DEFAULT 'open',
   "order_id" uuid,
@@ -82,7 +82,7 @@ DECLARE
   v_customer_name text := btrim(COALESCE(p_customer_name, ''));
   v_customer_email text := btrim(COALESCE(p_customer_email, ''));
   v_customer_phone text := NULLIF(btrim(COALESCE(p_customer_phone, '')), '');
-  v_subject text := btrim(COALESCE(p_subject, ''));
+  v_subject text := NULLIF(btrim(COALESCE(p_subject, '')), '');
   v_message text := btrim(COALESCE(p_message, ''));
   v_row public.support_requests;
 BEGIN
@@ -95,7 +95,7 @@ BEGIN
     RAISE EXCEPTION 'invalid_customer_email' USING ERRCODE = 'ADM22';
   END IF;
   IF v_customer_phone IS NOT NULL AND length(v_customer_phone) > 40 THEN RAISE EXCEPTION 'invalid_customer_phone' USING ERRCODE = 'ADM22'; END IF;
-  IF v_subject = '' OR length(v_subject) > 200 THEN RAISE EXCEPTION 'invalid_subject' USING ERRCODE = 'ADM22'; END IF;
+  IF v_subject IS NOT NULL AND length(v_subject) > 200 THEN RAISE EXCEPTION 'invalid_subject' USING ERRCODE = 'ADM22'; END IF;
   IF v_message = '' OR length(v_message) > 4000 THEN RAISE EXCEPTION 'invalid_message' USING ERRCODE = 'ADM22'; END IF;
 
   IF p_order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.orders WHERE id = p_order_id) THEN

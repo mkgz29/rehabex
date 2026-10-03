@@ -60,8 +60,25 @@ test('parseCreateSupportRequestPayload rejects an invalid orderId (not absent, n
   assert.equal(isValid(parseCreateSupportRequestPayload({ ...VALID_CREATE, orderId: 'not-a-uuid' })), false);
 });
 
-test('parseCreateSupportRequestPayload rejects an empty or oversized subject/message', () => {
-  assert.equal(isValid(parseCreateSupportRequestPayload({ ...VALID_CREATE, subject: '' })), false);
+test('parseCreateSupportRequestPayload treats subject as optional: absent, empty, and whitespace-only all normalize to null', () => {
+  const absent = parseCreateSupportRequestPayload({ ...VALID_CREATE, subject: undefined });
+  assert.ok(isValid(absent));
+  if (isValid(absent)) assert.equal(absent.value.subject, null);
+
+  const empty = parseCreateSupportRequestPayload({ ...VALID_CREATE, subject: '' });
+  assert.ok(isValid(empty));
+  if (isValid(empty)) assert.equal(empty.value.subject, null);
+
+  const whitespace = parseCreateSupportRequestPayload({ ...VALID_CREATE, subject: '   ' });
+  assert.ok(isValid(whitespace));
+  if (isValid(whitespace)) assert.equal(whitespace.value.subject, null);
+
+  const withSubject = parseCreateSupportRequestPayload({ ...VALID_CREATE, subject: '  No llego mi pedido  ' });
+  assert.ok(isValid(withSubject));
+  if (isValid(withSubject)) assert.equal(withSubject.value.subject, 'No llego mi pedido');
+});
+
+test('parseCreateSupportRequestPayload rejects an oversized subject, and an empty or oversized message', () => {
   assert.equal(isValid(parseCreateSupportRequestPayload({ ...VALID_CREATE, subject: 'x'.repeat(201) })), false);
   assert.equal(isValid(parseCreateSupportRequestPayload({ ...VALID_CREATE, message: '' })), false);
   assert.equal(isValid(parseCreateSupportRequestPayload({ ...VALID_CREATE, message: 'x'.repeat(4001) })), false);

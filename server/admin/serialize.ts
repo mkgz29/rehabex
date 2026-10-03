@@ -50,7 +50,7 @@ export type AdminSupportRequestRow = {
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
-  subject: string;
+  subject: string | null;
   message: string;
   status: 'open' | 'answered' | 'resolved';
   order_id: string | null;
@@ -66,7 +66,7 @@ export function mapAdminSupportRequestRow(row: AdminSupportRequestRow) {
     customerName: row.customer_name,
     customerEmail: row.customer_email,
     customerPhone: row.customer_phone ?? undefined,
-    subject: row.subject,
+    subject: row.subject ?? undefined,
     message: row.message,
     status: row.status,
     orderId: row.order_id ?? undefined,

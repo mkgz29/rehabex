@@ -165,6 +165,46 @@ test('support create: a valid admin request creates an open support request', as
   assert.equal(typeof (body as { requestId?: string }).requestId, 'string');
 });
 
+test('support create: subject is optional -- omitted, empty, or whitespace-only all reach the RPC as null, never 422', async () => {
+  let capturedArgs: Record<string, unknown> | undefined;
+  const handler = createAdminCreateSupportRequestHandler(
+    deps({
+      authClient: () => fakeAuthClient(),
+      userScopedClient: () => ({
+        rpc: async (_name, args) => {
+          capturedArgs = args;
+          return { data: supportRow({ subject: null }), error: null };
+        },
+      }),
+    }),
+  );
+  for (const subject of [undefined, '', '   ']) {
+    const result = mockResponse();
+    await handler(jsonRequest({ ...VALID_CREATE_BODY, subject }), result.response);
+    assert.equal(result.read().statusCode, 200, `expected 200 for subject=${JSON.stringify(subject)}`);
+    assert.equal(capturedArgs?.p_subject, null, `expected p_subject=null for subject=${JSON.stringify(subject)}`);
+  }
+});
+
+test('support create: a valid subject is trimmed and reaches the RPC as-is', async () => {
+  let capturedArgs: Record<string, unknown> | undefined;
+  const handler = createAdminCreateSupportRequestHandler(
+    deps({
+      authClient: () => fakeAuthClient(),
+      userScopedClient: () => ({
+        rpc: async (_name, args) => {
+          capturedArgs = args;
+          return { data: supportRow(), error: null };
+        },
+      }),
+    }),
+  );
+  const result = mockResponse();
+  await handler(jsonRequest({ ...VALID_CREATE_BODY, subject: '  No llego mi pedido  ' }), result.response);
+  assert.equal(result.read().statusCode, 200);
+  assert.equal(capturedArgs?.p_subject, 'No llego mi pedido');
+});
+
 test('support create: an unknown order id from the RPC maps to 404', async () => {
   const handler = createAdminCreateSupportRequestHandler(
     deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: null, error: { code: 'ADM04' } }) }),

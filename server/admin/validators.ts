@@ -520,7 +520,7 @@ export type CreateSupportRequestInput = {
   customerName: string;
   customerEmail: string;
   customerPhone: string | null;
-  subject: string;
+  subject: string | null;
   message: string;
   orderId: string | null;
 };
@@ -539,6 +539,15 @@ function optionalPhone(value: unknown): string | null | undefined {
   const trimmed = value.trim();
   if (trimmed === '') return null;
   return trimmed.length <= MAX_SUPPORT_PHONE && !/[<>]/.test(trimmed) ? trimmed : undefined;
+}
+
+/** Absent, empty, or whitespace-only all become null (no subject); otherwise bounded and sanitized like any other optional text field. */
+function optionalSubject(value: unknown): string | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  return trimmed.length <= MAX_SUPPORT_SUBJECT && !/[<>]/.test(trimmed) ? trimmed : undefined;
 }
 
 function optionalOrderId(value: unknown): string | null | undefined {
@@ -560,8 +569,8 @@ export function parseCreateSupportRequestPayload(value: unknown): ValidationResu
   const customerPhone = optionalPhone(input.customerPhone);
   if (customerPhone === undefined) return { ok: false, error: 'invalid_customer_phone' };
 
-  const subject = requiredText(input.subject, MAX_SUPPORT_SUBJECT);
-  if (!subject) return { ok: false, error: 'invalid_subject' };
+  const subject = optionalSubject(input.subject);
+  if (subject === undefined) return { ok: false, error: 'invalid_subject' };
 
   const message = requiredText(input.message, MAX_SUPPORT_MESSAGE);
   if (!message) return { ok: false, error: 'invalid_message' };
