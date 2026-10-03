@@ -262,7 +262,6 @@ export function ProductGalleryField({ items, onChange, persistedIds }: ProductGa
                 if (file) handleAddFile(file);
                 event.target.value = '';
               }}
-              className="admin-input"
               aria-label="Agregar imagen"
             />
             <p className="mt-2 text-xs leading-5 text-slate-500">JPG, PNG o WebP, hasta 20 MB. La ajustamos automáticamente antes de subirla.</p>

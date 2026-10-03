@@ -43,7 +43,7 @@ export function RegisterPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="admin-input mt-2"
+              className="mt-2"
               autoComplete="email"
               required
             />
@@ -55,7 +55,7 @@ export function RegisterPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="admin-input mt-2"
+              className="mt-2"
               autoComplete="new-password"
               minLength={6}
               required

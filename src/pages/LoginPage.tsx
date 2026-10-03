@@ -53,7 +53,7 @@ export function LoginPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="admin-input mt-2"
+              className="mt-2"
               autoComplete="email"
               required
             />
@@ -65,7 +65,7 @@ export function LoginPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="admin-input mt-2"
+              className="mt-2"
               autoComplete="current-password"
               required
             />

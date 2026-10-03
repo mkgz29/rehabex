@@ -187,6 +187,20 @@
     @apply border-accent bg-surface;
   }
 
+  /* Admin design system (FASE 7A) only -- text/select/textarea fields across
+     Editar página, Productos and Soporte. Not used by the public site; the
+     public checkout form (CartPage) and the Login/Register pages intentionally
+     keep their own separate styling untouched by this class. */
+  .admin-input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)];
+    @apply disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-400;
+    @apply aria-[invalid=true]:border-red-400;
+    transition-duration: var(--duration-ui);
+    transition-property: border-color, box-shadow, background-color;
+    transition-timing-function: var(--ease-ui);
+  }
+
   .eyebrow {
     @apply text-xs font-bold uppercase tracking-[0.2em] text-accent;
   }
