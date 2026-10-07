@@ -305,6 +305,62 @@
     }
   }
 
+  /* ---- Admin inputs ----
+     The one text input/select/textarea treatment for /admin (including
+     /login and /registro, which share the same panel-adjacent visual
+     language). Previously referenced by className across ~10 admin files
+     with no matching rule, so every one of them silently fell back to the
+     browser's native control styling. Radius sits a notch below AdminCard's
+     rounded-2xl (containers) and above brand-button's rounded-full (pills),
+     keeping a deliberate three-step hierarchy. w-full is the base so a
+     caller's own width utility (sm:max-w-xs, sm:w-44, etc.) can narrow it at
+     a breakpoint -- Tailwind's utilities layer always wins that cascade. */
+  .admin-input {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(203 213 225);
+    background-color: #fff;
+    padding: 0.625rem 0.875rem;
+    color: rgb(15 23 42);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    transition:
+      border-color var(--duration-ui) var(--ease-ui),
+      box-shadow var(--duration-ui) var(--ease-ui),
+      background-color var(--duration-ui) var(--ease-ui);
+  }
+
+  .admin-input::placeholder {
+    color: rgb(148 163 184);
+  }
+
+  .admin-input:hover:not(:disabled) {
+    border-color: rgb(148 163 184);
+  }
+
+  .admin-input:focus-visible {
+    outline: none;
+    border-color: rgb(15 23 42);
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(var(--color-primary));
+  }
+
+  .admin-input:disabled {
+    cursor: not-allowed;
+    border-color: rgb(226 232 240);
+    background-color: rgb(245 245 244);
+    color: rgb(148 163 184);
+  }
+
+  .admin-input[aria-invalid='true'] {
+    border-color: rgb(248 113 113);
+  }
+
+  .admin-input[aria-invalid='true']:focus-visible {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(248 113 113);
+  }
+
   /* ---- Navbar ---- */
   .site-header {
     background-color: rgb(var(--color-canvas) / 0.88);

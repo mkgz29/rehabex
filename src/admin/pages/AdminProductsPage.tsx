@@ -11,6 +11,7 @@ import { AdminPageHeader } from '../components/AdminPageHeader';
 import { AdminCard } from '../components/AdminCard';
 import { AdminEmptyState } from '../components/AdminEmptyState';
 import { AdminPrimaryButton, AdminSecondaryButton } from '../components/AdminButton';
+import { StatusBadge } from '../components/StatusBadge';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { ProductGalleryField } from '../components/ProductGalleryField';
@@ -247,7 +248,7 @@ export function AdminProductsPage() {
 
       {!isFormOpen ? (
         <section className="space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <AdminCard className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="grid gap-3 sm:flex sm:flex-1 sm:items-center">
               <label className="sr-only" htmlFor="product-search">
                 Buscar producto por nombre
@@ -296,7 +297,7 @@ export function AdminProductsPage() {
             <AdminPrimaryButton onClick={openCreateForm} className="rounded-full px-5 py-3 text-sm font-semibold">
               Agregar producto
             </AdminPrimaryButton>
-          </div>
+          </AdminCard>
 
           {productsLoading ? (
             <div className="space-y-3" aria-busy="true">
@@ -340,13 +341,13 @@ export function AdminProductsPage() {
                           Sin imagen
                         </div>
                       )}
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900">{product.name}</h4>
-                        <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{product.category || 'Sin categoria'}</p>
-                        <p className="mt-1 text-xs text-slate-500">{formatCurrency(product.price)}</p>
-                        <p className="mt-1 text-xs font-medium text-slate-600">
-                          {product.active ? 'Visible en la tienda' : 'Oculto'}
-                        </p>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="truncate text-base font-semibold text-slate-900">{product.name}</h4>
+                          <StatusBadge label={product.active ? 'Visible' : 'Oculto'} tone={product.active ? 'success' : 'neutral'} size="sm" />
+                        </div>
+                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{product.category || 'Sin categoria'}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">{formatCurrency(product.price)}</p>
                       </div>
                     </div>
 

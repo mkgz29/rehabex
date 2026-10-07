@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Gauge, Image, LayoutGrid, Star, Users } from 'lucide-react';
 
 import { FramedImage } from '../../components/media/FramedImage';
 import { defaultLandingContent } from '../../lib/defaultContent';
@@ -99,7 +100,7 @@ export function AdminEditPagePage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <AdminPageHeader title="Editar página" description="Actualizá lo que las personas ven en la portada de la tienda." />
 
       <div className="space-y-4">
@@ -107,6 +108,7 @@ export function AdminEditPagePage() {
           id="hero-section"
           title="Portada principal"
           description="La primera imagen y mensaje que ve quien entra a la tienda."
+          icon={Image}
           isOpen={openSection === 'hero'}
           confirmation={confirmations.hero}
           onToggle={() => toggleSection('hero')}
@@ -127,6 +129,7 @@ export function AdminEditPagePage() {
           id="featured-section"
           title="Productos destacados"
           description="Elegí qué productos aparecen primero y ajustá el texto que los acompaña."
+          icon={Star}
           isOpen={openSection === 'featured'}
           confirmation={confirmations.featured}
           onToggle={() => toggleSection('featured')}
@@ -169,6 +172,7 @@ export function AdminEditPagePage() {
           id="about-section"
           title="Acerca de Rehabex"
           description="La imagen y el mensaje que cuentan quiénes son."
+          icon={Users}
           isOpen={openSection === 'about'}
           confirmation={confirmations.about}
           onToggle={() => toggleSection('about')}
@@ -186,6 +190,7 @@ export function AdminEditPagePage() {
           id="metrics-section"
           title="Datos destacados"
           description="Dos datos breves para comunicar experiencia, atención o beneficios."
+          icon={Gauge}
           isOpen={openSection === 'metrics'}
           confirmation={confirmations.metrics}
           onToggle={() => toggleSection('metrics')}
@@ -207,6 +212,7 @@ export function AdminEditPagePage() {
           id="catalog-section"
           title="Catálogo de productos"
           description="El título y el texto que invitan a recorrer toda la tienda."
+          icon={LayoutGrid}
           isOpen={openSection === 'catalog'}
           confirmation={confirmations.catalog}
           onToggle={() => toggleSection('catalog')}

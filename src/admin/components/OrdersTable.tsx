@@ -1,3 +1,4 @@
+import { ReceiptText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../auth/useAuth';
@@ -83,10 +84,17 @@ export function OrdersTable() {
     );
   }
   if (orders.length === 0) {
-    return <AdminEmptyState title="Todavía no hay pedidos." />;
+    return (
+      <AdminEmptyState
+        icon={ReceiptText}
+        title="Todavía no hay pedidos."
+        description="Cuando alguien compre en la tienda, el pedido va a aparecer acá."
+      />
+    );
   }
 
   const needsAttention = orders.filter((order) => attentionLevel(order) === 'attention').length;
+  const totalAmount = orders.reduce((total, order) => total + orderAmount(order), 0);
 
   return (
     <AdminCard padding="none" tone="muted" className="overflow-hidden">
@@ -95,6 +103,10 @@ export function OrdersTable() {
           {needsAttention} {needsAttention === 1 ? 'pedido requiere' : 'pedidos requieren'} revisión: pago aprobado sin confirmar, retención o devolución pendiente.
         </p>
       ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-5 py-3 text-sm">
+        <span className="font-medium text-slate-700">{orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}</span>
+        <span className="font-semibold text-slate-950">Total: {formatCurrency(totalAmount)}</span>
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-[820px] w-full border-collapse text-left text-sm">
           <thead className="bg-white text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
