@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/useAuth';
+import { EMAIL_MAX_LENGTH, isValidEmailFormat, normalizeEmail } from '../auth/emailNormalization';
 
 type LocationState = {
   from?: {
@@ -18,6 +19,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailInvalid, setEmailInvalid] = useState(false);
 
   const from = (location.state as LocationState | null)?.from?.pathname ?? '/admin';
 
@@ -27,11 +29,22 @@ export function LoginPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
 
+    const normalizedEmail = normalizeEmail(email);
+    if (!isValidEmailFormat(normalizedEmail)) {
+      setEmailInvalid(true);
+      setError('Ingresa un email valido.');
+      return;
+    }
+    setEmailInvalid(false);
+
+    setSubmitting(true);
     try {
-      await signIn(email.trim(), password);
+      // Email is normalized above; the password is forwarded exactly as
+      // typed -- a generic "credenciales invalidas" error never reveals
+      // which of the two was wrong, so neither field is marked invalid here.
+      await signIn(normalizedEmail, password);
       navigate(from, { replace: true });
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'No se pudo iniciar sesion.');
@@ -46,15 +59,21 @@ export function LoginPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">REHABEX</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Ingresar al panel</h1>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
           <label className="block">
             <span className="text-sm font-medium text-slate-800">Email</span>
             <input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setEmailInvalid(false);
+              }}
               className="admin-input mt-2"
               autoComplete="email"
+              maxLength={EMAIL_MAX_LENGTH}
+              aria-invalid={emailInvalid}
+              aria-describedby={error ? 'login-error' : undefined}
               required
             />
           </label>
@@ -67,11 +86,16 @@ export function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               className="admin-input mt-2"
               autoComplete="current-password"
+              aria-describedby={error ? 'login-error' : undefined}
               required
             />
           </label>
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <p id="login-error" role="alert" className="text-sm text-red-600">
+              {error}
+            </p>
+          ) : null}
 
           <button
             type="submit"

@@ -14,7 +14,6 @@ import { LandingPage } from './pages/LandingPage';
 import { PendingPage } from './pages/PendingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ProtectedRoute } from './auth/ProtectedRoute';
-import { RegisterPage } from './pages/RegisterPage';
 import { StorePage } from './pages/StorePage';
 import { SuccessPage } from './pages/SuccessPage';
 
@@ -24,7 +23,11 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/registro" element={<RegisterPage />} />
+        {/* Self-registration is deliberately disabled: there is no customer-account
+            feature using it today, and /admin accounts are provisioned in a
+            controlled way. RegisterPage itself is kept, unlinked, for reuse once a
+            real customer-account feature exists. */}
+        <Route path="/registro" element={<Navigate to="/login" replace />} />
         <Route path="/tienda" element={<StorePage />} />
         <Route path="/productos/:id" element={<ProductDetailPage />} />
         <Route path="/carrito" element={<CartPage />} />

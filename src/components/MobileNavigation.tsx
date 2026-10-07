@@ -138,9 +138,8 @@ export function MobileNavigation({
           <div className="mt-auto border-t border-line pt-5">
             {showAdminLink ? <Link to="/admin" onClick={onClose} className="flex min-h-11 items-center px-3 text-sm font-semibold text-muted">Panel administrativo</Link> : null}
             {showAuthLinks ? (
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <Link to="/login" onClick={onClose} className="secondary-button px-3">Ingresar</Link>
-                <Link to="/registro" onClick={onClose} className="brand-button px-3">Crear cuenta</Link>
+              <div className="pt-2">
+                <Link to="/login" onClick={onClose} className="brand-button w-full px-3">Ingresar</Link>
               </div>
             ) : null}
             {showLogout ? (
