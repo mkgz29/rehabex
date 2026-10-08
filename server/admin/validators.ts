@@ -31,8 +31,16 @@ const MAX_METRICS = 6;
 const MAX_METRIC_ID = 40;
 const MAX_METRIC_VALUE = 20;
 const MAX_METRIC_LABEL = 200;
+const MAX_SUPPORT_NAME = 160;
+const MAX_SUPPORT_EMAIL = 254;
+const MAX_SUPPORT_PHONE = 40;
+const MAX_SUPPORT_SUBJECT = 200;
+const MAX_SUPPORT_MESSAGE = 4000;
+const MAX_SUPPORT_NOTES = 4000;
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const SUPPORT_STATUSES = ['open', 'answered', 'resolved'] as const;
 
 const RESERVED_CATEGORIES = new Set(['test', 'prueba']);
 
@@ -501,4 +509,146 @@ export function parseFeaturedProductsPayload(value: unknown): ValidationResult<F
   }
 
   return { ok: true, value: items };
+}
+
+// --- Support requests (ADMIN-03A) --------------------------------------------
+// v1 is admin-only: staff log a case themselves when a customer reaches out
+// by phone/email/WhatsApp. There is no public submission endpoint, so every
+// one of these payloads is only ever reachable through the admin boundary.
+
+export type CreateSupportRequestInput = {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  subject: string | null;
+  message: string;
+  orderId: string | null;
+};
+
+const CREATE_SUPPORT_REQUEST_KEYS = ['customerName', 'customerEmail', 'customerPhone', 'subject', 'message', 'orderId'] as const;
+
+function requiredEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= MAX_SUPPORT_EMAIL && EMAIL_PATTERN.test(trimmed) ? trimmed : null;
+}
+
+function optionalPhone(value: unknown): string | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  return trimmed.length <= MAX_SUPPORT_PHONE && !/[<>]/.test(trimmed) ? trimmed : undefined;
+}
+
+/** Absent, empty, or whitespace-only all become null (no subject); otherwise bounded and sanitized like any other optional text field. */
+function optionalSubject(value: unknown): string | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  return trimmed.length <= MAX_SUPPORT_SUBJECT && !/[<>]/.test(trimmed) ? trimmed : undefined;
+}
+
+function optionalOrderId(value: unknown): string | null | undefined {
+  if (value === undefined || value === null) return null;
+  return typeof value === 'string' && UUID.test(value) ? value : undefined;
+}
+
+export function parseCreateSupportRequestPayload(value: unknown): ValidationResult<CreateSupportRequestInput> {
+  const input = asObject(value);
+  if (!input) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(input, CREATE_SUPPORT_REQUEST_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const customerName = requiredText(input.customerName, MAX_SUPPORT_NAME);
+  if (!customerName) return { ok: false, error: 'invalid_customer_name' };
+
+  const customerEmail = requiredEmail(input.customerEmail);
+  if (!customerEmail) return { ok: false, error: 'invalid_customer_email' };
+
+  const customerPhone = optionalPhone(input.customerPhone);
+  if (customerPhone === undefined) return { ok: false, error: 'invalid_customer_phone' };
+
+  const subject = optionalSubject(input.subject);
+  if (subject === undefined) return { ok: false, error: 'invalid_subject' };
+
+  const message = requiredText(input.message, MAX_SUPPORT_MESSAGE);
+  if (!message) return { ok: false, error: 'invalid_message' };
+
+  const orderId = optionalOrderId(input.orderId);
+  if (orderId === undefined) return { ok: false, error: 'invalid_order_id' };
+
+  return { ok: true, value: { customerName, customerEmail, customerPhone, subject, message, orderId } };
+}
+
+export type UpdateSupportRequestStatusInput = { id: string; status: (typeof SUPPORT_STATUSES)[number]; expectedUpdatedAt: string };
+
+const UPDATE_SUPPORT_REQUEST_STATUS_KEYS = ['id', 'status', 'expectedUpdatedAt'] as const;
+
+export function parseUpdateSupportRequestStatusPayload(value: unknown): ValidationResult<UpdateSupportRequestStatusInput> {
+  const input = asObject(value);
+  if (!input) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(input, UPDATE_SUPPORT_REQUEST_STATUS_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const id = typeof input.id === 'string' && UUID.test(input.id) ? input.id : null;
+  if (!id) return { ok: false, error: 'invalid_id' };
+
+  if (typeof input.status !== 'string' || !SUPPORT_STATUSES.includes(input.status as (typeof SUPPORT_STATUSES)[number])) {
+    return { ok: false, error: 'invalid_status' };
+  }
+
+  if (!isValidTimestamp(input.expectedUpdatedAt)) return { ok: false, error: 'invalid_version' };
+
+  return { ok: true, value: { id, status: input.status as (typeof SUPPORT_STATUSES)[number], expectedUpdatedAt: input.expectedUpdatedAt as string } };
+}
+
+export type UpdateSupportRequestNotesInput = { id: string; internalNotes: string | null; expectedUpdatedAt: string };
+
+const UPDATE_SUPPORT_REQUEST_NOTES_KEYS = ['id', 'internalNotes', 'expectedUpdatedAt'] as const;
+
+export function parseUpdateSupportRequestNotesPayload(value: unknown): ValidationResult<UpdateSupportRequestNotesInput> {
+  const input = asObject(value);
+  if (!input) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(input, UPDATE_SUPPORT_REQUEST_NOTES_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const id = typeof input.id === 'string' && UUID.test(input.id) ? input.id : null;
+  if (!id) return { ok: false, error: 'invalid_id' };
+
+  const internalNotes = optionalText(input.internalNotes, MAX_SUPPORT_NOTES);
+  if (internalNotes === null) return { ok: false, error: 'invalid_internal_notes' };
+
+  if (!isValidTimestamp(input.expectedUpdatedAt)) return { ok: false, error: 'invalid_version' };
+
+  return { ok: true, value: { id, internalNotes: internalNotes || null, expectedUpdatedAt: input.expectedUpdatedAt as string } };
+}
+
+export type ListSupportRequestsInput = { status: (typeof SUPPORT_STATUSES)[number] | null };
+
+const LIST_SUPPORT_REQUESTS_KEYS = ['status'] as const;
+
+export function parseListSupportRequestsPayload(value: unknown): ValidationResult<ListSupportRequestsInput> {
+  const input = asObject(value) ?? {};
+  if (!hasOnlyAllowedKeys(input, LIST_SUPPORT_REQUESTS_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  if (input.status === undefined || input.status === null) return { ok: true, value: { status: null } };
+  if (typeof input.status !== 'string' || !SUPPORT_STATUSES.includes(input.status as (typeof SUPPORT_STATUSES)[number])) {
+    return { ok: false, error: 'invalid_status' };
+  }
+
+  return { ok: true, value: { status: input.status as (typeof SUPPORT_STATUSES)[number] } };
+}
+
+export type GetSupportRequestInput = { id: string };
+
+const GET_SUPPORT_REQUEST_KEYS = ['id'] as const;
+
+export function parseGetSupportRequestPayload(value: unknown): ValidationResult<GetSupportRequestInput> {
+  const input = asObject(value);
+  if (!input) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(input, GET_SUPPORT_REQUEST_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const id = typeof input.id === 'string' && UUID.test(input.id) ? input.id : null;
+  if (!id) return { ok: false, error: 'invalid_id' };
+
+  return { ok: true, value: { id } };
 }

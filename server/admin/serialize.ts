@@ -44,3 +44,34 @@ export type AdminSettingsRow = { key: string; value: unknown; updated_at: string
 export function mapAdminSettingsRow(row: AdminSettingsRow) {
   return { value: row.value, updatedAt: row.updated_at };
 }
+
+export type AdminSupportRequestRow = {
+  id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string | null;
+  subject: string | null;
+  message: string;
+  status: 'open' | 'answered' | 'resolved';
+  order_id: string | null;
+  internal_notes: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function mapAdminSupportRequestRow(row: AdminSupportRequestRow) {
+  return {
+    id: row.id,
+    customerName: row.customer_name,
+    customerEmail: row.customer_email,
+    customerPhone: row.customer_phone ?? undefined,
+    subject: row.subject ?? undefined,
+    message: row.message,
+    status: row.status,
+    orderId: row.order_id ?? undefined,
+    internalNotes: row.internal_notes ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
