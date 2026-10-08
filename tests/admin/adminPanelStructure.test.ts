@@ -47,10 +47,10 @@ function renderLayout() {
   );
 }
 
-test('the menu contains exactly the four required sections, in order', () => {
+test('the menu contains exactly the five required sections, in order', () => {
   assert.deepEqual(
     adminLinks.map((link) => link.label),
-    ['Resumen', 'Editar página', 'Productos', 'Pedidos'],
+    ['Resumen', 'Editar página', 'Productos', 'Pedidos', 'Soporte'],
   );
 });
 
@@ -64,6 +64,7 @@ test('rendered menu has no trace of the retired Inicio/Hero/Ventas/Sobre Nosotro
   assert.match(markup, />Editar página</);
   assert.match(markup, />Productos</);
   assert.match(markup, />Pedidos</);
+  assert.match(markup, />Soporte</);
   assert.match(markup, />Cerrar sesión</);
 });
 

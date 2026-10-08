@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  FULFILLMENT_STATUS_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
+  fulfillmentLabel,
   orderLabel,
   paymentLabel,
   type AdminOrder,
@@ -26,6 +28,7 @@ const REAL_ORDER_STATUS_VALUES = [
   'refunded',
   'failed',
 ];
+const REAL_FULFILLMENT_STATUS_VALUES = ['not_started', 'preparing', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'returned'];
 
 test('every real payment_status value has a Spanish translation', () => {
   assert.equal(REAL_PAYMENT_STATUS_VALUES.length, 7);
@@ -49,16 +52,30 @@ test('every real order_status value has a Spanish translation', () => {
   }
 });
 
+test('every real fulfillment_status value has a Spanish translation', () => {
+  assert.equal(REAL_FULFILLMENT_STATUS_VALUES.length, 7);
+  for (const value of REAL_FULFILLMENT_STATUS_VALUES) {
+    const label = fulfillmentLabel({ fulfillment_status: value });
+    assert.ok(FULFILLMENT_STATUS_LABELS[value], `missing translation for fulfillment_status "${value}"`);
+    assert.equal(label, FULFILLMENT_STATUS_LABELS[value]);
+    assert.notEqual(label, value);
+    assert.notEqual(label, 'Estado sin identificar');
+  }
+});
+
 test('the translation maps contain nothing beyond the real enum values', () => {
   assert.deepEqual(Object.keys(PAYMENT_STATUS_LABELS).sort(), [...REAL_PAYMENT_STATUS_VALUES].sort());
   assert.deepEqual(Object.keys(ORDER_STATUS_LABELS).sort(), [...REAL_ORDER_STATUS_VALUES].sort());
+  assert.deepEqual(Object.keys(FULFILLMENT_STATUS_LABELS).sort(), [...REAL_FULFILLMENT_STATUS_VALUES].sort());
 });
 
 test('an unrecognized or missing status falls back to "Estado sin identificar", never the raw value', () => {
   assert.equal(paymentLabel({ payment_status: 'some_future_value' } as AdminOrder), 'Estado sin identificar');
   assert.equal(orderLabel({ order_status: 'some_future_value' } as AdminOrder), 'Estado sin identificar');
+  assert.equal(fulfillmentLabel({ fulfillment_status: 'some_future_value' } as AdminOrder), 'Estado sin identificar');
   assert.equal(paymentLabel({}), 'Estado sin identificar');
   assert.equal(orderLabel({}), 'Estado sin identificar');
+  assert.equal(fulfillmentLabel({}), 'Estado sin identificar');
   assert.equal(paymentLabel({ payment_status: '' }), 'Estado sin identificar');
   assert.equal(orderLabel({ order_status: null }), 'Estado sin identificar');
 });

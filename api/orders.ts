@@ -1,4 +1,5 @@
 import { logEvent, serviceClient, type ApiRequest, type ApiResponse } from '../server/commerce/commerce.js';
+import { UUID } from '../server/admin/validators.js';
 
 // Explicit projection. `select('*')` previously shipped the guest status token
 // hash, the preference lease token, the idempotency key and the full delivery
@@ -27,13 +28,19 @@ const ORDER_COLUMNS = [
 
 const MAX_ORDERS = 200;
 
-export default async function handler(request: ApiRequest, response: ApiResponse) {
+type OrdersDependencies = { serviceClient: typeof serviceClient };
+const defaultDependencies: OrdersDependencies = { serviceClient };
+
+// The optional third parameter exists only for tests to inject a fake
+// Supabase client; Vercel always invokes this with exactly (request,
+// response), so production behavior is unchanged.
+export default async function handler(request: ApiRequest, response: ApiResponse, deps: OrdersDependencies = defaultDependencies) {
   if (request.method !== 'GET') {
     response.setHeader?.('Allow', 'GET');
     return response.status(405).json({ error: 'Metodo no permitido.' });
   }
 
-  const supabase = serviceClient();
+  const supabase = deps.serviceClient();
   if (!supabase) {
     logEvent('orders_not_configured');
     return response.status(503).json({ error: 'Orders API no esta configurada.' });
@@ -59,6 +66,23 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return response.status(403).json({ error: 'No autorizado.' });
   }
 
+  // Optional, single-purpose lookup: a specific order by id, regardless of
+  // where it falls in the MAX_ORDERS most-recent window below. No other
+  // filter is accepted -- this is not a general query surface.
+  const id = singleQueryValue(request.query?.id);
+  if (id !== undefined) {
+    if (!UUID.test(id)) return response.status(400).json({ error: 'Solicitud invalida.' });
+
+    const { data, error } = await supabase.from('orders').select(ORDER_COLUMNS).eq('id', id).maybeSingle();
+    if (error) {
+      logEvent('orders_query_failed');
+      return response.status(503).json({ error: 'No se pudieron obtener las ordenes.' });
+    }
+    if (!data) return response.status(404).json({ error: 'No encontrado.' });
+
+    return response.status(200).json({ orders: [data] });
+  }
+
   const { data, error } = await supabase
     .from('orders')
     .select(ORDER_COLUMNS)
@@ -70,6 +94,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   return response.status(200).json({ orders: data ?? [] });
+}
+
+function singleQueryValue(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
 }
 
 function bearerToken(value: string | string[] | undefined) {
