@@ -196,7 +196,7 @@ export function AdminSupportPage() {
       <AdminPageHeader
         title="Soporte"
         description="Gestioná consultas y seguimiento de clientes."
-        actions={!isCreating ? <AdminPrimaryButton onClick={openCreateForm}>Nueva consulta</AdminPrimaryButton> : null}
+        actions={!isCreating ? <AdminPrimaryButton onClick={openCreateForm}>Registrar consulta</AdminPrimaryButton> : null}
       />
 
       {isCreating ? (

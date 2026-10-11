@@ -1,7 +1,7 @@
 import { PackageSearch } from 'lucide-react';
 
 import { formatOrderDate } from '../orderPresentation';
-import { SUPPORT_STATUS_FILTERS, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, supportRequestPreview, type SupportStatusFilter } from '../support/supportPresentation';
+import { SUPPORT_STATUS_FILTERS, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, SUPPORT_TOPIC_LABELS, supportRequestPreview, type SupportStatusFilter } from '../support/supportPresentation';
 import type { SupportRequest } from '../../services/adminApi';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
@@ -76,9 +76,16 @@ export function SupportRequestList({ items, error, onRetry, filter, onFilterChan
                       <StatusBadge size="sm" tone={SUPPORT_STATUS_TONE[item.status]} label={SUPPORT_STATUS_LABELS[item.status]} />
                     </div>
                     <p className="mt-1.5 line-clamp-1 text-xs leading-5 text-slate-500">{supportRequestPreview(item.message)}</p>
-                    <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-400">
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
+                      <span>{SUPPORT_TOPIC_LABELS[item.topic]}</span>
+                      <span aria-hidden="true">·</span>
                       <span>{formatOrderDate(item.createdAt)}</span>
-                      {item.orderId ? <span className="font-medium text-slate-500">Pedido vinculado</span> : null}
+                      {item.orderId ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="font-medium text-slate-500">Pedido vinculado</span>
+                        </>
+                      ) : null}
                     </div>
                   </button>
                 </li>

@@ -1,7 +1,7 @@
 import { ArrowLeft, MessageCircle, TriangleAlert } from 'lucide-react';
 
 import { formatOrderDate, fulfillmentLabel, orderLabel, orderReference, paymentLabel, type AdminOrder } from '../orderPresentation';
-import { allowedNextSupportStatuses, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, supportStatusActionLabel } from '../support/supportPresentation';
+import { allowedNextSupportStatuses, SUPPORT_SOURCE_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, SUPPORT_TOPIC_LABELS, supportStatusActionLabel } from '../support/supportPresentation';
 import type { SupportRequest, SupportRequestStatus } from '../../services/adminApi';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
@@ -147,7 +147,9 @@ export function SupportRequestDetail({
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">{supportRequest.subject || 'Sin asunto'}</h3>
-          <p className="mt-1 text-xs text-slate-500">Creado el {formatOrderDate(supportRequest.createdAt)}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {SUPPORT_TOPIC_LABELS[supportRequest.topic]} · {SUPPORT_SOURCE_LABELS[supportRequest.source]} · Creado el {formatOrderDate(supportRequest.createdAt)}
+          </p>
         </div>
         <StatusBadge tone={SUPPORT_STATUS_TONE[supportRequest.status]} label={SUPPORT_STATUS_LABELS[supportRequest.status]} />
       </div>
@@ -168,6 +170,12 @@ export function SupportRequestDetail({
               <div className="flex gap-2">
                 <dt className="text-slate-500">Teléfono:</dt>
                 <dd className="font-medium text-slate-900">{supportRequest.customerPhone}</dd>
+              </div>
+            ) : null}
+            {supportRequest.orderReference ? (
+              <div className="flex gap-2">
+                <dt className="text-slate-500">Nº de pedido (texto libre):</dt>
+                <dd className="font-medium text-slate-900">{supportRequest.orderReference}</dd>
               </div>
             ) : null}
           </dl>

@@ -95,7 +95,7 @@ test('Editar pagina shows five plain-language summaries and keeps editing fields
   assert.match(markup, /Productos destacados/);
   assert.match(markup, /Acerca de Rehabex/);
   assert.match(markup, /Datos destacados/);
-  assert.match(markup, /Catálogo de productos/);
+  assert.match(markup, /Sección de consultas/);
   assert.equal((markup.match(/aria-expanded="false"/g) ?? []).length, 5);
   assert.doesNotMatch(markup, /<form/);
 });

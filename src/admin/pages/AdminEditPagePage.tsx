@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Gauge, Image, LayoutGrid, Star, Users } from 'lucide-react';
+import { Gauge, Image, MessageCircle, Star, Users } from 'lucide-react';
 
 import { FramedImage } from '../../components/media/FramedImage';
 import { defaultLandingContent } from '../../lib/defaultContent';
@@ -210,9 +210,9 @@ export function AdminEditPagePage() {
 
         <EditableSectionCard
           id="catalog-section"
-          title="Catálogo de productos"
-          description="El título y el texto que invitan a recorrer toda la tienda."
-          icon={LayoutGrid}
+          title="Sección de consultas"
+          description="El título y el texto del bloque que invita a hacer una consulta de soporte."
+          icon={MessageCircle}
           isOpen={openSection === 'catalog'}
           confirmation={confirmations.catalog}
           onToggle={() => toggleSection('catalog')}
@@ -230,7 +230,7 @@ export function AdminEditPagePage() {
             pickContent={(content) => content.catalogSection}
             getVersion={() => getSettingVersion('catalog_section_content')}
             save={saveCatalogSectionContent}
-            savedMessage="Textos del Catálogo guardados correctamente."
+            savedMessage="Textos de la sección de consultas guardados correctamente."
             onCancel={closeSection}
             onSaved={(message) => finishSection('catalog', message, refreshLanding)}
           />

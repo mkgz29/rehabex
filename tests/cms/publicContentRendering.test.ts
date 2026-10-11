@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 import { AboutSection } from '../../src/components/AboutSection.tsx';
 import { FeaturedProductsSection } from '../../src/components/FeaturedProductsSection.tsx';
-import { CatalogCtaSection } from '../../src/components/CatalogCtaSection.tsx';
+import { SupportCtaSection } from '../../src/components/SupportCtaSection.tsx';
 import { CartProvider } from '../../src/cart/CartProvider.tsx';
 import { defaultLandingContent } from '../../src/lib/defaultContent.ts';
 import type { AboutContent } from '../../src/types/cms.ts';
@@ -77,10 +77,20 @@ test('Productos destacados: title and subtitle come from the real section conten
   assert.match(markup, /Curado por el equipo Rehabex\./);
 });
 
-test('Catálogo Rehabex: title and subtitle come from the real section content, not a hardcoded string', () => {
+test('Consultas Rehabex: title and subtitle come from the real section content, not a hardcoded string', () => {
   const markup = render(
-    React.createElement(CatalogCtaSection, { content: { title: 'Mirá el catálogo completo', subtitle: 'Todo lo que ofrecemos, en un solo lugar.' } }),
+    React.createElement(SupportCtaSection, { content: { title: 'Mirá el catálogo completo', subtitle: 'Todo lo que ofrecemos, en un solo lugar.' } }),
   );
   assert.match(markup, /Mirá el catálogo completo/);
   assert.match(markup, /Todo lo que ofrecemos, en un solo lugar\./);
+});
+
+test('Consultas Rehabex: CTA points to /soporte with the new copy, not the old catalog destination', () => {
+  const markup = render(
+    React.createElement(SupportCtaSection, { content: { title: 'x', subtitle: 'y' } }),
+  );
+  assert.match(markup, /href="\/soporte"/);
+  assert.match(markup, />Hacer una consulta</);
+  assert.doesNotMatch(markup, /href="\/tienda"/);
+  assert.doesNotMatch(markup, />Ver catálogo</);
 });

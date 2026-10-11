@@ -1,10 +1,10 @@
 import { AboutSection } from '../components/AboutSection';
-import { CatalogCtaSection } from '../components/CatalogCtaSection';
 import { CommercialFeatureSection } from '../components/CommercialFeatureSection';
 import { FeaturedProductsSection } from '../components/FeaturedProductsSection';
 import { Footer } from '../components/Footer';
 import { HeroSection } from '../components/HeroSection';
 import { Reveal } from '../components/Reveal';
+import { SupportCtaSection } from '../components/SupportCtaSection';
 import { TrustStrip } from '../components/TrustStrip';
 import { useLandingData } from '../hooks/useLandingData';
 import { isPublicCatalogProduct } from '../lib/catalog';
@@ -27,7 +27,7 @@ export function LandingPage() {
         <Reveal><FeaturedProductsSection content={content.featuredSection} products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} /></Reveal>
         <Reveal><AboutSection content={content.about} products={activeProducts} /></Reveal>
         {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}
-        <Reveal><CatalogCtaSection content={content.catalogSection} /></Reveal>
+        <Reveal><SupportCtaSection content={content.catalogSection} /></Reveal>
       </main>
       <Reveal><Footer categories={activeProducts.map((product) => product.category).filter((category): category is string => Boolean(category))} /></Reveal>
     </div>

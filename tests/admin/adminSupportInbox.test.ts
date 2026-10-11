@@ -32,11 +32,11 @@ test('Soporte: initial render shows a loading state, not an empty or invented li
   assert.doesNotMatch(markup, /No hay consultas/);
 });
 
-test('Soporte: header shows the approved title, description, and a "Nueva consulta" action', () => {
+test('Soporte: header shows the approved title, description, and a "Registrar consulta" action', () => {
   const markup = renderSupport();
   assert.match(markup, />Soporte</);
   assert.match(markup, /Gestioná consultas y seguimiento de clientes\./);
-  assert.match(markup, />Nueva consulta</);
+  assert.match(markup, />Registrar consulta</);
 });
 
 test('Soporte: filter tabs render exactly the four approved options, in Spanish, feminine plural', () => {
@@ -68,6 +68,8 @@ function supportRequest(overrides: Partial<SupportRequest> = {}): SupportRequest
     subject: 'No llego mi pedido',
     message: 'Hola, todavia no me llego el pedido que hice la semana pasada.',
     status: 'open',
+    source: 'admin',
+    topic: 'general',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,

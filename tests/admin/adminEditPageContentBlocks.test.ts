@@ -40,7 +40,7 @@ function product(overrides: Partial<Product> = {}): Product {
 
 test('Editar página starts with exactly five closed section cards and no forms mounted', () => {
   const markup = renderEditPage();
-  const titles = ['Portada principal', 'Productos destacados', 'Acerca de Rehabex', 'Datos destacados', 'Catálogo de productos'];
+  const titles = ['Portada principal', 'Productos destacados', 'Acerca de Rehabex', 'Datos destacados', 'Sección de consultas'];
   let previousIndex = -1;
   for (const title of titles) {
     const index = markup.indexOf(title);
