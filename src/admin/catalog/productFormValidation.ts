@@ -21,6 +21,12 @@ const MAX_CATEGORY = 80;
 const MAX_PRICE = 100_000_000;
 const MAX_STOCK_ON_HAND = 1_000_000;
 
+// Non-blocking guardrail only: real cases of a misplaced decimal ($4.5,
+// $590) slipping into production, not a hard validation limit. A price
+// below this is still technically valid and can be saved once the admin
+// confirms it on purpose.
+export const PRICE_WARNING_THRESHOLD = 1000;
+
 const RESERVED_CATEGORIES = new Set(['test', 'prueba']);
 
 export function isReservedCategoryName(category: string): boolean {
@@ -68,6 +74,23 @@ export function validateProductForm(values: ProductFormValues): ProductFormError
   }
 
   return errors;
+}
+
+/** True only for a technically-valid price under the warning threshold. */
+export function isSuspiciouslyLowPrice(price: number): boolean {
+  return Number.isFinite(price) && price > 0 && price < PRICE_WARNING_THRESHOLD;
+}
+
+/**
+ * Whether saving `price` should pause for a confirmation first.
+ * `previousPrice` is the price the product had when the form was opened, or
+ * null when creating a new product (there is nothing to compare against).
+ * Editing without touching an already-low historical price never warns.
+ */
+export function shouldWarnLowPrice(price: number, previousPrice: number | null): boolean {
+  if (!isSuspiciouslyLowPrice(price)) return false;
+  if (previousPrice === null) return true;
+  return price !== previousPrice;
 }
 
 export function firstErrorField(errors: ProductFormErrors): ProductFormField | null {

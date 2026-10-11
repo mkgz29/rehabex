@@ -8,7 +8,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { buildCategoryDirectory, normalizeCategoryKey, resolveCategoryInput } from '../../src/admin/catalog/categoryOptions.ts';
 import { isProductFormDirty } from '../../src/admin/catalog/productDirtyState.ts';
 import { filterProducts } from '../../src/admin/catalog/productListFilters.ts';
-import { firstErrorField, isReservedCategoryName, validateProductForm } from '../../src/admin/catalog/productFormValidation.ts';
+import {
+  firstErrorField,
+  isReservedCategoryName,
+  isSuspiciouslyLowPrice,
+  PRICE_WARNING_THRESHOLD,
+  shouldWarnLowPrice,
+  validateProductForm,
+} from '../../src/admin/catalog/productFormValidation.ts';
 import { AdminProductsPage } from '../../src/admin/pages/AdminProductsPage.tsx';
 import { UnsavedChangesProvider } from '../../src/admin/unsavedChanges/UnsavedChangesContext.tsx';
 import type { ProductInput } from '../../src/types/cms.ts';
@@ -236,4 +243,80 @@ test('CONTRACT: a stock validation error is shown inline, same pattern as the pr
   const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
   assert.match(source, /id="product-stock-error"/);
   assert.match(source, /fieldErrors\.stockOnHand/);
+});
+
+// --- Low-price guardrail (FASE 7D.3-B2) --------------------------------------
+//
+// Non-blocking warning only: the hard validation above (price > 0, finite,
+// <= MAX_PRICE) is unchanged. isSuspiciouslyLowPrice/shouldWarnLowPrice are
+// pure and fully unit-testable; the confirm/cancel/double-submit wiring that
+// uses them lives behind a click this no-jsdom suite cannot simulate, so
+// that part is verified as a source-level contract, same substitute used
+// above for the stock field.
+
+test('isSuspiciouslyLowPrice flags only technically-valid prices under the threshold', () => {
+  assert.equal(isSuspiciouslyLowPrice(4.5), true);
+  assert.equal(isSuspiciouslyLowPrice(590), true);
+  assert.equal(isSuspiciouslyLowPrice(999), true);
+  assert.equal(isSuspiciouslyLowPrice(1000), false);
+  assert.equal(isSuspiciouslyLowPrice(1500), false);
+  assert.equal(isSuspiciouslyLowPrice(0), false);
+  assert.equal(isSuspiciouslyLowPrice(-50), false);
+  assert.equal(isSuspiciouslyLowPrice(Number.NaN), false);
+});
+
+test('PRICE_WARNING_THRESHOLD is its own constant, distinct from the hard price limit (MAX_PRICE)', () => {
+  assert.equal(PRICE_WARNING_THRESHOLD, 1000);
+});
+
+test('shouldWarnLowPrice: creating a product warns on a low price, not on a healthy one', () => {
+  assert.equal(shouldWarnLowPrice(590, null), true);
+  assert.equal(shouldWarnLowPrice(1500, null), false);
+});
+
+test('shouldWarnLowPrice: editing without changing an already-low historical price never warns', () => {
+  assert.equal(shouldWarnLowPrice(590, 590), false);
+});
+
+test('shouldWarnLowPrice: editing into a new low price warns, regardless of the previous value', () => {
+  assert.equal(shouldWarnLowPrice(800, 590), true);
+  assert.equal(shouldWarnLowPrice(590, 133334), true);
+});
+
+test('shouldWarnLowPrice: editing a low price up past the threshold does not warn', () => {
+  assert.equal(shouldWarnLowPrice(1500, 590), false);
+});
+
+test('validateProductForm still accepts a technically-valid low price with no hard error (the warning is non-blocking)', () => {
+  const result = validateProductForm({ ...VALID_FORM_VALUES, price: 590 });
+  assert.equal(result.price, undefined);
+});
+
+test('CONTRACT: submitting a low price opens the confirmation instead of saving immediately', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(
+    source,
+    /if \(typeof candidate\.price === 'number' && shouldWarnLowPrice\(candidate\.price, previousPrice\)\) \{\s*setPendingPriceWarning\(candidate\);\s*return;\s*\}/,
+  );
+  assert.match(source, /void performSave\(candidate\);\s*\};\s*\n\s*const confirmLowPriceSave/);
+});
+
+test('CONTRACT: cancelling the low-price warning only clears the warning, the form and its data stay untouched', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /const cancelLowPriceSave = \(\) => setPendingPriceWarning\(null\);/);
+});
+
+test('CONTRACT: confirming the low-price warning saves exactly once and is guarded against a double click', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /const confirmLowPriceSave = \(\) => \{\s*if \(!pendingPriceWarning \|\| saving\) return;/);
+  const confirmBody = source.slice(source.indexOf('const confirmLowPriceSave'), source.indexOf('const cancelLowPriceSave'));
+  assert.equal(confirmBody.match(/performSave\(/g)?.length, 1, 'confirmLowPriceSave must call performSave exactly once');
+});
+
+test('CONTRACT: the confirmation dialog reuses the existing currency formatter and the one shared performSave, no new Intl.NumberFormat', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /formatCurrency\(pendingPriceWarning\.price\)/);
+  assert.doesNotMatch(source, /new Intl\.NumberFormat/);
+  assert.match(source, /<ConfirmDialog\s/);
+  assert.match(source, /confirmDisabled=\{saving\}/);
 });
