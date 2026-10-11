@@ -2,6 +2,7 @@ import { ArrowLeft, MessageCircle, TriangleAlert } from 'lucide-react';
 
 import { formatOrderDate, fulfillmentLabel, orderLabel, orderReference, paymentLabel, type AdminOrder } from '../orderPresentation';
 import { allowedNextSupportStatuses, SUPPORT_SOURCE_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, SUPPORT_TOPIC_LABELS, supportStatusActionLabel } from '../support/supportPresentation';
+import { buildSupportWhatsAppMessage } from '../whatsapp';
 import type { SupportRequest, SupportRequestStatus } from '../../services/adminApi';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
@@ -196,8 +197,7 @@ export function SupportRequestDetail({
             <WhatsAppContactButton
               key={supportRequest.id}
               phone={supportRequest.customerPhone}
-              customerName={supportRequest.customerName}
-              orderReference={resolveWhatsAppOrderReference(orderContext, supportRequest)}
+              defaultMessage={buildSupportWhatsAppMessage(supportRequest.customerName, resolveWhatsAppOrderReference(orderContext, supportRequest))}
             />
           </div>
         </section>

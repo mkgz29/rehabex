@@ -1,12 +1,12 @@
 import { useId, useState } from 'react';
 
-import { buildSupportWhatsAppMessage, buildWhatsAppUrl, normalizePhoneForWhatsApp } from '../whatsapp';
+import { buildWhatsAppUrl, normalizePhoneForWhatsApp } from '../whatsapp';
 import { AdminSecondaryButton } from './AdminButton';
 
 export type WhatsAppContactButtonProps = {
   phone: string | null | undefined;
-  customerName: string;
-  orderReference?: string | null;
+  /** Already built via buildSupportWhatsAppMessage or buildOrderWhatsAppMessage -- this component only handles phone validation, the expand/edit/open UI and URL building, so the same component serves both Soporte and Pedidos with their own templates. */
+  defaultMessage: string;
 };
 
 type WhatsAppContactViewProps = {
@@ -68,16 +68,15 @@ export function WhatsAppContactView({ isOpen, message, url, textareaId, onToggle
  * nothing when there is no phone; renders a discreet notice, never a
  * broken link, when the phone does not normalize.
  *
- * Callers must pass `key={<the ticket's own id>}` when rendering this for
- * a given support request (see SupportRequestDetail) -- that forces a
- * fresh mount, and therefore a fresh default message and a collapsed
- * panel, whenever the selected ticket changes. Without it, an edited
- * draft for one customer could otherwise stay loaded when switching to
- * another, since isOpen/message are local state.
+ * Callers must pass `key={<the ticket's or order's own id>}` when rendering
+ * this (see SupportRequestDetail and OrdersTable) -- that forces a fresh
+ * mount, and therefore a fresh default message and a collapsed panel,
+ * whenever the selected ticket/row changes. Without it, an edited draft for
+ * one customer could otherwise stay loaded when switching to another, since
+ * isOpen/message are local state.
  */
-export function WhatsAppContactButton({ phone, customerName, orderReference }: WhatsAppContactButtonProps) {
+export function WhatsAppContactButton({ phone, defaultMessage }: WhatsAppContactButtonProps) {
   const textareaId = useId();
-  const defaultMessage = buildSupportWhatsAppMessage(customerName, orderReference);
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState(defaultMessage);
 

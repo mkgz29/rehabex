@@ -160,6 +160,49 @@ test('GET /api/orders: a malformed id is rejected with 400 and never reaches the
   assert.equal(queried, false);
 });
 
+function captureOrdersSelectColumns(options: Parameters<typeof fakeServiceClient>[0]) {
+  let capturedColumns: string | undefined;
+  const serviceClient = () => {
+    const client = fakeServiceClient(options)();
+    const originalFrom = client.from.bind(client);
+    client.from = (table: string) => {
+      const result = originalFrom(table);
+      if (table === 'orders') {
+        const originalSelect = result.select.bind(result);
+        result.select = (columns: string) => {
+          capturedColumns = columns;
+          return originalSelect(columns);
+        };
+      }
+      return result;
+    };
+    return client;
+  };
+  return { serviceClient, getColumns: () => capturedColumns };
+}
+
+// FASE 7D-C: the admin orders projection now includes customer_phone, so an
+// admin can open an assisted WhatsApp contact. Nothing else about the
+// projection, auth, filters or behavior changes.
+test('GET /api/orders: the real select() projection includes customer_phone', async () => {
+  const { serviceClient, getColumns } = captureOrdersSelectColumns({ listResult: { data: [], error: null } });
+  const result = mockResponse();
+  await handler(request(), result.response, { serviceClient });
+  assert.equal(result.read().statusCode, 200);
+  assert.match(getColumns() ?? '', /(^|,\s*)customer_phone(,|$)/);
+});
+
+test('GET /api/orders: the projection still never includes the guest status token hash, preference lease token, idempotency key or delivery address', async () => {
+  const { serviceClient, getColumns } = captureOrdersSelectColumns({ listResult: { data: [], error: null } });
+  const result = mockResponse();
+  await handler(request(), result.response, { serviceClient });
+  assert.equal(result.read().statusCode, 200);
+  const columns = getColumns() ?? '';
+  for (const forbidden of ['status_token', 'preference_lease', 'idempotency_key', 'delivery_address']) {
+    assert.doesNotMatch(columns, new RegExp(forbidden));
+  }
+});
+
 test('GET /api/orders: only the first value of a repeated id query param is used', async () => {
   const row = orderRow();
   const result = mockResponse();

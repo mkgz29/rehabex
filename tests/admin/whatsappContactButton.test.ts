@@ -20,7 +20,7 @@ import type { SupportRequest } from '../../src/services/adminApi';
 
 function renderContainer(props: Partial<React.ComponentProps<typeof WhatsAppContactButton>> = {}) {
   return renderToStaticMarkup(
-    React.createElement(WhatsAppContactButton, { phone: undefined, customerName: 'Cliente Real', ...props }),
+    React.createElement(WhatsAppContactButton, { phone: undefined, defaultMessage: 'Hola Cliente Real, somos de Rehabex. Te contactamos por tu consulta.', ...props }),
   );
 }
 
