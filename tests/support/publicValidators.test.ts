@@ -130,22 +130,29 @@ test('a non-object payload is rejected', () => {
   }
 });
 
-// --- honeypot --------------------------------------------------------------
+// --- honeypot (FASE 7D.1-E: renamed from "company", which matched browser/
+// password-manager autofill heuristics for an organization name and caused
+// real visitors' own saved data to silently trigger the bot path) ----------
 
-test('company is an allowed field (the honeypot), and an empty one is a normal, valid submission', () => {
-  const result = parsePublicSupportIntakePayload(basePayload({ company: '' }));
+test('formGuard is an allowed field (the honeypot), and an empty one is a normal, valid submission', () => {
+  const result = parsePublicSupportIntakePayload(basePayload({ formGuard: '' }));
   assert.ok(isValid(result));
   if (isValid(result)) assert.equal(result.value.honeypotTriggered, false);
 });
 
-test('a filled company field flags honeypotTriggered and skips all other field validation', () => {
-  const result = parsePublicSupportIntakePayload({ company: 'Acme Corp', customerEmail: 'not-an-email', topic: 'not-a-topic' });
+test('a filled formGuard field flags honeypotTriggered and skips all other field validation', () => {
+  const result = parsePublicSupportIntakePayload({ formGuard: 'some-autofilled-or-bot-value', customerEmail: 'not-an-email', topic: 'not-a-topic' });
   assert.ok(isValid(result));
   if (isValid(result)) assert.equal(result.value.honeypotTriggered, true);
 });
 
-test('a whitespace-only company field is not treated as filled', () => {
-  const result = parsePublicSupportIntakePayload(basePayload({ company: '   ' }));
+test('a whitespace-only formGuard field is not treated as filled', () => {
+  const result = parsePublicSupportIntakePayload(basePayload({ formGuard: '   ' }));
   assert.ok(isValid(result));
   if (isValid(result)) assert.equal(result.value.honeypotTriggered, false);
+});
+
+test('the old "company" field name is no longer part of the contract: sending it is rejected as an unknown field, not silently accepted or treated as the honeypot', () => {
+  const result = parsePublicSupportIntakePayload(basePayload({ company: 'Acme Corp' }));
+  assert.equal(isValid(result), false);
 });

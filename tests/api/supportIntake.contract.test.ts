@@ -118,14 +118,16 @@ test('a malformed (non-object) or unparseable payload is rejected with 400', asy
   assert.equal(extraField.read().statusCode, 400);
 });
 
-// --- honeypot ----------------------------------------------------------------
+// --- honeypot (FASE 7D.1-E: renamed from "company" to a non-semantic
+// "formGuard", since the old name matched browser/password-manager autofill
+// heuristics and caused real visitors to false-positive as bots) -----------
 
-test('a filled honeypot (company) returns the exact same success shape, and never calls the RPC', async () => {
+test('a filled honeypot (formGuard) returns the exact same success shape, and never calls the RPC', async () => {
   const calls = { count: 0 };
   const deps = { serviceClient: fakeServiceClient({ data: successRow, error: null }, calls) };
   const result = mockResponse();
   await handler(
-    { method: 'POST', headers: browserHeaders(), body: validPayload({ company: 'Acme Corp', customerEmail: 'not-even-valid' }) },
+    { method: 'POST', headers: browserHeaders(), body: validPayload({ formGuard: 'some-autofilled-or-bot-value', customerEmail: 'not-even-valid' }) },
     result.response,
     deps,
   );
@@ -133,6 +135,20 @@ test('a filled honeypot (company) returns the exact same success shape, and neve
   assert.equal(statusCode, 200);
   assert.deepEqual(body, { ok: true });
   assert.equal(calls.count, 0, 'public_create_support_request must never be called for a honeypot-triggered request');
+});
+
+test('the old "company" field name is no longer accepted at all: an otherwise valid payload carrying it is rejected with 400, not treated as the honeypot or silently ignored', async () => {
+  const calls = { count: 0 };
+  const deps = { serviceClient: fakeServiceClient({ data: successRow, error: null }, calls) };
+  const result = mockResponse();
+  await handler(
+    { method: 'POST', headers: browserHeaders(), body: validPayload({ company: '' }) },
+    result.response,
+    deps,
+  );
+  const { statusCode } = result.read();
+  assert.equal(statusCode, 400);
+  assert.equal(calls.count, 0);
 });
 
 // --- success / RPC wiring -----------------------------------------------------

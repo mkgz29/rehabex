@@ -108,14 +108,22 @@ test('order reference is a free-text input, never asks for a UUID', () => {
 
 test('the honeypot field is present, out of the normal visual flow, and hidden from assistive tech', () => {
   const markup = renderIdlePage();
-  assert.match(markup, /name="company"/);
-  assert.match(markup, /aria-hidden="true"[^>]*>[\s\S]*name="company"/);
+  assert.match(markup, /name="form_guard"/);
+  assert.match(markup, /aria-hidden="true"[^>]*>[\s\S]*name="form_guard"/);
   assert.match(markup, /tabIndex=-1|tabindex="-1"/);
 });
 
 test('no explanation or mention of the honeypot is ever shown to the user', () => {
   const markup = renderIdlePage();
   assert.doesNotMatch(markup, /honeypot|anti-spam|anti spam|bot detection/i);
+});
+
+test('FASE 7D.1-E: the honeypot field name is non-semantic -- never matches a real form-field name that could trigger browser/password-manager autofill', () => {
+  const markup = renderIdlePage();
+  assert.doesNotMatch(markup, /name="company"/);
+  for (const semanticName of ['company', 'organization', 'website', 'url', 'address', 'phone', 'email', 'name']) {
+    assert.doesNotMatch(markup, new RegExp(`name="${semanticName}"`), `honeypot name must never be "${semanticName}"`);
+  }
 });
 
 // --- UX states (via the pure view) --------------------------------------------

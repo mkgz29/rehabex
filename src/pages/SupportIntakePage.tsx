@@ -67,12 +67,17 @@ export function SupportIntakeView({ status, errorMessage, values, onFieldChange,
 
       {/* Honeypot: real visitors never see or fill this. aria-hidden removes it
           from the accessibility tree entirely (never announced, never reachable
-          by Tab), so it costs nothing for a real user. */}
+          by Tab), so it costs nothing for a real user. The field's name/id/label
+          are deliberately non-semantic -- "company" previously matched browser
+          and password-manager autofill heuristics for an organization name,
+          so saved-profile data from a real visitor's own autofill was silently
+          filling it and getting misread as a bot (FASE 7D.1-E). Nothing about
+          this field should resemble a recognizable form field at all. */}
       <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-        <label htmlFor="support-company">Empresa</label>
+        <label htmlFor="support-form-guard">Dejar vacío</label>
         <input
-          id="support-company"
-          name="company"
+          id="support-form-guard"
+          name="form_guard"
           type="text"
           tabIndex={-1}
           autoComplete="off"
@@ -211,7 +216,7 @@ export function SupportIntakePage() {
         subject: values.subject.trim() || undefined,
         orderReference: values.orderReference.trim() || undefined,
         message: values.message,
-        company: honeypotValue,
+        formGuard: honeypotValue,
       });
       setStatus('success');
     } catch (error) {
