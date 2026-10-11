@@ -11,6 +11,7 @@ import { AdminPageHeader } from '../components/AdminPageHeader';
 import { AdminCard } from '../components/AdminCard';
 import { AdminEmptyState } from '../components/AdminEmptyState';
 import { AdminPrimaryButton, AdminSecondaryButton } from '../components/AdminButton';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StatusBadge } from '../components/StatusBadge';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
@@ -18,7 +19,7 @@ import { ProductGalleryField } from '../components/ProductGalleryField';
 import { buildCategoryDirectory, resolveCategoryInput } from '../catalog/categoryOptions';
 import { isProductFormDirty } from '../catalog/productDirtyState';
 import { filterProducts, type VisibilityFilter } from '../catalog/productListFilters';
-import { firstErrorField, validateProductForm, type ProductFormErrors } from '../catalog/productFormValidation';
+import { firstErrorField, shouldWarnLowPrice, validateProductForm, type ProductFormErrors } from '../catalog/productFormValidation';
 import type { GalleryDraftItem } from '../catalog/productGallery';
 import { mergeProductIntoList, saveProduct } from '../catalog/productSaveOrchestration';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
@@ -62,6 +63,7 @@ export function AdminProductsPage() {
   const [pendingHideId, setPendingHideId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingPriceWarning, setPendingPriceWarning] = useState<ProductInput | null>(null);
 
   const nameRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -168,7 +170,34 @@ export function AdminProductsPage() {
     setEditingProduct((current) => ({ ...current, category: resolveCategoryInput(current.category ?? '', categoryDirectory) }));
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const performSave = async (candidate: ProductInput) => {
+    setSaving(true);
+    setMessage(null);
+    setError(null);
+
+    const isNew = !candidate.id;
+
+    try {
+      // One request, one database transaction: content, gallery and
+      // visibility are committed together or not at all (admin_create_product
+      // _with_media / admin_update_product_with_media, ADMIN-02C).
+      const saved = await saveProduct(candidate, { editingUpdatedAt, gallery: candidate.gallery ?? [] }, { createProduct, updateProduct });
+      setProducts((current) => mergeProductIntoList(current, saved, isNew));
+      setMessage(isNew ? 'Producto creado correctamente.' : 'Producto actualizado correctamente.');
+      setIsFormOpen(false);
+      setDirty('products', false);
+      setPendingPriceWarning(null);
+    } catch (submitError) {
+      // Nothing was persisted: a failure anywhere in the single save request
+      // rolls back the whole transaction, so the form stays open with what
+      // was typed and nothing changed on the server.
+      setError(messageForApiError(submitError, 'No pudimos guardar los cambios. Revisa que todos los campos esten completos y sean validos.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving) return; // Prevents a double click from firing two saves.
 
@@ -191,30 +220,26 @@ export function AdminProductsPage() {
 
     setEditingProduct(candidate);
     setFieldErrors({});
-    setSaving(true);
-    setMessage(null);
-    setError(null);
 
-    const isNew = !candidate.id;
-
-    try {
-      // One request, one database transaction: content, gallery and
-      // visibility are committed together or not at all (admin_create_product
-      // _with_media / admin_update_product_with_media, ADMIN-02C).
-      const saved = await saveProduct(candidate, { editingUpdatedAt, gallery: candidate.gallery ?? [] }, { createProduct, updateProduct });
-      setProducts((current) => mergeProductIntoList(current, saved, isNew));
-      setMessage(isNew ? 'Producto creado correctamente.' : 'Producto actualizado correctamente.');
-      setIsFormOpen(false);
-      setDirty('products', false);
-    } catch (submitError) {
-      // Nothing was persisted: a failure anywhere in the single save request
-      // rolls back the whole transaction, so the form stays open with what
-      // was typed and nothing changed on the server.
-      setError(messageForApiError(submitError, 'No pudimos guardar los cambios. Revisa que todos los campos esten completos y sean validos.'));
-    } finally {
-      setSaving(false);
+    // Warn (non-blocking) on a suspiciously low price, but never just for
+    // an already-saved low price the admin left untouched while editing.
+    const previousPrice = candidate.id ? initialProduct.price : null;
+    if (typeof candidate.price === 'number' && shouldWarnLowPrice(candidate.price, previousPrice)) {
+      setPendingPriceWarning(candidate);
+      return;
     }
+
+    void performSave(candidate);
   };
+
+  const confirmLowPriceSave = () => {
+    if (!pendingPriceWarning || saving) return; // Guards a double click on the dialog's own confirm button.
+    const candidate = pendingPriceWarning;
+    setPendingPriceWarning(null);
+    void performSave(candidate);
+  };
+
+  const cancelLowPriceSave = () => setPendingPriceWarning(null);
 
   const handleSetActive = async (product: Product, nextActive: boolean) => {
     setMessage(null);
@@ -562,6 +587,23 @@ export function AdminProductsPage() {
           </form>
         </AdminCard>
       )}
+
+      <ConfirmDialog
+        open={pendingPriceWarning !== null}
+        title="Precio inusualmente bajo"
+        message={
+          pendingPriceWarning ? (
+            <>
+              El precio ingresado es <strong>{formatCurrency(pendingPriceWarning.price)}</strong>. Parece inusualmente bajo. ¿Confirmás que querés guardarlo?
+            </>
+          ) : null
+        }
+        confirmLabel="Guardar de todos modos"
+        cancelLabel="Cancelar"
+        onConfirm={confirmLowPriceSave}
+        onCancel={cancelLowPriceSave}
+        confirmDisabled={saving}
+      />
     </div>
   );
 }
