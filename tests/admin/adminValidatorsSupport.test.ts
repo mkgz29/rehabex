@@ -84,8 +84,8 @@ test('parseCreateSupportRequestPayload rejects an oversized subject, and an empt
   assert.equal(isValid(parseCreateSupportRequestPayload({ ...VALID_CREATE, message: 'x'.repeat(4001) })), false);
 });
 
-test('parseUpdateSupportRequestStatusPayload accepts each real status and rejects anything else', () => {
-  for (const status of ['open', 'answered', 'resolved']) {
+test('parseUpdateSupportRequestStatusPayload accepts each real status (including archived, FASE 7D.2) and rejects anything else', () => {
+  for (const status of ['open', 'answered', 'resolved', 'archived']) {
     assert.ok(isValid(parseUpdateSupportRequestStatusPayload({ id: SUPPORT_ID, status, expectedUpdatedAt: NOW })));
   }
   for (const status of ['closed', 'pending', 'OPEN', '', 1, null]) {
@@ -119,10 +119,10 @@ test('parseUpdateSupportRequestNotesPayload rejects an oversized note and unsafe
   assert.equal(isValid(parseUpdateSupportRequestNotesPayload({ id: SUPPORT_ID, internalNotes: '<script>', expectedUpdatedAt: NOW })), false);
 });
 
-test('parseListSupportRequestsPayload accepts no filter, each real status, and rejects anything else', () => {
+test('parseListSupportRequestsPayload accepts no filter, each real status (including archived, FASE 7D.2), and rejects anything else', () => {
   assert.ok(isValid(parseListSupportRequestsPayload({})));
   assert.ok(isValid(parseListSupportRequestsPayload({ status: null })));
-  for (const status of ['open', 'answered', 'resolved']) {
+  for (const status of ['open', 'answered', 'resolved', 'archived']) {
     assert.ok(isValid(parseListSupportRequestsPayload({ status })));
   }
   assert.equal(isValid(parseListSupportRequestsPayload({ status: 'bogus' })), false);

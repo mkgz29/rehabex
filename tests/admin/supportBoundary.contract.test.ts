@@ -265,6 +265,28 @@ test('status update: a valid admin request succeeds', async () => {
   assert.equal((body as { supportRequest: { status: string } }).supportRequest.status, 'resolved');
 });
 
+test('status update: archiving a ticket succeeds (FASE 7D.2), same endpoint, no new route', async () => {
+  const handler = createAdminUpdateSupportRequestStatusHandler(
+    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: supportRow({ status: 'archived' }), error: null }) }),
+  );
+  const result = mockResponse();
+  await handler(jsonRequest({ id: SUPPORT_ID, status: 'archived', expectedUpdatedAt: NOW }), result.response);
+  const { statusCode, body } = result.read();
+  assert.equal(statusCode, 200);
+  assert.equal((body as { supportRequest: { status: string } }).supportRequest.status, 'archived');
+});
+
+test('status update: reopening an archived ticket back to open succeeds', async () => {
+  const handler = createAdminUpdateSupportRequestStatusHandler(
+    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: supportRow({ status: 'open' }), error: null }) }),
+  );
+  const result = mockResponse();
+  await handler(jsonRequest({ id: SUPPORT_ID, status: 'open', expectedUpdatedAt: NOW }), result.response);
+  const { statusCode, body } = result.read();
+  assert.equal(statusCode, 200);
+  assert.equal((body as { supportRequest: { status: string } }).supportRequest.status, 'open');
+});
+
 // --- notes ------------------------------------------------------------------------
 
 test('notes update: rejects an oversized note with 422', async () => {
