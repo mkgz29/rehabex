@@ -22,7 +22,7 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 export const SUPPORT_TOPICS = ['product', 'order', 'shipping', 'payment', 'returns_warranty', 'advice', 'general', 'other'] as const;
 export type SupportTopic = (typeof SUPPORT_TOPICS)[number];
 
-const ALLOWED_KEYS = ['customerName', 'customerEmail', 'customerPhone', 'topic', 'subject', 'orderReference', 'message', 'company'] as const;
+const ALLOWED_KEYS = ['customerName', 'customerEmail', 'customerPhone', 'topic', 'subject', 'orderReference', 'message', 'formGuard'] as const;
 
 export type PublicSupportIntakeInput = {
   customerName: string;
@@ -75,13 +75,18 @@ export function parsePublicSupportIntakePayload(value: unknown): ValidationResul
   if (!input) return { ok: false, error: 'invalid_payload' };
   if (!hasOnlyAllowedKeys(input, ALLOWED_KEYS)) return { ok: false, error: 'unknown_field' };
 
-  // Honeypot first, before validating anything else: a filled company field
-  // means this is a bot, and from here the caller must behave exactly as if
-  // everything were valid (fake success, no RPC call) regardless of what
-  // garbage the rest of the payload contains.
-  if (typeof input.company !== 'undefined' && input.company !== null && input.company !== '') {
-    if (typeof input.company !== 'string') return { ok: false, error: 'invalid_payload' };
-    if (input.company.trim() !== '') {
+  // Honeypot first, before validating anything else: a filled formGuard
+  // field means this is a bot, and from here the caller must behave exactly
+  // as if everything were valid (fake success, no RPC call) regardless of
+  // what garbage the rest of the payload contains. The field name is
+  // deliberately non-semantic (FASE 7D.1-E, replacing the old "company"
+  // name): a name that resembles a real form field invites browser/password-
+  // manager autofill to silently fill it from a real visitor's own saved
+  // data, which is then misread as a bot -- never rename it to something
+  // that could match an autofill heuristic.
+  if (typeof input.formGuard !== 'undefined' && input.formGuard !== null && input.formGuard !== '') {
+    if (typeof input.formGuard !== 'string') return { ok: false, error: 'invalid_payload' };
+    if (input.formGuard.trim() !== '') {
       return {
         ok: true,
         value: {

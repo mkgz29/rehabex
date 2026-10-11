@@ -21,7 +21,7 @@ const validInput = {
   subject: 'Mi pedido no llego',
   orderReference: 'RHB-202610-000099',
   message: 'Hola, todavia no me llego mi pedido.',
-  company: '',
+  formGuard: '',
 };
 
 test('submitSupportRequest POSTs to /api/support-intake with exactly the given payload as JSON', () =>

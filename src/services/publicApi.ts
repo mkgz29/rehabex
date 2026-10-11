@@ -22,8 +22,12 @@ export type SupportIntakeInput = {
   subject?: string;
   orderReference?: string;
   message: string;
-  /** Honeypot. Always sent; stays empty for a real visitor. */
-  company?: string;
+  /** Honeypot. Always sent; stays empty for a real visitor. Deliberately
+   * non-semantic name (FASE 7D.1-E) -- never rename this back to something
+   * that resembles a real form field (company, email, phone, address...),
+   * since that is exactly what made a real visitor's browser autofill
+   * silently fill it and get misread as a bot. */
+  formGuard?: string;
 };
 
 export async function submitSupportRequest(input: SupportIntakeInput): Promise<void> {
