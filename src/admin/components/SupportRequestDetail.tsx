@@ -180,12 +180,10 @@ export function SupportRequestDetail({
               <dt className="text-slate-500">Email:</dt>
               <dd className="font-medium text-slate-900">{supportRequest.customerEmail}</dd>
             </div>
-            {supportRequest.customerPhone ? (
-              <div className="flex gap-2">
-                <dt className="text-slate-500">Teléfono:</dt>
-                <dd className="font-medium text-slate-900">{supportRequest.customerPhone}</dd>
-              </div>
-            ) : null}
+            <div className="flex gap-2">
+              <dt className="text-slate-500">Teléfono:</dt>
+              <dd className="font-medium text-slate-900">{supportRequest.customerPhone || 'No informado'}</dd>
+            </div>
             {supportRequest.orderReference ? (
               <div className="flex gap-2">
                 <dt className="text-slate-500">Nº de pedido (texto libre):</dt>

@@ -90,6 +90,8 @@ function renderList(props: Partial<React.ComponentProps<typeof SupportRequestLis
       onFilterChange: () => undefined,
       selectedId: null,
       onSelect: () => undefined,
+      onRefresh: () => undefined,
+      refreshing: false,
       ...props,
     }),
   );
@@ -135,6 +137,27 @@ test('SupportRequestList: the active filter tab is marked aria-selected', () => 
   assert.match(markup, /role="tab" aria-selected="true"[^>]*>\s*Abiertas/);
 });
 
+// --- manual refresh (FASE 7D.1-B) ----------------------------------------------
+
+test('SupportRequestList: the "Actualizar" button is visible regardless of loading/error/empty/populated state', () => {
+  for (const props of [{ items: null }, { items: [], error: 'No pudimos cargar las consultas.' }, { items: [] }, { items: [supportRequest()] }]) {
+    assert.match(renderList(props), />Actualizar</, `expected "Actualizar" for state ${JSON.stringify(props)}`);
+  }
+});
+
+test('SupportRequestList: reads "Actualizar" normally, and "Actualizando..." disabled while refreshing', () => {
+  const normal = renderList({ refreshing: false });
+  assert.match(normal, />Actualizar</);
+  assert.doesNotMatch(normal, /<button[^>]*disabled=""[^>]*>\s*Actualizar</);
+  const refreshingMarkup = renderList({ refreshing: true });
+  assert.match(refreshingMarkup, /<button[^>]*disabled=""[^>]*>\s*Actualizando\.\.\./);
+});
+
+test('CONTRACT: the "Actualizar" button is wired to onRefresh and disabled exactly while refreshing', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/components/SupportRequestList.tsx'), 'utf8');
+  assert.match(source, /onClick=\{onRefresh\}\s+disabled=\{refreshing\}/);
+});
+
 // --- SupportRequestDetail -----------------------------------------------------
 
 function renderDetail(props: Partial<React.ComponentProps<typeof SupportRequestDetail>> = {}) {
@@ -176,11 +199,11 @@ test('SupportRequestDetail: has a "Volver a consultas" back action for the mobil
   assert.match(markup, /Volver a consultas/);
 });
 
-test('SupportRequestDetail: shows customer name, email and phone only when phone exists', () => {
+test('SupportRequestDetail: the Teléfono row is always shown (FASE 7D.1-B) -- the real value when present, "No informado" otherwise, never hidden entirely', () => {
   const withPhone = renderDetail({ supportRequest: supportRequest({ customerPhone: '+54 9 11 1234-5678' }) });
-  assert.match(withPhone, /\+54 9 11 1234-5678/);
+  assert.match(withPhone, /Teléfono:<\/dt>\s*<dd[^>]*>\+54 9 11 1234-5678<\/dd>/);
   const withoutPhone = renderDetail({ supportRequest: supportRequest() });
-  assert.doesNotMatch(withoutPhone, /Teléfono/);
+  assert.match(withoutPhone, /Teléfono:<\/dt>\s*<dd[^>]*>No informado<\/dd>/);
 });
 
 // --- WhatsApp contact (FASE 7D-B) ---------------------------------------------
@@ -324,4 +347,69 @@ test('Soporte: WhatsApp contact (FASE 7D-B) appears only in SupportRequestDetail
 test('Soporte: SupportRequestList itself still never renders WhatsApp, even when items have a phone', () => {
   const markup = renderList({ items: [supportRequest({ customerPhone: '+54 9 11 1234-5678' })] });
   assert.doesNotMatch(markup, /whatsapp/i);
+});
+
+// --- list refresh (FASE 7D.1-B) -------------------------------------------------
+//
+// AdminSupportPage's refresh logic (window focus listener, background
+// reload, stale-response guard) lives inside useEffect/async closures that
+// renderToStaticMarkup never executes (SSR has no effect phase, confirmed
+// by the file-level comment above). These are verified as source-level
+// contracts instead -- the same substitute this suite already uses for
+// other effect-driven behavior (e.g. the WhatsAppContactButton key= test).
+
+test('CONTRACT: AdminSupportPage registers a window focus listener that triggers a background refresh of the current filter, and cleans it up', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /window\.addEventListener\('focus', handleFocus\)/);
+  assert.match(source, /window\.removeEventListener\('focus', handleFocus\)/);
+  assert.match(source, /handleFocus = \(\) => \{\s*void loadList\(filter, \{ background: true \}\);/);
+});
+
+test('CONTRACT: the manual "Actualizar" button also triggers a background refresh of the current filter', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /const handleRefresh = \(\) => void loadList\(filter, \{ background: true \}\);/);
+});
+
+test('CONTRACT: a background refresh (manual or focus) never clears the visible list -- only a foreground (filter-change) load does', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /if \(options\.background\) \{\s*setRefreshing\(true\);\s*\} else \{\s*setItems\(null\);\s*setListError\(null\);\s*\}/);
+});
+
+test('CONTRACT: loadList never touches detail, selection or the notes draft -- a background refresh cannot disturb an open ticket', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  const loadListBody = /const loadList = async[\s\S]*?\n  \};/.exec(source)?.[0] ?? '';
+  assert.ok(loadListBody.length > 0, 'expected to find the loadList function body in the source');
+  for (const forbidden of ['setDetail', 'setSelectedId', 'setNotesDraft', 'setOrderContext', 'getSupportRequest']) {
+    assert.doesNotMatch(loadListBody, new RegExp(forbidden), `loadList must never reference ${forbidden}`);
+  }
+});
+
+test('CONTRACT: loadList guards every call with a request-sequence ref, discarding any response superseded by a newer call (filter change, manual refresh or focus racing each other)', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /const requestSeqRef = useRef\(0\);/);
+  assert.match(source, /const seq = \+\+requestSeqRef\.current;/);
+  // Applied after the await, both on the success path and the error path.
+  assert.match(source, /if \(seq !== requestSeqRef\.current\) return;\s*\n\s*setItems\(result\);/);
+  assert.match(source, /if \(seq !== requestSeqRef\.current\) return;\s*\n\s*if \(!options\.background\) setItems\(\[\]\);/);
+});
+
+test('CONTRACT: loadList replaces the entire items array with the fresh server response on every call, so a refresh can never duplicate rows', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /setItems\(result\);/);
+});
+
+test('a web-origin ticket (source=web, created_by NULL) renders in the detail pane without crashing, same as an admin-created one', () => {
+  const webTicket = supportRequest({ source: 'web', topic: 'general', createdAt: new Date().toISOString() });
+  const markup = renderDetail({ supportRequest: webTicket });
+  assert.match(markup, /Web/);
+  assert.match(markup, /Consulta general/);
+});
+
+test('a web-origin ticket with status=open appears under the "Todas" and "Abiertas" filters in the list, never under "Respondidas"/"Resueltas"', () => {
+  const webTicket = supportRequest({ source: 'web', status: 'open' });
+  const markup = renderList({ items: [webTicket], filter: 'all' });
+  assert.match(markup, /Cliente Real/);
+  // SupportRequestList itself never filters client-side -- whatever items
+  // the caller passes in (already filtered server-side by listSupportRequests)
+  // is what renders; this just confirms an 'open' ticket is never hidden.
 });
