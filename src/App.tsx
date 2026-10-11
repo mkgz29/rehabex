@@ -16,6 +16,7 @@ import { PendingPage } from './pages/PendingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { StorePage } from './pages/StorePage';
+import { SupportIntakePage } from './pages/SupportIntakePage';
 import { SuccessPage } from './pages/SuccessPage';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
             real customer-account feature exists. */}
         <Route path="/registro" element={<Navigate to="/login" replace />} />
         <Route path="/tienda" element={<StorePage />} />
+        <Route path="/soporte" element={<SupportIntakePage />} />
         <Route path="/productos/:id" element={<ProductDetailPage />} />
         <Route path="/carrito" element={<CartPage />} />
         <Route path="/success" element={<SuccessPage />} />

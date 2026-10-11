@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
 import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
 import type { AdminOrder } from '../admin/orderPresentation';
+import type { SupportTopic } from '../support/supportTopics';
 
 export type AdminApiErrorKind = 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'validation' | 'unavailable';
 
@@ -241,6 +242,8 @@ export async function getSettingVersion(
 
 export type SupportRequestStatus = 'open' | 'answered' | 'resolved';
 
+export type SupportRequestSource = 'admin' | 'web';
+
 export type SupportRequest = {
   id: string;
   customerName: string;
@@ -250,6 +253,11 @@ export type SupportRequest = {
   message: string;
   status: SupportRequestStatus;
   orderId?: string;
+  /** Free text from a public /soporte submission; never resolved against orders. */
+  orderReference?: string;
+  /** 'admin' for a staff-logged ticket, 'web' for one submitted through /soporte (ADMIN-03B). */
+  source: SupportRequestSource;
+  topic: SupportTopic;
   internalNotes?: string;
   createdAt: string;
   updatedAt: string;

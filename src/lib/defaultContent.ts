@@ -24,15 +24,18 @@ export const defaultLandingContent: LandingContent = {
     ],
   },
   // Backfill/fallback for the two documents ADMIN-02E introduces: exactly the
-  // copy that was hardcoded in FeaturedProductsSection/CatalogCtaSection
+  // copy that was hardcoded in FeaturedProductsSection/SupportCtaSection
   // before this phase, so nothing visibly changes until an admin edits it
   // and no document-not-found flash of different text ever appears.
   featuredSection: {
     title: 'Elegidos para acompañar tu recuperación',
     subtitle: 'Conocé una selección del catálogo activo de Rehabex.',
   },
+  // Still the catalogSection document (FASE 7C.1 reconverts the public block
+  // it backs from a catalog CTA into the Consultas CTA; renaming the
+  // settings key itself is out of scope for this phase).
   catalogSection: {
-    title: 'Encontrá la solución adecuada para cada etapa.',
-    subtitle: 'Explorá productos seleccionados para rehabilitación, movilidad y bienestar, con información clara y disponibilidad actualizada.',
+    title: '¿Necesitás ayuda?',
+    subtitle: 'Escribinos si tenés dudas sobre un producto, un pedido, un envío o necesitás asesoramiento.',
   },
 };

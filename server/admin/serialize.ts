@@ -54,8 +54,14 @@ export type AdminSupportRequestRow = {
   message: string;
   status: 'open' | 'answered' | 'resolved';
   order_id: string | null;
+  /** Free text from the public intake form (ADMIN-03B); never resolved against orders. */
+  order_reference: string | null;
+  /** 'admin' for a staff-logged ticket, 'web' for one submitted through /soporte (ADMIN-03B). */
+  source: 'admin' | 'web';
+  topic: 'product' | 'order' | 'shipping' | 'payment' | 'returns_warranty' | 'advice' | 'general' | 'other';
   internal_notes: string | null;
-  created_by: string;
+  /** Nullable since ADMIN-03B: a web-origin ticket has no admin actor to attribute. */
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +76,9 @@ export function mapAdminSupportRequestRow(row: AdminSupportRequestRow) {
     message: row.message,
     status: row.status,
     orderId: row.order_id ?? undefined,
+    orderReference: row.order_reference ?? undefined,
+    source: row.source,
+    topic: row.topic,
     internalNotes: row.internal_notes ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

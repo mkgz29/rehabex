@@ -12,7 +12,7 @@ import { DEFAULT_FRAMING } from '../../src/lib/imageFraming.ts';
 
 // --- Featured/Catalog section copy (ADMIN-02E) ------------------------------
 // Their fallback is exactly the copy that used to be hardcoded in
-// FeaturedProductsSection/CatalogCtaSection, so a missing document never
+// FeaturedProductsSection/SupportCtaSection, so a missing document never
 // shows a different, unexpected value -- only ever the same text as before,
 // until an admin explicitly edits it.
 

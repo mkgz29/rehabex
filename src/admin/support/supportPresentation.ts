@@ -1,4 +1,12 @@
-import type { SupportRequestStatus } from '../../services/adminApi';
+import type { SupportRequestSource, SupportRequestStatus } from '../../services/adminApi';
+
+export { SUPPORT_TOPIC_LABELS, SUPPORT_TOPICS, type SupportTopic } from '../../support/supportTopics';
+
+/** 'admin' for a staff-logged ticket, 'web' for one submitted through /soporte (ADMIN-03B). */
+export const SUPPORT_SOURCE_LABELS: Record<SupportRequestSource, string> = {
+  admin: 'Panel',
+  web: 'Web',
+};
 
 export const SUPPORT_STATUS_LABELS: Record<SupportRequestStatus, string> = {
   open: 'Abierta',
