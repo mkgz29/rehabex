@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 import { HeroSection } from '../../src/components/HeroSection.tsx';
 import { ImageField } from '../../src/admin/components/ImageField.tsx';
+import { defaultLandingContent } from '../../src/lib/defaultContent.ts';
 import type { HeroContent } from '../../src/types/cms.ts';
 
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
@@ -51,6 +52,28 @@ test('Hero: loaded with no persisted image shows "Imagen no configurada" and no 
   assert.doesNotMatch(markup, /<img/);
   assert.match(markup, /Imagen no configurada/);
   assert.doesNotMatch(markup, /unsplash/i);
+});
+
+// --- Loading-state guardrail (FASE 7D.3-B3): never paint defaultLandingContent text as real while isLoading ---
+
+test('Hero: while loading, the default title/subtitle/CTA text never render, even though they are what the hook initializes with', () => {
+  const markup = renderHero(defaultLandingContent.hero, true);
+  assert.doesNotMatch(markup, /Recuperacion con confianza\./);
+  assert.doesNotMatch(markup, /Equipamiento y soluciones para rehabilitacion profesional/);
+  assert.doesNotMatch(markup, /Explorar productos/);
+});
+
+test('Hero: while loading, the title/CTA elements stay mounted (stable aria-labelledby target) with hidden skeleton content', () => {
+  const markup = renderHero(defaultLandingContent.hero, true);
+  assert.match(markup, /id="hero-title"/);
+  assert.match(markup, /aria-hidden="true"/);
+});
+
+test('Hero: loaded (isLoading=false) with the real document renders its title/subtitle/CTA normally', () => {
+  const markup = renderHero({ ...baseHero, title: 'REHABEX BOOTS', subtitle: 'Subtitulo real', primary_cta_text: 'Ir a la tienda' }, false);
+  assert.match(markup, /REHABEX BOOTS/);
+  assert.match(markup, /Subtitulo real/);
+  assert.match(markup, /Ir a la tienda/);
 });
 
 test('ImageField: while the parent form is loading, shows a skeleton and never the passed-in value', () => {

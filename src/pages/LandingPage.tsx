@@ -25,9 +25,9 @@ export function LandingPage() {
         <HeroSection heroContent={content.hero} isLoading={isLoading} />
         <Reveal><TrustStrip /></Reveal>
         <Reveal><FeaturedProductsSection content={content.featuredSection} products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} /></Reveal>
-        <Reveal><AboutSection content={content.about} products={activeProducts} /></Reveal>
+        <Reveal><AboutSection content={content.about} products={activeProducts} isLoading={isLoading} /></Reveal>
         {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}
-        <Reveal><SupportCtaSection content={content.catalogSection} /></Reveal>
+        <Reveal><SupportCtaSection content={content.catalogSection} isLoading={isLoading} /></Reveal>
       </main>
       <Reveal><Footer categories={activeProducts.map((product) => product.category).filter((category): category is string => Boolean(category))} /></Reveal>
     </div>

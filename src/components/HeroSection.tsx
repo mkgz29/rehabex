@@ -27,15 +27,37 @@ export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
       <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-9 py-10 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-10 md:py-12 lg:gap-16 lg:py-14">
         <div className="max-w-2xl py-2 md:py-8">
           <p className="eyebrow hero-enter">Rehabilitación · Movilidad · Bienestar</p>
+          {/* The h1/CTA stay mounted with their ids/elements while loading --
+              only their content swaps for a skeleton -- so aria-labelledby
+              keeps a stable target and no default/old CMS text is ever
+              announced or painted before the real document resolves. */}
           <h1 id="hero-title" className="hero-enter hero-enter-delay-1 mt-5 max-w-[19ch] text-balance text-[clamp(2.75rem,5.2vw,4.5rem)] font-bold leading-[0.98] tracking-[-0.05em] text-ink">
-            {heroContent.title}
+            {isLoading ? (
+              <span className="inline-block w-full space-y-3" aria-hidden="true">
+                <span className="block h-[0.85em] w-full animate-pulse rounded bg-line" />
+                <span className="block h-[0.85em] w-2/3 animate-pulse rounded bg-line" />
+              </span>
+            ) : (
+              heroContent.title
+            )}
           </h1>
-          {heroContent.subtitle ? <p className="hero-enter hero-enter-delay-2 mt-6 max-w-[34rem] text-base leading-7 text-muted sm:text-lg sm:leading-8">{heroContent.subtitle}</p> : null}
+          {isLoading ? (
+            <p className="hero-enter hero-enter-delay-2 mt-6 max-w-[34rem] space-y-2" aria-hidden="true">
+              <span className="block h-5 w-full animate-pulse rounded bg-line" />
+              <span className="block h-5 w-2/3 animate-pulse rounded bg-line" />
+            </p>
+          ) : heroContent.subtitle ? (
+            <p className="hero-enter hero-enter-delay-2 mt-6 max-w-[34rem] text-base leading-7 text-muted sm:text-lg sm:leading-8">{heroContent.subtitle}</p>
+          ) : null}
           <div className="hero-enter hero-enter-delay-3 mt-8 flex flex-wrap gap-3">
-            <a href={heroContent.primary_cta_link} className="brand-button gap-2 px-6">
-              {heroContent.primary_cta_text}
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </a>
+            {isLoading ? (
+              <span className="inline-flex h-11 w-44 animate-pulse rounded-control bg-line" aria-hidden="true" />
+            ) : (
+              <a href={heroContent.primary_cta_link} className="brand-button gap-2 px-6">
+                {heroContent.primary_cta_text}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            )}
             <Link to="/tienda" className="secondary-button">Ver tienda</Link>
           </div>
         </div>
