@@ -6,6 +6,7 @@ import {
   type MercadoPagoPayment,
   type PaymentProcessResult,
 } from './paymentProcessing.js';
+import { deliverPurchaseConfirmationEmail, shouldSendPurchaseConfirmation } from './purchaseEmailDelivery.js';
 
 /** Binding actually used to tie a provider payment to a local order. */
 export type ResolvedBinding = PreferenceBinding | 'order_external_reference';
@@ -69,6 +70,22 @@ export async function confirmMercadoPagoPayment(
     { ...payment, preference_id: preferenceId },
     { requestId: options.requestId },
   );
+
+  // FASE 7E-B2: the one and only trigger point for the purchase-confirmation
+  // email, shared by the webhook, guest recovery and admin reconciliation
+  // alike -- exactly like the atomic RPC call above it. Strictly after the
+  // payment RPC has already committed; a failure anywhere in the email
+  // attempt is fully contained inside deliverPurchaseConfirmationEmail
+  // (which never throws) and additionally behind this try/catch, so it can
+  // never turn a successful payment confirmation into an error response.
+  if (shouldSendPurchaseConfirmation(result) && typeof payment.external_reference === 'string') {
+    try {
+      await deliverPurchaseConfirmationEmail(supabase, payment.external_reference);
+    } catch {
+      /* the payment already succeeded; an email-path failure must never surface here */
+    }
+  }
+
   return { result, binding };
 }
 
