@@ -240,7 +240,7 @@ export async function getSettingVersion(
 // v1 is admin-only: there is no public contact form yet. Staff log a case
 // themselves when a customer reaches out by phone, email or WhatsApp.
 
-export type SupportRequestStatus = 'open' | 'answered' | 'resolved';
+export type SupportRequestStatus = 'open' | 'answered' | 'resolved' | 'archived';
 
 export type SupportRequestSource = 'admin' | 'web';
 

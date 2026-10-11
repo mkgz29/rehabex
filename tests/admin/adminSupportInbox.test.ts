@@ -41,9 +41,9 @@ test('Soporte: header shows the approved title, description, and a "Registrar co
   assert.match(markup, />Registrar consulta</);
 });
 
-test('Soporte: filter tabs render exactly the four approved options, in Spanish, feminine plural', () => {
+test('Soporte: filter tabs render exactly the five approved options, in Spanish, feminine plural (FASE 7D.2: Archivadas added)', () => {
   const markup = renderSupport();
-  for (const label of ['Todas', 'Abiertas', 'Respondidas', 'Resueltas']) {
+  for (const label of ['Todas', 'Abiertas', 'Respondidas', 'Resueltas', 'Archivadas']) {
     assert.match(markup, new RegExp(`>${label}<`));
   }
 });
@@ -389,13 +389,13 @@ test('CONTRACT: loadList guards every call with a request-sequence ref, discardi
   assert.match(source, /const requestSeqRef = useRef\(0\);/);
   assert.match(source, /const seq = \+\+requestSeqRef\.current;/);
   // Applied after the await, both on the success path and the error path.
-  assert.match(source, /if \(seq !== requestSeqRef\.current\) return;\s*\n\s*setItems\(result\);/);
+  assert.match(source, /if \(seq !== requestSeqRef\.current\) return;[\s\S]{0,600}setItems\(nextFilter === 'all'/);
   assert.match(source, /if \(seq !== requestSeqRef\.current\) return;\s*\n\s*if \(!options\.background\) setItems\(\[\]\);/);
 });
 
-test('CONTRACT: loadList replaces the entire items array with the fresh server response on every call, so a refresh can never duplicate rows', () => {
+test('CONTRACT: loadList replaces the entire items array with the fresh server response on every call (FASE 7D.2: "all" additionally excludes archived), so a refresh can never duplicate rows', () => {
   const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
-  assert.match(source, /setItems\(result\);/);
+  assert.match(source, /setItems\(nextFilter === 'all' \? result\.filter\(\(item\) => item\.status !== 'archived'\) : result\);/);
 });
 
 test('a web-origin ticket (source=web, created_by NULL) renders in the detail pane without crashing, same as an admin-created one', () => {
@@ -412,4 +412,64 @@ test('a web-origin ticket with status=open appears under the "Todas" and "Abiert
   // SupportRequestList itself never filters client-side -- whatever items
   // the caller passes in (already filtered server-side by listSupportRequests)
   // is what renders; this just confirms an 'open' ticket is never hidden.
+});
+
+// --- archive (FASE 7D.2) ---------------------------------------------------------
+
+test('SupportRequestDetail: an active ticket (open/answered/resolved) offers "Archivar"', () => {
+  for (const status of ['open', 'answered', 'resolved'] as const) {
+    const markup = renderDetail({ supportRequest: supportRequest({ status }) });
+    assert.match(markup, />Archivar</, `expected "Archivar" for status=${status}`);
+  }
+});
+
+test('SupportRequestDetail: an archived ticket offers only "Reabrir", never Archivar/responder/resolver', () => {
+  const markup = renderDetail({ supportRequest: supportRequest({ status: 'archived' }) });
+  assert.match(markup, />Reabrir</);
+  assert.doesNotMatch(markup, />Archivar</);
+  assert.doesNotMatch(markup, />Marcar respondida</);
+  assert.doesNotMatch(markup, />Marcar resuelta</);
+});
+
+test('SupportRequestDetail: an archived ticket still shows its status badge as "Archivada", and its message/phone/notes are still rendered (never deleted)', () => {
+  const markup = renderDetail({
+    supportRequest: supportRequest({ status: 'archived', customerPhone: '+54 9 381 555 1234', message: 'Mensaje historico conservado.' }),
+    notesDraft: 'Nota historica conservada.',
+  });
+  assert.match(markup, />Archivada</);
+  assert.match(markup, /\+54 9 381 555 1234/);
+  assert.match(markup, /Mensaje historico conservado\./);
+  assert.match(markup, /Nota historica conservada\./);
+});
+
+test('SupportRequestList: shows the "Archivadas" tab and an archived ticket renders normally within it (SupportRequestList itself never filters)', () => {
+  const markup = renderList({ items: [supportRequest({ status: 'archived' })], filter: 'archived' });
+  assert.match(markup, /role="tab" aria-selected="true"[^>]*>\s*Archivadas/);
+  assert.match(markup, />Cliente Real</);
+  assert.match(markup, />Archivada</);
+});
+
+test('CONTRACT: loadList excludes archived tickets only for the "all" filter -- "Archivadas" and every other specific filter pass through untouched', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /setItems\(nextFilter === 'all' \? result\.filter\(\(item\) => item\.status !== 'archived'\) : result\);/);
+});
+
+test('CONTRACT: archiving (or reopening) a ticket removes it from the currently visible list when it no longer matches the active filter, instead of leaving it displayed under the wrong tab', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminSupportPage.tsx'), 'utf8');
+  assert.match(source, /function matchesFilter\(filter: SupportStatusFilter, status: SupportRequestStatus\): boolean \{/);
+  assert.match(source, /if \(!matchesFilter\(filter, updated\.status\)\) return current\.filter\(\(item\) => item\.id !== updated\.id\);/);
+});
+
+// --- Gmail contact (FASE 7D.2) ---------------------------------------------------
+
+test('SupportRequestDetail: shows "Contactar por Gmail" next to "Contactar por WhatsApp" for a ticket with a real email and phone', () => {
+  const markup = renderDetail({ supportRequest: supportRequest({ customerPhone: '+54 9 381 555 1234', customerEmail: 'ana@example.test' }) });
+  assert.match(markup, />Contactar por WhatsApp</);
+  assert.match(markup, />Contactar por Gmail</);
+});
+
+test('SupportRequestDetail: "Contactar por Gmail" still appears even when the ticket has no phone (Gmail only depends on email)', () => {
+  const markup = renderDetail({ supportRequest: supportRequest({ customerPhone: undefined, customerEmail: 'ana@example.test' }) });
+  assert.doesNotMatch(markup, /Contactar por WhatsApp/);
+  assert.match(markup, />Contactar por Gmail</);
 });

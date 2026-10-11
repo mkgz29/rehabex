@@ -52,7 +52,7 @@ export type AdminSupportRequestRow = {
   customer_phone: string | null;
   subject: string | null;
   message: string;
-  status: 'open' | 'answered' | 'resolved';
+  status: 'open' | 'answered' | 'resolved' | 'archived';
   order_id: string | null;
   /** Free text from the public intake form (ADMIN-03B); never resolved against orders. */
   order_reference: string | null;

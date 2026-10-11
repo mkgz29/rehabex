@@ -31,6 +31,14 @@ function replaceInList(items: SupportRequest[], updated: SupportRequest): Suppor
   return items.map((item) => (item.id === updated.id ? updated : item));
 }
 
+/** Same "Todas excludes archived" rule as loadList, generalized to every
+ * filter -- a status change can move a ticket out of (or into) the tab
+ * currently being viewed, not just archive/reopen. */
+function matchesFilter(filter: SupportStatusFilter, status: SupportRequestStatus): boolean {
+  if (filter === 'all') return status !== 'archived';
+  return filter === status;
+}
+
 export function AdminSupportPage() {
   const [filter, setFilter] = useState<SupportStatusFilter>('all');
   const [items, setItems] = useState<SupportRequest[] | null>(null);
@@ -75,7 +83,13 @@ export function AdminSupportPage() {
     try {
       const result = await listSupportRequests(nextFilter === 'all' ? undefined : nextFilter);
       if (seq !== requestSeqRef.current) return;
-      setItems(result);
+      // "Todas" means every active ticket, never archived -- that's the
+      // whole point of archiving a ticket (FASE 7D.2): it disappears from
+      // the default view without ever being deleted. The RPC itself still
+      // returns every status for a NULL filter (unchanged, and still what
+      // the explicit "Archivadas" filter relies on); this exclusion is a
+      // presentation-layer rule, applied only for 'all'.
+      setItems(nextFilter === 'all' ? result.filter((item) => item.status !== 'archived') : result);
       setListError(null);
     } catch (error) {
       if (seq !== requestSeqRef.current) return;
@@ -156,7 +170,15 @@ export function AdminSupportPage() {
   const applyUpdatedDetail = (updated: SupportRequest) => {
     setDetail(updated);
     setNotesDraft(updated.internalNotes ?? '');
-    setItems((current) => (current ? replaceInList(current, updated) : current));
+    setItems((current) => {
+      if (!current) return current;
+      // A status change (e.g. archiving while on "Todas", or reopening
+      // while on "Archivadas") can move the ticket out of the tab
+      // currently being viewed -- drop it from the visible list instead
+      // of leaving it displayed under a filter it no longer belongs to.
+      if (!matchesFilter(filter, updated.status)) return current.filter((item) => item.id !== updated.id);
+      return replaceInList(current, updated);
+    });
   };
 
   const handleChangeStatus = async (next: SupportRequestStatus) => {

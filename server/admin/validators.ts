@@ -40,7 +40,7 @@ const MAX_SUPPORT_NOTES = 4000;
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const SUPPORT_STATUSES = ['open', 'answered', 'resolved'] as const;
+const SUPPORT_STATUSES = ['open', 'answered', 'resolved', 'archived'] as const;
 
 const RESERVED_CATEGORIES = new Set(['test', 'prueba']);
 
