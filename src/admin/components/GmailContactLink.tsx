@@ -1,4 +1,7 @@
+import { Mail } from 'lucide-react';
+
 import { buildGmailComposeUrl, buildSupportEmailBody, buildSupportEmailSubject } from '../emailContact';
+import { AdminIconButton } from './AdminIconButton';
 
 export type GmailContactLinkProps = {
   email: string | null | undefined;
@@ -11,7 +14,9 @@ export type GmailContactLinkProps = {
  * intermediate editable panel here: the message stays fully editable inside
  * Gmail's own compose window once opened, so there is nothing for this admin
  * UI to pre-review. Renders nothing when there is no email or it does not
- * look like a real address, never a broken link.
+ * look like a real address, never a broken link. Icon-only (envelope, not
+ * Gmail's own branding/colors -- avoids any logo licensing concern), same
+ * tooltip/compactness treatment as WhatsAppContactButton next to it.
  */
 export function GmailContactLink({ email, customerName, subject }: GmailContactLinkProps) {
   if (!email) return null;
@@ -20,13 +25,14 @@ export function GmailContactLink({ email, customerName, subject }: GmailContactL
   if (!url) return null;
 
   return (
-    <a
+    <AdminIconButton
+      icon={Mail}
+      label="Contactar por Gmail"
+      tone="neutral"
+      size="sm"
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-900"
-    >
-      Contactar por Gmail
-    </a>
+    />
   );
 }

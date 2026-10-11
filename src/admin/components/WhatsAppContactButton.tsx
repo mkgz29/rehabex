@@ -1,6 +1,8 @@
+import { MessageCircle } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { buildWhatsAppUrl, normalizePhoneForWhatsApp } from '../whatsapp';
+import { AdminIconButton } from './AdminIconButton';
 import { AdminSecondaryButton } from './AdminButton';
 
 export type WhatsAppContactButtonProps = {
@@ -28,9 +30,11 @@ type WhatsAppContactViewProps = {
 export function WhatsAppContactView({ isOpen, message, url, textareaId, onToggle, onMessageChange, onCancel }: WhatsAppContactViewProps) {
   return (
     <div>
-      <AdminSecondaryButton size="sm" aria-expanded={isOpen} onClick={onToggle}>
-        Contactar por WhatsApp
-      </AdminSecondaryButton>
+      {/* Icon-only: an obvious, repeated action in Soporte's contact row and
+          Pedidos' table -- see AdminIconButton. lucide-react has no WhatsApp
+          brand glyph, so this uses a generic message icon, same as the
+          project's own existing "Seleccioná una consulta" empty state. */}
+      <AdminIconButton icon={MessageCircle} label="Contactar por WhatsApp" tone="whatsapp" size="sm" aria-expanded={isOpen} onClick={onToggle} />
       {isOpen ? (
         <div className="mt-2 space-y-2 rounded-2xl border border-slate-200 bg-stone-50 p-3">
           <label htmlFor={textareaId} className="block text-xs font-medium text-slate-600">
@@ -46,9 +50,11 @@ export function WhatsAppContactView({ isOpen, message, url, textareaId, onToggle
           {/* A plain link, not a button with a click handler: opening this
               tab is the only effect -- there is no fetch, no API call, no
               status change, nothing that could ever register a false
-              "contacted" state. */}
+              "contacted" state. Icon+text here: a primary, infrequent
+              confirmation action, not a repeated row control. */}
           <div className="flex flex-wrap gap-2">
-            <a href={url ?? undefined} target="_blank" rel="noopener noreferrer" className="brand-button px-4 text-sm">
+            <a href={url ?? undefined} target="_blank" rel="noopener noreferrer" className="brand-button gap-2 px-4 text-sm">
+              <MessageCircle aria-hidden="true" className="h-4 w-4" />
               Abrir WhatsApp
             </a>
             <AdminSecondaryButton size="sm" onClick={onCancel}>

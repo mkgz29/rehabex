@@ -80,7 +80,10 @@ test('SECURITY CONTRACT: the action never leaks email, payment id or status into
   assert.doesNotMatch(source, /buildOrderWhatsAppMessage\([^)]*(customer_email|payment_status|order_status|mercadopago)/);
 });
 
-test('accessibility: the toggle is a real button with visible text, not an icon-only control', () => {
+// FASE 7D.4: the toggle is now icon-only (compact, repeated row action) --
+// still a real <button>, never a bare clickable div, with its accessible
+// name carried by aria-label/title rather than visible text.
+test('accessibility: the toggle is a real button, with an aria-label and title carrying the action name', () => {
   const markup = render(BASE);
-  assert.match(markup, /<button[^>]*>\s*Contactar por WhatsApp/);
+  assert.match(markup, /<button[^>]*title="Contactar por WhatsApp"[^>]*aria-label="Contactar por WhatsApp"/);
 });
