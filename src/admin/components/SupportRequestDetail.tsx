@@ -1,4 +1,6 @@
-import { ArrowLeft, MessageCircle, TriangleAlert } from 'lucide-react';
+import { Archive, ArrowLeft, MessageCircle, RotateCcw, TriangleAlert } from 'lucide-react';
+import type { ComponentType } from 'react';
+import type { LucideProps } from 'lucide-react';
 
 import { formatOrderDate, fulfillmentLabel, orderLabel, orderReference, paymentLabel, type AdminOrder } from '../orderPresentation';
 import { allowedNextSupportStatuses, SUPPORT_SOURCE_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, SUPPORT_TOPIC_LABELS, supportStatusActionLabel } from '../support/supportPresentation';
@@ -6,10 +8,21 @@ import { buildSupportWhatsAppMessage } from '../whatsapp';
 import type { SupportRequest, SupportRequestStatus } from '../../services/adminApi';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
+import { AdminIconButton, type IconButtonTone } from './AdminIconButton';
 import { AdminSecondaryButton } from './AdminButton';
 import { GmailContactLink } from './GmailContactLink';
 import { StatusBadge } from './StatusBadge';
 import { WhatsAppContactButton } from './WhatsAppContactButton';
+
+// Only the two high-priority status actions (FASE 7D.4) get an icon
+// treatment; "Marcar respondida"/"Marcar resuelta" stay plain text -- there
+// is no equally obvious universal icon for those, and the task scoped icons
+// to WhatsApp/Gmail/Archivar/Reabrir/Actualizar. Archive is a soft amber,
+// never the destructive red: archiving a ticket never deletes anything.
+const STATUS_ACTION_ICON: Partial<Record<SupportRequestStatus, { icon: ComponentType<LucideProps>; tone: IconButtonTone }>> = {
+  archived: { icon: Archive, tone: 'archive' },
+  open: { icon: RotateCcw, tone: 'reopen' },
+};
 
 export type OrderContextState =
   | { status: 'idle' }
@@ -213,11 +226,28 @@ export function SupportRequestDetail({
       <section className="border-b border-slate-200 py-5">
         <h4 className="text-sm font-semibold text-slate-900">Estado</h4>
         <div className="mt-2 flex flex-wrap gap-2">
-          {allowedTransitions.map((next) => (
-            <AdminSecondaryButton key={next} size="sm" disabled={statusSaving} onClick={() => onChangeStatus(next)}>
-              {supportStatusActionLabel(next)}
-            </AdminSecondaryButton>
-          ))}
+          {allowedTransitions.map((next) => {
+            const iconConfig = STATUS_ACTION_ICON[next];
+            if (iconConfig) {
+              return (
+                <AdminIconButton
+                  key={next}
+                  icon={iconConfig.icon}
+                  label={supportStatusActionLabel(next)}
+                  accessibleLabel={`${supportStatusActionLabel(next)} consulta`}
+                  tone={iconConfig.tone}
+                  size="sm"
+                  disabled={statusSaving}
+                  onClick={() => onChangeStatus(next)}
+                />
+              );
+            }
+            return (
+              <AdminSecondaryButton key={next} size="sm" disabled={statusSaving} onClick={() => onChangeStatus(next)}>
+                {supportStatusActionLabel(next)}
+              </AdminSecondaryButton>
+            );
+          })}
         </div>
         {actionError ? (
           <p role="alert" className="mt-2 text-xs text-red-600">

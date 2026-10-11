@@ -1,10 +1,11 @@
-import { PackageSearch } from 'lucide-react';
+import { PackageSearch, RefreshCw } from 'lucide-react';
 
 import { formatOrderDate } from '../orderPresentation';
 import { SUPPORT_STATUS_FILTERS, SUPPORT_STATUS_LABELS, SUPPORT_STATUS_TONE, SUPPORT_TOPIC_LABELS, supportRequestPreview, type SupportStatusFilter } from '../support/supportPresentation';
 import type { SupportRequest } from '../../services/adminApi';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
+import { AdminIconButton } from './AdminIconButton';
 import { AdminSecondaryButton } from './AdminButton';
 import { StatusBadge } from './StatusBadge';
 
@@ -40,9 +41,16 @@ export function SupportRequestList({ items, error, onRetry, filter, onFilterChan
             </button>
           ))}
         </div>
-        <AdminSecondaryButton size="sm" onClick={onRefresh} disabled={refreshing}>
-          {refreshing ? 'Actualizando...' : 'Actualizar'}
-        </AdminSecondaryButton>
+        <AdminIconButton
+          icon={RefreshCw}
+          label={refreshing ? 'Actualizando...' : 'Actualizar'}
+          accessibleLabel={refreshing ? 'Actualizando consultas' : 'Actualizar consultas'}
+          tone="neutral"
+          size="sm"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-busy={refreshing}
+        />
       </div>
 
       {error ? (

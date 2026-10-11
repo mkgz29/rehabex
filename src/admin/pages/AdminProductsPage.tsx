@@ -1,3 +1,4 @@
+import { Eye, EyeOff, Pencil } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
@@ -10,6 +11,7 @@ import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { AdminCard } from '../components/AdminCard';
 import { AdminEmptyState } from '../components/AdminEmptyState';
+import { AdminIconButton } from '../components/AdminIconButton';
 import { AdminPrimaryButton, AdminSecondaryButton } from '../components/AdminButton';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StatusBadge } from '../components/StatusBadge';
@@ -397,13 +399,20 @@ export function AdminProductsPage() {
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <AdminSecondaryButton onClick={() => openEditForm(product)}>Editar</AdminSecondaryButton>
-                        <AdminSecondaryButton
+                        {/* Icon-only: an obvious, repeated row action (every
+                            product row has one), with a tooltip. */}
+                        <AdminIconButton icon={Pencil} label="Editar producto" size="sm" onClick={() => openEditForm(product)} />
+                        {/* Icon+text: the visible/hidden state changes which
+                            text and icon show, so the label still carries
+                            real meaning -- an icon alone would lose it. */}
+                        <AdminIconButton
+                          icon={product.active ? EyeOff : Eye}
+                          label={togglingId === product.id ? 'Actualizando...' : product.active ? 'Ocultar de la tienda' : 'Mostrar en la tienda'}
+                          showLabel
+                          size="sm"
                           onClick={() => (product.active ? setPendingHideId(product.id) : handleSetActive(product, true))}
                           disabled={togglingId === product.id}
-                        >
-                          {togglingId === product.id ? 'Actualizando...' : product.active ? 'Ocultar de la tienda' : 'Mostrar en la tienda'}
-                        </AdminSecondaryButton>
+                        />
                       </div>
                     )}
                   </div>

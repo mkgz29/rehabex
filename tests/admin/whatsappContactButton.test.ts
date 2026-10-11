@@ -168,9 +168,11 @@ test('a null url (should not normally happen once the container has already vali
 
 // --- accessibility (no div-as-button, real controls) --------------------------
 
+// FASE 7D.4: the toggle is icon-only (compact, repeated row action), so its
+// accessible name now comes from aria-label/title rather than visible text.
 test('ACCESSIBILITY: toggle, "Abrir WhatsApp" and "Cancelar" are all real interactive elements, never a bare clickable div', () => {
   const closed = renderView({ isOpen: false });
-  assert.match(closed, /<button[^>]*aria-expanded="false"[^>]*>\s*Contactar por WhatsApp/);
+  assert.match(closed, /<button[^>]*title="Contactar por WhatsApp"[^>]*aria-label="Contactar por WhatsApp"[^>]*aria-expanded="false"/);
   const open = renderView({ isOpen: true, message: 'Hola', url: 'https://wa.me/5493815551234?text=Hola' });
   assert.match(open, /<a[^>]*href="https:\/\/wa\.me/);
   assert.match(open, /<button[^>]*>\s*Cancelar/);

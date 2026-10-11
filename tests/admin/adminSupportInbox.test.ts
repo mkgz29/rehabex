@@ -148,9 +148,9 @@ test('SupportRequestList: the "Actualizar" button is visible regardless of loadi
 test('SupportRequestList: reads "Actualizar" normally, and "Actualizando..." disabled while refreshing', () => {
   const normal = renderList({ refreshing: false });
   assert.match(normal, />Actualizar</);
-  assert.doesNotMatch(normal, /<button[^>]*disabled=""[^>]*>\s*Actualizar</);
+  assert.doesNotMatch(normal, /disabled=""[^>]*>[^<]*<svg[^>]*>[\s\S]*?Actualizar</);
   const refreshingMarkup = renderList({ refreshing: true });
-  assert.match(refreshingMarkup, /<button[^>]*disabled=""[^>]*>\s*Actualizando\.\.\./);
+  assert.match(refreshingMarkup, /disabled=""[^>]*>[^<]*<svg[^>]*>[\s\S]*?Actualizando\.\.\./);
 });
 
 test('CONTRACT: the "Actualizar" button is wired to onRefresh and disabled exactly while refreshing', () => {
