@@ -11,6 +11,7 @@ export type AdminProductRow = {
   image_asset_id: string | null;
   is_featured: boolean;
   display_order: number;
+  stock_on_hand: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -27,6 +28,7 @@ export function mapAdminProductRow(row: AdminProductRow) {
     imageAssetId: row.image_asset_id ?? undefined,
     featured: row.is_featured,
     sortOrder: row.display_order,
+    stockOnHand: Number(row.stock_on_hand),
     active: row.is_active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

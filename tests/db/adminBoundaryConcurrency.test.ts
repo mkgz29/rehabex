@@ -65,6 +65,7 @@ test('two concurrent product edits: the first commits, the stale second is rejec
       p_image_url: null,
       p_is_featured: false,
       p_display_order: 0,
+      p_stock_on_hand: 0,
       p_request_id: randomUUID(),
     });
     assert.equal(createError, null);
@@ -90,6 +91,7 @@ test('two concurrent product edits: the first commits, the stale second is rejec
       p_image_url: null,
       p_is_featured: false,
       p_display_order: 0,
+      p_stock_on_hand: 0,
       p_expected_updated_at: raceVersion,
       p_request_id: randomUUID(),
     });
@@ -106,6 +108,7 @@ test('two concurrent product edits: the first commits, the stale second is rejec
       p_image_url: null,
       p_is_featured: false,
       p_display_order: 0,
+      p_stock_on_hand: 0,
       p_expected_updated_at: raceVersion,
       p_request_id: randomUUID(),
     });

@@ -110,6 +110,7 @@ type ProductApiResponse = {
   imageAssetId?: string;
   featured: boolean;
   sortOrder: number;
+  stockOnHand: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -135,6 +136,7 @@ export async function createProduct(
     gallery,
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
+    stockOnHand: input.stockOnHand ?? 0,
     isActive: input.active,
   });
   return mapProductResponse(product, savedGallery);
@@ -154,6 +156,7 @@ export async function updateProduct(
     gallery,
     isFeatured: input.featured,
     displayOrder: input.sortOrder,
+    stockOnHand: input.stockOnHand ?? 0,
     isActive: input.active,
   });
   return mapProductResponse(product, savedGallery);

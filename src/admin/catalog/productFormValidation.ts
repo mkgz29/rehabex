@@ -8,9 +8,10 @@ export type ProductFormValues = {
   description: string;
   category: string;
   price: number | '';
+  stockOnHand: number | '';
 };
 
-export const PRODUCT_FIELD_ORDER = ['name', 'description', 'price', 'category'] as const;
+export const PRODUCT_FIELD_ORDER = ['name', 'description', 'price', 'stockOnHand', 'category'] as const;
 export type ProductFormField = (typeof PRODUCT_FIELD_ORDER)[number];
 export type ProductFormErrors = Partial<Record<ProductFormField, string>>;
 
@@ -18,6 +19,7 @@ const MAX_NAME = 160;
 const MAX_DESCRIPTION = 4000;
 const MAX_CATEGORY = 80;
 const MAX_PRICE = 100_000_000;
+const MAX_STOCK_ON_HAND = 1_000_000;
 
 const RESERVED_CATEGORIES = new Set(['test', 'prueba']);
 
@@ -43,6 +45,17 @@ export function validateProductForm(values: ProductFormValues): ProductFormError
     errors.price = 'Ingresá un precio válido.';
   } else if (values.price > MAX_PRICE) {
     errors.price = 'Ese precio es demasiado alto.';
+  }
+
+  if (
+    values.stockOnHand === '' ||
+    typeof values.stockOnHand !== 'number' ||
+    !Number.isInteger(values.stockOnHand) ||
+    values.stockOnHand < 0
+  ) {
+    errors.stockOnHand = 'Ingresá un stock válido (número entero, 0 o mayor).';
+  } else if (values.stockOnHand > MAX_STOCK_ON_HAND) {
+    errors.stockOnHand = 'Ese stock es demasiado alto.';
   }
 
   const category = values.category.trim();

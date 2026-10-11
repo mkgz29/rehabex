@@ -31,6 +31,7 @@ const emptyProduct: ProductInput = {
   category: '',
   featured: false,
   sortOrder: 0,
+  stockOnHand: 0,
   active: false,
   gallery: [],
 };
@@ -65,9 +66,10 @@ export function AdminProductsPage() {
   const nameRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
+  const stockRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLInputElement>(null);
 
-  const fieldRefs = { name: nameRef, description: descriptionRef, price: priceRef, category: categoryRef } as const;
+  const fieldRefs = { name: nameRef, description: descriptionRef, price: priceRef, stockOnHand: stockRef, category: categoryRef } as const;
 
   const loadProducts = async () => {
     setProductsLoading(true);
@@ -133,6 +135,7 @@ export function AdminProductsPage() {
       category: product.category ?? '',
       featured: product.featured,
       sortOrder: product.sortOrder,
+      stockOnHand: product.stockOnHand ?? 0,
       active: product.active,
       gallery: product.gallery ?? [],
     };
@@ -177,6 +180,7 @@ export function AdminProductsPage() {
       description: candidate.description,
       category: candidate.category ?? '',
       price: candidate.price,
+      stockOnHand: candidate.stockOnHand ?? '',
     });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -436,7 +440,7 @@ export function AdminProductsPage() {
             </fieldset>
 
             <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-slate-800">Precio y categoria</legend>
+              <legend className="text-sm font-semibold text-slate-800">Precio, stock y categoria</legend>
               <FormField label="Precio" hint="Solo el numero, sin puntos ni simbolos.">
                 <input
                   ref={priceRef}
@@ -451,6 +455,25 @@ export function AdminProductsPage() {
                 {fieldErrors.price ? (
                   <p id="product-price-error" role="alert" className="mt-1 text-xs text-red-600">
                     {fieldErrors.price}
+                  </p>
+                ) : null}
+              </FormField>
+
+              <FormField label="Stock disponible" hint="Cuantas unidades hay disponibles ahora. 0 si esta agotado.">
+                <input
+                  ref={stockRef}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={editingProduct.stockOnHand}
+                  onChange={(event) => updateField('stockOnHand', Number(event.target.value) || 0)}
+                  className="admin-input min-h-11"
+                  aria-invalid={Boolean(fieldErrors.stockOnHand)}
+                  aria-describedby={fieldErrors.stockOnHand ? 'product-stock-error' : undefined}
+                />
+                {fieldErrors.stockOnHand ? (
+                  <p id="product-stock-error" role="alert" className="mt-1 text-xs text-red-600">
+                    {fieldErrors.stockOnHand}
                   </p>
                 ) : null}
               </FormField>

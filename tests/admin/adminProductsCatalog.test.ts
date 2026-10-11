@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -37,15 +39,18 @@ test('resolveCategoryInput snaps a case/space variant onto the existing category
 
 // --- Product form validation --------------------------------------------------
 
-test('validateProductForm requires a name, a valid category and a positive price', () => {
-  const errors = validateProductForm({ name: '', description: '', category: '', price: '' });
+const VALID_FORM_VALUES = { name: 'Rodillera', description: 'Soporte para rodilla', category: 'Ortopedia', price: 15000, stockOnHand: 5 };
+
+test('validateProductForm requires a name, a valid category, a positive price and a valid stock', () => {
+  const errors = validateProductForm({ name: '', description: '', category: '', price: '', stockOnHand: '' });
   assert.equal(errors.name, 'Ingresá el nombre del producto.');
   assert.equal(errors.category, 'Elegí una categoría o escribí una nueva.');
   assert.equal(errors.price, 'Ingresá un precio válido.');
+  assert.ok(errors.stockOnHand);
 });
 
 test('validateProductForm accepts a fully valid product with no errors', () => {
-  const errors = validateProductForm({ name: 'Rodillera', description: 'Soporte para rodilla', category: 'Ortopedia', price: 15000 });
+  const errors = validateProductForm(VALID_FORM_VALUES);
   assert.deepEqual(errors, {});
 });
 
@@ -53,13 +58,42 @@ test('validateProductForm rejects a reserved category name for the client, same 
   assert.equal(isReservedCategoryName('TEST'), true);
   assert.equal(isReservedCategoryName(' prueba '), true);
   assert.equal(isReservedCategoryName('Ortopedia'), false);
-  const errors = validateProductForm({ name: 'x', description: '', category: 'Prueba', price: 10 });
+  const errors = validateProductForm({ ...VALID_FORM_VALUES, name: 'x', category: 'Prueba', price: 10 });
   assert.equal(errors.category, 'Ese nombre de categoría no está permitido. Elegí otro.');
 });
 
 test('validateProductForm rejects a zero or negative price without accepting it as valid', () => {
-  assert.ok(validateProductForm({ name: 'x', description: '', category: 'Ortopedia', price: 0 }).price);
-  assert.ok(validateProductForm({ name: 'x', description: '', category: 'Ortopedia', price: -5 }).price);
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, name: 'x', price: 0 }).price);
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, name: 'x', price: -5 }).price);
+});
+
+// --- Stock form validation (FASE 7D.3-B1) --------------------------------------
+
+test('validateProductForm accepts stockOnHand=0 (sold out) as perfectly valid, no error', () => {
+  const errors = validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: 0 });
+  assert.equal(errors.stockOnHand, undefined);
+});
+
+test('validateProductForm accepts any real non-negative integer stock', () => {
+  assert.deepEqual(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: 1 }).stockOnHand, undefined);
+  assert.deepEqual(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: 250 }).stockOnHand, undefined);
+});
+
+test('validateProductForm rejects a negative stock', () => {
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: -1 }).stockOnHand);
+});
+
+test('validateProductForm rejects a decimal stock (no partial units)', () => {
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: 2.5 }).stockOnHand);
+});
+
+test('validateProductForm rejects an empty/missing stock', () => {
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: '' }).stockOnHand);
+});
+
+test('validateProductForm rejects a non-numeric or absurdly oversized stock', () => {
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: Number.NaN }).stockOnHand);
+  assert.ok(validateProductForm({ ...VALID_FORM_VALUES, stockOnHand: 1_000_001 }).stockOnHand);
 });
 
 test('firstErrorField returns fields in the same top-to-bottom order as the form', () => {
@@ -119,6 +153,7 @@ const baseProduct: ProductInput = {
   category: 'Ortopedia',
   featured: false,
   sortOrder: 0,
+  stockOnHand: 10,
   active: true,
 };
 
@@ -129,6 +164,11 @@ test('isProductFormDirty is false when nothing changed', () => {
 test('isProductFormDirty is true for any field difference, including visibility', () => {
   assert.equal(isProductFormDirty({ ...baseProduct, name: 'Rodillera XL' }, baseProduct), true);
   assert.equal(isProductFormDirty({ ...baseProduct, active: false }, baseProduct), true);
+});
+
+test('isProductFormDirty is true when only stockOnHand changes (FASE 7D.3-B1)', () => {
+  assert.equal(isProductFormDirty({ ...baseProduct, stockOnHand: 0 }, baseProduct), true);
+  assert.equal(isProductFormDirty({ ...baseProduct, stockOnHand: 10 }, baseProduct), false);
 });
 
 // --- Rendered page: initial state (list closed form, still "loading") ----------
@@ -163,4 +203,37 @@ test('AdminProductsPage: search, status and category filters render as plain, la
   assert.match(markup, /Visibles/);
   assert.match(markup, /Ocultos/);
   assert.match(markup, /Todas las categorias/);
+});
+
+// --- Stock field in the create/edit form (FASE 7D.3-B1) -------------------------
+//
+// The create/edit form only exists once isFormOpen=true, reached by a click
+// this no-jsdom suite cannot simulate (same constraint noted above for the
+// page's other states). The field's presence, attributes and wiring are
+// verified as source-level contracts instead -- the same substitute this
+// project's test suite already uses for other effect/click-driven UI (e.g.
+// AdminSupportPage's window-focus listener).
+
+test('CONTRACT: the "Stock disponible" field exists in the create/edit form, as a non-decimal, non-negative integer input', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /label="Stock disponible"/);
+  assert.match(source, /ref=\{stockRef\}/);
+  assert.match(source, /type="number"\s*\n\s*min="0"\s*\n\s*step="1"/);
+});
+
+test('CONTRACT: the stock input is wired to updateField(\'stockOnHand\', ...)', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /onChange=\{\(event\) => updateField\('stockOnHand', Number\(event\.target\.value\) \|\| 0\)\}/);
+});
+
+test('CONTRACT: a new product defaults to stockOnHand=0, and editing an existing product loads its real current stock', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /const emptyProduct: ProductInput = \{[\s\S]*?stockOnHand: 0,/);
+  assert.match(source, /stockOnHand: product\.stockOnHand \?\? 0,/);
+});
+
+test('CONTRACT: a stock validation error is shown inline, same pattern as the price field', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/pages/AdminProductsPage.tsx'), 'utf8');
+  assert.match(source, /id="product-stock-error"/);
+  assert.match(source, /fieldErrors\.stockOnHand/);
 });

@@ -25,6 +25,7 @@ const VALID_PRODUCT = {
   gallery: [{ mediaAssetId: ASSET_ID_1, isPrimary: true }],
   isFeatured: false,
   displayOrder: 0,
+  stockOnHand: 0,
   isActive: false,
 };
 
@@ -154,6 +155,29 @@ test('parseCreateProductPayload rejects a non-boolean isFeatured and a negative 
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, displayOrder: -1 })), false);
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, displayOrder: 1.5 })), false);
   assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, displayOrder: 1_000_000 })), false);
+});
+
+test('parseCreateProductPayload accepts stockOnHand=0 (sold out on arrival) and any real non-negative integer', () => {
+  assert.ok(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: 0 })));
+  assert.ok(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: 5 })));
+  assert.ok(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: 1_000_000 })));
+});
+
+test('parseCreateProductPayload rejects a missing, negative, decimal, non-numeric or oversized stockOnHand', () => {
+  const { stockOnHand: _omitted, ...withoutStock } = VALID_PRODUCT;
+  assert.equal(isValid(parseCreateProductPayload(withoutStock)), false, 'missing stockOnHand must be rejected');
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: -1 })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: 1.5 })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: '5' })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: null })), false);
+  assert.equal(isValid(parseCreateProductPayload({ ...VALID_PRODUCT, stockOnHand: 1_000_001 })), false);
+});
+
+test('parseUpdateProductPayload applies the exact same stockOnHand rules as create', () => {
+  const base = { ...VALID_PRODUCT, id: PRODUCT_ID, expectedUpdatedAt: NOW };
+  assert.ok(isValid(parseUpdateProductPayload({ ...base, stockOnHand: 0 })));
+  assert.equal(isValid(parseUpdateProductPayload({ ...base, stockOnHand: -1 })), false);
+  assert.equal(isValid(parseUpdateProductPayload({ ...base, stockOnHand: 2.5 })), false);
 });
 
 test('parseUpdateProductPayload requires a UUID id and a version, but allows a reserved category', () => {
