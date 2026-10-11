@@ -7,6 +7,7 @@ import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
 import { AdminSecondaryButton } from './AdminButton';
 import { StatusBadge } from './StatusBadge';
+import { WhatsAppContactButton } from './WhatsAppContactButton';
 
 export type OrderContextState =
   | { status: 'idle' }
@@ -31,6 +32,18 @@ type SupportRequestDetailProps = {
   onBack: () => void;
   actionError: string | null;
 };
+
+/**
+ * The order reference to greet the customer with over WhatsApp: a real
+ * linked order's own order_number takes priority over the ticket's
+ * free-text order_reference, since the former is confirmed data and the
+ * latter is whatever the customer typed. Falls back to null (no
+ * reference at all) when neither is available -- never invents one.
+ */
+export function resolveWhatsAppOrderReference(orderContext: OrderContextState, supportRequest: SupportRequest): string | null {
+  if (orderContext.status === 'ready') return orderContext.order.order_number ?? null;
+  return supportRequest.orderReference ?? null;
+}
 
 function OrderContextSection({ state }: { state: OrderContextState }) {
   if (state.status === 'idle') return null;
@@ -179,6 +192,14 @@ export function SupportRequestDetail({
               </div>
             ) : null}
           </dl>
+          <div className="mt-3">
+            <WhatsAppContactButton
+              key={supportRequest.id}
+              phone={supportRequest.customerPhone}
+              customerName={supportRequest.customerName}
+              orderReference={resolveWhatsAppOrderReference(orderContext, supportRequest)}
+            />
+          </div>
         </section>
 
         <OrderContextSection state={orderContext} />
