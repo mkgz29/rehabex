@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import * as React from 'react';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -181,6 +183,31 @@ test('SupportRequestDetail: shows customer name, email and phone only when phone
   assert.doesNotMatch(withoutPhone, /Teléfono/);
 });
 
+// --- WhatsApp contact (FASE 7D-B) ---------------------------------------------
+
+test('SupportRequestDetail: WhatsApp contact button appears when the ticket has a valid phone', () => {
+  const markup = renderDetail({ supportRequest: supportRequest({ customerPhone: '+54 9 381 555 1234' }) });
+  assert.match(markup, />Contactar por WhatsApp</);
+});
+
+test('SupportRequestDetail: no WhatsApp contact button when the ticket has no phone at all', () => {
+  const markup = renderDetail({ supportRequest: supportRequest() });
+  assert.doesNotMatch(markup, /Contactar por WhatsApp/);
+  assert.doesNotMatch(markup, /No se pudo abrir WhatsApp/);
+});
+
+test('SupportRequestDetail: an unnormalizable phone shows a discreet notice, never a WhatsApp button or a wa.me link', () => {
+  const markup = renderDetail({ supportRequest: supportRequest({ customerPhone: '381 5551234' }) });
+  assert.match(markup, /No se pudo abrir WhatsApp con este número\./);
+  assert.doesNotMatch(markup, /Contactar por WhatsApp/);
+  assert.doesNotMatch(markup, /wa\.me/i);
+});
+
+test('SupportRequestDetail: passes key={supportRequest.id} to WhatsAppContactButton, so switching tickets remounts it and never keeps a previous draft', () => {
+  const source = readFileSync(join(process.cwd(), 'src/admin/components/SupportRequestDetail.tsx'), 'utf8');
+  assert.match(source, /<WhatsAppContactButton\s+key=\{supportRequest\.id\}/);
+});
+
 test('SupportRequestDetail: an open ticket offers "responder"/"resolver" but never "reabrir"', () => {
   const markup = renderDetail({ supportRequest: supportRequest({ status: 'open' }) });
   assert.match(markup, />Marcar respondida</);
@@ -285,8 +312,16 @@ test('NewSupportRequestForm: has Crear consulta / Cancelar actions', () => {
   assert.match(markup, />Cancelar</);
 });
 
-test('Soporte: no WhatsApp integration anywhere in the inbox UI', () => {
-  const markup = renderSupport() + renderCreateForm() + renderDetail({ supportRequest: supportRequest({ customerPhone: '+54 9 11 1234-5678' }) });
+test('Soporte: WhatsApp contact (FASE 7D-B) appears only in SupportRequestDetail, never in the list or the create form', () => {
+  const listAndForm = renderSupport() + renderCreateForm();
+  assert.doesNotMatch(listAndForm, /whatsapp/i);
+  assert.doesNotMatch(listAndForm, /wa\.me/i);
+
+  const withPhone = renderDetail({ supportRequest: supportRequest({ customerPhone: '+54 9 11 1234-5678' }) });
+  assert.match(withPhone, />Contactar por WhatsApp</);
+});
+
+test('Soporte: SupportRequestList itself still never renders WhatsApp, even when items have a phone', () => {
+  const markup = renderList({ items: [supportRequest({ customerPhone: '+54 9 11 1234-5678' })] });
   assert.doesNotMatch(markup, /whatsapp/i);
-  assert.doesNotMatch(markup, /wa\.me/i);
 });

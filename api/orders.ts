@@ -4,7 +4,9 @@ import { UUID } from '../server/admin/validators.js';
 // Explicit projection. `select('*')` previously shipped the guest status token
 // hash, the preference lease token, the idempotency key and the full delivery
 // address to the browser. Operations needs identity, money and state — not
-// authentication material, and not every personal field.
+// authentication material, and not every personal field. customer_phone is
+// the one deliberate exception (FASE 7D-C): it exists only so an admin can
+// open an assisted WhatsApp contact, read-only, behind this same admin auth.
 const ORDER_COLUMNS = [
   'id',
   'order_number',
@@ -18,6 +20,7 @@ const ORDER_COLUMNS = [
   'delivery_method',
   'customer_email',
   'customer_name',
+  'customer_phone',
   'mercadopago_payment_id',
   'mercadopago_preference_id',
   'review_required',
