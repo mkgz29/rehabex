@@ -15,7 +15,7 @@
     "test:admin:media": "tsx --test tests/admin/mediaValidators.test.ts tests/admin/mediaBoundary.contract.test.ts tests/admin/cloudinarySignature.test.ts",
     "test:admin:support": "tsx --test tests/admin/adminValidatorsSupport.test.ts tests/admin/supportBoundary.contract.test.ts tests/admin/supportPresentation.test.ts tests/admin/adminSupportInbox.test.ts tests/admin/emailContact.test.ts tests/admin/gmailContactLink.test.ts",
     "test:admin:whatsapp": "tsx --test tests/admin/whatsapp.test.ts tests/admin/whatsappContactButton.test.ts tests/admin/orderWhatsAppAction.test.ts",
-    "test:admin:panel": "tsx --test tests/admin/adminPanelStructure.test.ts tests/admin/orderStatusTranslation.test.ts tests/admin/adminUnsavedChangesAndSummary.test.ts tests/admin/dashboardAnalytics.test.ts tests/admin/dashboardOperations.test.ts",
+    "test:admin:panel": "tsx --test tests/admin/adminPanelStructure.test.ts tests/admin/orderStatusTranslation.test.ts tests/admin/adminUnsavedChangesAndSummary.test.ts tests/admin/dashboardAnalytics.test.ts tests/admin/dashboardOperations.test.ts tests/admin/adminImplementationNotices.test.ts",
     "test:admin:content-media": "tsx --test tests/admin/imageFraming.test.ts tests/admin/imageOptimization.test.ts tests/admin/adminValidatorsContentMedia.test.ts tests/admin/adminEditPageContentBlocks.test.ts",
     "test:admin:content-media-rollback": "tsx --test tests/db/adminContentMediaRollback.test.ts",
     "test:admin:concurrency": "tsx --test tests/db/adminBoundaryConcurrency.test.ts tests/db/adminProductAtomicity.test.ts tests/db/adminProductGallery.test.ts tests/db/adminProductGalleryLegacyImages.test.ts tests/db/adminContentMedia.test.ts",

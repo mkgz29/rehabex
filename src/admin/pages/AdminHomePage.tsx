@@ -17,7 +17,9 @@ import { useAuth } from '../../auth/useAuth';
 import { formatCurrency } from '../../lib/format';
 import { getProducts } from '../../services/cms';
 import type { Product } from '../../types/cms';
+import { ADMIN_IMPLEMENTATION_NOTICES, activeAdminImplementationNotices } from '../adminImplementationNotices';
 import { AdminCard } from '../components/AdminCard';
+import { AdminImplementationNoticeCard } from '../components/AdminImplementationNoticeCard';
 import { AdminNotice } from '../components/AdminNotice';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { AdminSectionHeading } from '../components/AdminSectionHeading';
@@ -103,6 +105,8 @@ export function AdminHomePage() {
         }
       />
 
+      <ImplementationNotices />
+
       {state.status === 'loading' ? (
         <AdminCard tone="muted" aria-busy="true" className="text-sm text-slate-600">
           Cargando resumen…
@@ -114,6 +118,22 @@ export function AdminHomePage() {
       {state.status === 'ready' ? (
         <DashboardContent products={state.products} orders={state.orders} ordersAvailable={state.ordersAvailable} />
       ) : null}
+    </div>
+  );
+}
+
+/** Reads the local notices source and renders whichever are still within
+ * their visibility window -- swapping that source for a future Super Admin
+ * API never touches this or AdminImplementationNoticeCard. */
+function ImplementationNotices() {
+  const notices = activeAdminImplementationNotices(ADMIN_IMPLEMENTATION_NOTICES);
+  if (notices.length === 0) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Novedades del panel">
+      {notices.map((notice) => (
+        <AdminImplementationNoticeCard key={notice.id} title={notice.title} message={notice.message} />
+      ))}
     </div>
   );
 }
