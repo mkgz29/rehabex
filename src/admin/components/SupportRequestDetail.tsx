@@ -7,6 +7,7 @@ import type { SupportRequest, SupportRequestStatus } from '../../services/adminA
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
 import { AdminSecondaryButton } from './AdminButton';
+import { GmailContactLink } from './GmailContactLink';
 import { StatusBadge } from './StatusBadge';
 import { WhatsAppContactButton } from './WhatsAppContactButton';
 
@@ -191,12 +192,13 @@ export function SupportRequestDetail({
               </div>
             ) : null}
           </dl>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap items-start gap-2">
             <WhatsAppContactButton
               key={supportRequest.id}
               phone={supportRequest.customerPhone}
               defaultMessage={buildSupportWhatsAppMessage(supportRequest.customerName, resolveWhatsAppOrderReference(orderContext, supportRequest))}
             />
+            <GmailContactLink email={supportRequest.customerEmail} customerName={supportRequest.customerName} subject={supportRequest.subject} />
           </div>
         </section>
 
