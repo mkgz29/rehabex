@@ -8,6 +8,7 @@ import type { AboutImageGridItem } from './AboutImageGrid';
 type AboutSectionProps = {
   content: AboutContent;
   products: Product[];
+  isLoading: boolean;
 };
 
 /** A metric with neither a value nor an explanation carries nothing to show -- rendering it would be an empty card, not "no invented data". */
@@ -15,7 +16,7 @@ function isMetricEmpty(metric: AboutMetric): boolean {
   return metric.value.trim() === '' && metric.label.trim() === '';
 }
 
-export function AboutSection({ content, products }: AboutSectionProps) {
+export function AboutSection({ content, products, isLoading }: AboutSectionProps) {
   const galleryItems = getGalleryItems(content, products);
   const visibleMetrics = content.metrics.filter((metric) => !isMetricEmpty(metric));
 
@@ -28,10 +29,29 @@ export function AboutSection({ content, products }: AboutSectionProps) {
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[rgb(var(--color-stone))]" aria-hidden="true" />
               Acerca de Rehabex
             </p>
-            {/* Editorial, not a billboard: two to four lines at every width. */}
-            <h2 id="about-title" className="mt-5 max-w-[20ch] text-balance text-[clamp(1.875rem,3vw,3rem)] font-bold leading-[1.08] tracking-[-0.03em] text-white">{content.title}</h2>
+            {/* Editorial, not a billboard: two to four lines at every width.
+                Kept mounted while loading (only its content swaps for a
+                skeleton) so aria-labelledby="about-title" keeps a stable
+                target and the old default text is never shown or announced. */}
+            <h2 id="about-title" className="mt-5 max-w-[20ch] text-balance text-[clamp(1.875rem,3vw,3rem)] font-bold leading-[1.08] tracking-[-0.03em] text-white">
+              {isLoading ? (
+                <span className="inline-block w-full space-y-3" aria-hidden="true">
+                  <span className="block h-[0.85em] w-full animate-pulse rounded bg-white/15" />
+                  <span className="block h-[0.85em] w-2/3 animate-pulse rounded bg-white/15" />
+                </span>
+              ) : (
+                content.title
+              )}
+            </h2>
             <div className="mt-7 max-w-xl space-y-4 text-base leading-7 text-white/70">
-              <p>{content.description}</p>
+              {isLoading ? (
+                <p className="space-y-2" aria-hidden="true">
+                  <span className="block h-5 w-full animate-pulse rounded bg-white/15" />
+                  <span className="block h-5 w-5/6 animate-pulse rounded bg-white/15" />
+                </p>
+              ) : (
+                <p>{content.description}</p>
+              )}
               <p>Reunimos productos y accesorios para quienes buscan acompañar rehabilitación, movilidad y bienestar con información clara, disponibilidad visible y una navegación directa.</p>
             </div>
             <Link to="/tienda" className="group mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:border-white hover:bg-white hover:text-primary">
@@ -47,7 +67,7 @@ export function AboutSection({ content, products }: AboutSectionProps) {
             Editar página. A metric left fully empty is skipped; if every
             metric is empty the whole block disappears instead of leaving a
             hollow border on the page (ADMIN-02E). */}
-        {visibleMetrics.length > 0 ? (
+        {!isLoading && visibleMetrics.length > 0 ? (
           <div className="mt-14 grid border-y border-white/15 sm:grid-cols-3 lg:mt-20" style={{ gridTemplateColumns: `repeat(${Math.min(visibleMetrics.length, 3)}, minmax(0, 1fr))` }}>
             {visibleMetrics.map((metric, index) => (
               <div key={metric.id} data-reveal-item className={`py-7 sm:px-6 lg:py-9 ${index > 0 ? 'border-t border-white/15 sm:border-l sm:border-t-0' : ''}`}>

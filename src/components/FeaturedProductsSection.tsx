@@ -40,7 +40,7 @@ export function FeaturedProductsSection({ content, products, isLoading, error, o
       <div className="site-container">
         <div className="flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
           <div id="featured-products-title">
-            <SectionHeading eyebrow="Productos destacados" title={content.title} description={content.subtitle} />
+            <SectionHeading eyebrow="Productos destacados" title={content.title} description={content.subtitle} isLoading={isLoading} />
           </div>
           <Link to="/tienda" className="secondary-button w-fit gap-2">
             Ver todo el catálogo
