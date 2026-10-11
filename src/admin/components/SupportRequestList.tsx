@@ -16,26 +16,33 @@ type SupportRequestListProps = {
   onFilterChange: (filter: SupportStatusFilter) => void;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 };
 
-export function SupportRequestList({ items, error, onRetry, filter, onFilterChange, selectedId, onSelect }: SupportRequestListProps) {
+export function SupportRequestList({ items, error, onRetry, filter, onFilterChange, selectedId, onSelect, onRefresh, refreshing }: SupportRequestListProps) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filtrar por estado">
-        {SUPPORT_STATUS_FILTERS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={filter === option.value}
-            onClick={() => onFilterChange(option.value)}
-            className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${
-              filter === option.value ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-900'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filtrar por estado">
+          {SUPPORT_STATUS_FILTERS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={filter === option.value}
+              onClick={() => onFilterChange(option.value)}
+              className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${
+                filter === option.value ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-900'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <AdminSecondaryButton size="sm" onClick={onRefresh} disabled={refreshing}>
+          {refreshing ? 'Actualizando...' : 'Actualizar'}
+        </AdminSecondaryButton>
       </div>
 
       {error ? (

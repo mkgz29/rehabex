@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   AdminApiError,
@@ -35,6 +35,13 @@ export function AdminSupportPage() {
   const [filter, setFilter] = useState<SupportStatusFilter>('all');
   const [items, setItems] = useState<SupportRequest[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  // Bumped on every loadList call (filter change, manual refresh, window
+  // focus refresh); a response is only applied if it's still the latest
+  // request in flight when it resolves. This is what keeps a slow, stale
+  // response from one filter/trigger from ever overwriting a newer one --
+  // no AbortController needed for a simple read-only list fetch.
+  const requestSeqRef = useRef(0);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SupportRequest | null>(null);
@@ -53,15 +60,29 @@ export function AdminSupportPage() {
 
   const { setDirty, confirmDiscardIfDirty } = useUnsavedChanges();
 
-  const loadList = async (nextFilter: SupportStatusFilter) => {
-    setItems(null);
-    setListError(null);
+  // `background: true` is used by the manual "Actualizar" button and the
+  // window-focus refresh: it never clears the currently visible list (no
+  // flash back to the loading state) and tracks its own `refreshing` flag
+  // instead of touching the foreground loading state (items === null).
+  const loadList = async (nextFilter: SupportStatusFilter, options: { background?: boolean } = {}) => {
+    const seq = ++requestSeqRef.current;
+    if (options.background) {
+      setRefreshing(true);
+    } else {
+      setItems(null);
+      setListError(null);
+    }
     try {
       const result = await listSupportRequests(nextFilter === 'all' ? undefined : nextFilter);
+      if (seq !== requestSeqRef.current) return;
       setItems(result);
+      setListError(null);
     } catch (error) {
-      setItems([]);
+      if (seq !== requestSeqRef.current) return;
+      if (!options.background) setItems([]);
       setListError(messageForApiError(error, 'No pudimos cargar las consultas.'));
+    } finally {
+      if (seq === requestSeqRef.current && options.background) setRefreshing(false);
     }
   };
 
@@ -69,6 +90,21 @@ export function AdminSupportPage() {
     void loadList(filter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
+
+  // Refresh only the list -- never the open detail, notes draft or
+  // selection -- when the admin comes back to this tab. No polling, no
+  // Supabase Realtime: this is the only automatic trigger besides mount
+  // and an explicit filter change.
+  useEffect(() => {
+    const handleFocus = () => {
+      void loadList(filter, { background: true });
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  const handleRefresh = () => void loadList(filter, { background: true });
 
   const notesDirty = detail !== null && notesDraft !== (detail.internalNotes ?? '');
   useEffect(() => setDirty('soporte-notas', notesDirty), [notesDirty, setDirty]);
@@ -212,6 +248,8 @@ export function AdminSupportPage() {
               onFilterChange={setFilter}
               selectedId={selectedId}
               onSelect={handleSelect}
+              onRefresh={handleRefresh}
+              refreshing={refreshing}
             />
           </div>
           <div className={selectedId ? 'block' : 'hidden lg:block'}>
