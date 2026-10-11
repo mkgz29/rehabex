@@ -22,6 +22,7 @@ const MAX_DESCRIPTION = 4000;
 const MAX_CATEGORY = 80;
 const MAX_PRICE = 100_000_000;
 const MAX_DISPLAY_ORDER = 100_000;
+const MAX_STOCK_ON_HAND = 1_000_000;
 const MAX_IMAGE_URL = 2000;
 const MAX_HERO_SUBTITLE = 300;
 const MAX_CTA_TEXT = 60;
@@ -213,10 +214,11 @@ export type ProductFieldsInput = {
   gallery: GalleryItemInput[];
   isFeatured: boolean;
   displayOrder: number;
+  stockOnHand: number;
   isActive: boolean;
 };
 
-const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'gallery', 'isFeatured', 'displayOrder', 'isActive'] as const;
+const PRODUCT_FIELD_KEYS = ['name', 'description', 'category', 'price', 'gallery', 'isFeatured', 'displayOrder', 'stockOnHand', 'isActive'] as const;
 
 function parseProductFields(input: Record<string, unknown>, options: { rejectReservedCategory: boolean }): ValidationResult<ProductFieldsInput> {
   const name = requiredText(input.name, MAX_NAME);
@@ -236,6 +238,7 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
 
   if (typeof input.isFeatured !== 'boolean') return { ok: false, error: 'invalid_is_featured' };
   if (!isNonNegativeInt(input.displayOrder, MAX_DISPLAY_ORDER)) return { ok: false, error: 'invalid_display_order' };
+  if (!isNonNegativeInt(input.stockOnHand, MAX_STOCK_ON_HAND)) return { ok: false, error: 'invalid_stock_on_hand' };
   if (typeof input.isActive !== 'boolean') return { ok: false, error: 'invalid_is_active' };
 
   return {
@@ -248,6 +251,7 @@ function parseProductFields(input: Record<string, unknown>, options: { rejectRes
       gallery: gallery.value,
       isFeatured: input.isFeatured,
       displayOrder: input.displayOrder as number,
+      stockOnHand: input.stockOnHand as number,
       isActive: input.isActive,
     },
   };

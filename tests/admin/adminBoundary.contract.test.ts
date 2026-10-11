@@ -84,6 +84,7 @@ function productRow(overrides: Record<string, unknown> = {}) {
     image_url: null,
     is_featured: false,
     display_order: 0,
+    stock_on_hand: 0,
     is_active: false,
     created_at: NOW,
     updated_at: NOW,
@@ -112,6 +113,7 @@ const VALID_CREATE_BODY = {
   gallery: [],
   isFeatured: false,
   displayOrder: 0,
+  stockOnHand: 0,
   isActive: false,
 };
 
@@ -284,6 +286,25 @@ test('create product: a valid admin request creates an inactive product', async 
   assert.equal((body as { product: { active: boolean } }).product.active, false);
 });
 
+test('create product: stockOnHand is forwarded to the RPC as p_stock_on_hand', async () => {
+  let capturedParams: Record<string, unknown> | undefined;
+  const handler = createAdminCreateProductHandler(
+    deps({
+      authClient: () => fakeAuthClient(),
+      userScopedClient: () => ({
+        rpc: async (_name, params) => {
+          capturedParams = params;
+          return { data: productWithGallery({ stock_on_hand: 7 }), error: null };
+        },
+      }),
+    }),
+  );
+  const result = mockResponse();
+  await handler(jsonRequest({ ...VALID_CREATE_BODY, stockOnHand: 7 }), result.response);
+  assert.equal(result.read().statusCode, 200);
+  assert.equal(capturedParams?.p_stock_on_hand, 7);
+});
+
 test('create product: a reserved-category rejection from the RPC maps to 422', async () => {
   const handler = createAdminCreateProductHandler(
     deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: null, error: { code: 'ADM22' } }) }),
@@ -347,6 +368,35 @@ test('update product: a valid admin request succeeds', async () => {
   const { statusCode, body } = result.read();
   assert.equal(statusCode, 200);
   assert.equal((body as { product: { name: string } }).product.name, 'Actualizado');
+});
+
+test('update product: stockOnHand is forwarded to the RPC as p_stock_on_hand', async () => {
+  let capturedParams: Record<string, unknown> | undefined;
+  const handler = createAdminUpdateProductHandler(
+    deps({
+      authClient: () => fakeAuthClient(),
+      userScopedClient: () => ({
+        rpc: async (_name, params) => {
+          capturedParams = params;
+          return { data: productWithGallery({ stock_on_hand: 9 }), error: null };
+        },
+      }),
+    }),
+  );
+  const result = mockResponse();
+  await handler(jsonRequest({ ...VALID_UPDATE_BODY, stockOnHand: 9 }), result.response);
+  assert.equal(result.read().statusCode, 200);
+  assert.equal(capturedParams?.p_stock_on_hand, 9);
+});
+
+test('update/create product response includes the real stockOnHand, never a silent fallback to 0 when the RPC returned a real value', async () => {
+  const handler = createAdminUpdateProductHandler(
+    deps({ authClient: () => fakeAuthClient(), userScopedClient: () => fakeRpcClient({ data: productWithGallery({ stock_on_hand: 42 }), error: null }) }),
+  );
+  const result = mockResponse();
+  await handler(jsonRequest(VALID_UPDATE_BODY), result.response);
+  const { body } = result.read();
+  assert.equal((body as { product: { stockOnHand: number } }).product.stockOnHand, 42);
 });
 
 // --- Product set-active ----------------------------------------------------------

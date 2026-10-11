@@ -63,7 +63,7 @@ test('parseCreateProductPayload accepts a gallery item with a valid framing obje
   const result = parseCreateProductPayload({
     name: 'Producto', description: '', category: 'Ortopedia', price: 100,
     gallery: [{ mediaAssetId: ASSET_ID, isPrimary: true, framing: VALID_FRAMING }],
-    isFeatured: false, displayOrder: 0, isActive: false,
+    isFeatured: false, displayOrder: 0, stockOnHand: 0, isActive: false,
   });
   assert.equal(isValid(result), true);
 });
@@ -72,7 +72,7 @@ test('parseCreateProductPayload rejects a gallery item with an invalid framing o
   const result = parseCreateProductPayload({
     name: 'Producto', description: '', category: 'Ortopedia', price: 100,
     gallery: [{ mediaAssetId: ASSET_ID, isPrimary: true, framing: { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: -1 } }],
-    isFeatured: false, displayOrder: 0, isActive: false,
+    isFeatured: false, displayOrder: 0, stockOnHand: 0, isActive: false,
   });
   assert.equal(isValid(result), false);
 });
