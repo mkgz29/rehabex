@@ -31,6 +31,7 @@ import test from 'node:test';
 const projectRoot = process.cwd();
 const vercelConfig = JSON.parse(readFileSync(join(projectRoot, 'vercel.json'), 'utf8')) as {
   rewrites: Array<{ source: string; destination: string }>;
+  headers?: Array<{ source: string; headers: Array<{ key: string; value: string }> }>;
 };
 
 function rewriteTo(destination: string) {
@@ -75,6 +76,65 @@ test('vercel.json: the SPA fallback still excludes every /api/* path (unrelated 
   assert.equal(compiled.test('/api/admin/products/create'), false);
   assert.equal(compiled.test('/tienda'), true);
   assert.equal(compiled.test('/'), true);
+});
+
+// --- FASE 7F-B1: baseline response security headers ---------------------------
+//
+// No CSP here by design: a safe Content-Security-Policy needs every real
+// origin enumerated first (Supabase project URL, res.cloudinary.com,
+// api.cloudinary.com for the signed-upload POST) and careful testing against
+// every page, which is a separate phase (7F-A section 18/22). These five are
+// unconditionally safe for this SPA: nothing it does needs to be framed by
+// another site, sniff a response's MIME type, leak a full referrer
+// cross-origin, or use camera/microphone/geolocation/the Payment Request API.
+
+function headerRule(sourcePattern: string) {
+  const rule = vercelConfig.headers?.find((entry) => entry.source === sourcePattern);
+  assert.ok(rule, `expected a vercel.json headers rule for source ${sourcePattern}`);
+  return rule!.headers;
+}
+
+function headerValue(headers: Array<{ key: string; value: string }>, key: string) {
+  return headers.find((h) => h.key === key)?.value;
+}
+
+test('vercel.json: a global headers rule applies to every path, including /api/*', () => {
+  const rule = vercelConfig.headers?.find((entry) => entry.source === '/(.*)');
+  assert.ok(rule, 'expected a vercel.json headers rule for source /(.*)');
+  const compiled = new RegExp(`^${rule!.source}$`);
+  for (const path of ['/', '/tienda', '/admin', '/api/checkout', '/api/admin/products/create']) {
+    assert.equal(compiled.test(path), true, `${path} should be covered by the global security headers rule`);
+  }
+});
+
+test('vercel.json: X-Content-Type-Options is nosniff', () => {
+  assert.equal(headerValue(headerRule('/(.*)'), 'X-Content-Type-Options'), 'nosniff');
+});
+
+test('vercel.json: X-Frame-Options is DENY (nothing in this app is ever framed by another site)', () => {
+  assert.equal(headerValue(headerRule('/(.*)'), 'X-Frame-Options'), 'DENY');
+});
+
+test('vercel.json: Referrer-Policy is strict-origin-when-cross-origin', () => {
+  assert.equal(headerValue(headerRule('/(.*)'), 'Referrer-Policy'), 'strict-origin-when-cross-origin');
+});
+
+test('vercel.json: Permissions-Policy disables camera/microphone/geolocation/payment, none of which this app uses', () => {
+  const value = headerValue(headerRule('/(.*)'), 'Permissions-Policy');
+  for (const feature of ['camera=()', 'microphone=()', 'geolocation=()', 'payment=()']) {
+    assert.match(value ?? '', new RegExp(feature.replace(/[()]/g, '\\$&')));
+  }
+});
+
+test('vercel.json: Strict-Transport-Security has a real max-age and includeSubDomains', () => {
+  const value = headerValue(headerRule('/(.*)'), 'Strict-Transport-Security');
+  assert.match(value ?? '', /max-age=\d{6,}/);
+  assert.match(value ?? '', /includeSubDomains/);
+});
+
+test('vercel.json: no Content-Security-Policy yet -- deliberately deferred to its own phase, not shipped half-done', () => {
+  const headers = headerRule('/(.*)');
+  assert.equal(headerValue(headers, 'Content-Security-Policy'), undefined);
 });
 
 test('api/admin dynamic routing uses nested single segments, not a catch-all', () => {
