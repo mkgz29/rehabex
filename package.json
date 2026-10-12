@@ -19,7 +19,7 @@
     "test:admin:content-media": "tsx --test tests/admin/imageFraming.test.ts tests/admin/imageOptimization.test.ts tests/admin/adminValidatorsContentMedia.test.ts tests/admin/adminEditPageContentBlocks.test.ts",
     "test:admin:content-media-rollback": "tsx --test tests/db/adminContentMediaRollback.test.ts",
     "test:admin:concurrency": "tsx --test tests/db/adminBoundaryConcurrency.test.ts tests/db/adminProductAtomicity.test.ts tests/db/adminProductGallery.test.ts tests/db/adminProductGalleryLegacyImages.test.ts tests/db/adminContentMedia.test.ts",
-    "test:api": "tsx --test tests/api/commerce.contract.test.ts tests/api/paymentRecovery.contract.test.ts tests/api/purchaseEmail.test.ts",
+    "test:api": "tsx --test tests/api/commerce.contract.test.ts tests/api/paymentRecovery.contract.test.ts tests/api/purchaseEmail.test.ts tests/api/emailProvider.test.ts tests/api/purchaseEmailDelivery.test.ts tests/api/purchaseEmailSecurity.test.ts",
     "test:support": "tsx --test tests/support/publicValidators.test.ts tests/support/publicApi.test.ts tests/support/supportIntakePage.test.ts tests/api/supportIntake.contract.test.ts",
     "test:cart": "tsx --test tests/cart/cartState.test.ts tests/ui/paymentPresentation.test.ts",
     "test:cms:ui": "tsx --test tests/cms/cmsImageLoading.test.ts tests/cms/cmsImageRendering.test.ts tests/cms/landingContentNormalization.test.ts tests/cms/publicContentRendering.test.ts tests/cms/landingPageLoadingWiring.test.ts",
