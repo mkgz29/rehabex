@@ -39,6 +39,7 @@ import {
   createAdminUpdateSupportRequestNotesHandler,
   createAdminUpdateSupportRequestStatusHandler,
 } from '../../../server/admin/handlers/support.js';
+import { createAdminUpdateOrderFulfillmentStatusHandler } from '../../../server/admin/handlers/orders.js';
 import type { ApiRequest, ApiResponse } from '../../../server/commerce/commerce.js';
 
 export const config = { api: { bodyParser: false } };
@@ -61,6 +62,7 @@ const routes: Record<string, AdminRouteHandler> = {
   'support/create': createAdminCreateSupportRequestHandler(),
   'support/update-status': createAdminUpdateSupportRequestStatusHandler(),
   'support/update-notes': createAdminUpdateSupportRequestNotesHandler(),
+  'orders/update-fulfillment': createAdminUpdateOrderFulfillmentStatusHandler(),
 };
 
 type DynamicSegmentRequest = ApiRequest & { query?: Record<string, string | string[] | undefined> };

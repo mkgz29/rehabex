@@ -1,4 +1,11 @@
-/** Contract returned by /api/orders. Mirrors the explicit projection there. */
+export type OrderFulfillmentEvent = {
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  created_at: string;
+};
+
+/** Contract returned by /api/orders. Mirrors the explicit projection there. The detail-only fields (delivery_*, pickup_*, order_fulfillment_events) are only present on a single-order fetch (?id=), never on the list. */
 export type AdminOrder = {
   id?: string | null;
   order_number?: string | null;
@@ -19,6 +26,17 @@ export type AdminOrder = {
   review_reason?: string | null;
   refund_required?: boolean | null;
   order_items?: unknown;
+  delivery_recipient_name?: string | null;
+  delivery_phone?: string | null;
+  delivery_address_line1?: string | null;
+  delivery_address_line2?: string | null;
+  delivery_city?: string | null;
+  delivery_province?: string | null;
+  delivery_postal_code?: string | null;
+  delivery_notes?: string | null;
+  pickup_location_label?: string | null;
+  pickup_window?: string | null;
+  order_fulfillment_events?: OrderFulfillmentEvent[] | null;
 };
 
 export type AttentionLevel = 'settled' | 'waiting' | 'attention';
@@ -127,6 +145,40 @@ export function orderItemsLabel(order: AdminOrder) {
       return `${name} x${Number.isInteger(quantity) && quantity > 0 ? quantity : 1}`;
     })
     .join(', ');
+}
+
+// --- Fulfillment state machine (FASE 7F-B4) -----------------------------------
+//
+// Mirrors admin_update_order_fulfillment_status's own CASE exactly, only to
+// decide which buttons to show -- the RPC is the real authority and
+// re-validates every transition itself; a mismatch here only hides or shows
+// a button, it can never let an invalid change through.
+
+export type FulfillmentTransition = 'preparing' | 'ready_for_pickup' | 'shipped' | 'delivered' | 'cancelled';
+
+export const FULFILLMENT_TRANSITION_LABELS: Record<FulfillmentTransition, string> = {
+  preparing: 'Marcar en preparación',
+  ready_for_pickup: 'Listo para retirar',
+  shipped: 'Marcar despachado',
+  delivered: 'Marcar entregado',
+  cancelled: 'Cancelar pedido',
+};
+
+export function nextFulfillmentTransitions(order: AdminOrder): FulfillmentTransition[] {
+  if (order.order_status !== 'confirmed') return [];
+  const current = order.fulfillment_status ?? 'not_started';
+  const isPickup = order.delivery_method === 'pickup';
+  switch (current) {
+    case 'not_started':
+      return ['preparing', 'cancelled'];
+    case 'preparing':
+      return isPickup ? ['ready_for_pickup', 'cancelled'] : ['shipped', 'cancelled'];
+    case 'ready_for_pickup':
+    case 'shipped':
+      return ['delivered', 'cancelled'];
+    default:
+      return [];
+  }
 }
 
 export function formatOrderDate(value: string | null | undefined) {

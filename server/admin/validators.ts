@@ -656,3 +656,35 @@ export function parseGetSupportRequestPayload(value: unknown): ValidationResult<
 
   return { ok: true, value: { id } };
 }
+
+// --- Order fulfillment (FASE 7F-B4) ------------------------------------------
+//
+// The RPC itself (admin_update_order_fulfillment_status) is the real
+// authority on which transitions are legal -- this only rejects malformed
+// input before it reaches the database, same division of labor as every
+// other validator in this file.
+
+const ORDER_FULFILLMENT_STATUSES = ['preparing', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled'] as const;
+const MAX_FULFILLMENT_NOTE = 500;
+
+export type UpdateOrderFulfillmentStatusInput = { id: string; toStatus: (typeof ORDER_FULFILLMENT_STATUSES)[number]; note: string | null };
+
+const UPDATE_ORDER_FULFILLMENT_STATUS_KEYS = ['id', 'toStatus', 'note'] as const;
+
+export function parseUpdateOrderFulfillmentStatusPayload(value: unknown): ValidationResult<UpdateOrderFulfillmentStatusInput> {
+  const input = asObject(value);
+  if (!input) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(input, UPDATE_ORDER_FULFILLMENT_STATUS_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const id = typeof input.id === 'string' && UUID.test(input.id) ? input.id : null;
+  if (!id) return { ok: false, error: 'invalid_id' };
+
+  if (typeof input.toStatus !== 'string' || !ORDER_FULFILLMENT_STATUSES.includes(input.toStatus as (typeof ORDER_FULFILLMENT_STATUSES)[number])) {
+    return { ok: false, error: 'invalid_status' };
+  }
+
+  const note = optionalText(input.note, MAX_FULFILLMENT_NOTE);
+  if (note === null) return { ok: false, error: 'invalid_note' };
+
+  return { ok: true, value: { id, toStatus: input.toStatus as (typeof ORDER_FULFILLMENT_STATUSES)[number], note: note || null } };
+}
