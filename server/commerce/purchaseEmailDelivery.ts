@@ -6,7 +6,7 @@
 // has already committed. Every exit path either sends nothing or calls
 // mark_order_email_sent/mark_order_email_failed -- there is no path where a
 // claim is taken and silently abandoned.
-import { backendUrls, logEvent } from './commerce.js';
+import { backendUrls, hash, logEvent, newStatusToken } from './commerce.js';
 import { loadEmailProviderConfig, sendTransactionalEmail } from './emailProvider.js';
 import {
   buildPurchaseConfirmationHtml,
@@ -18,6 +18,7 @@ import {
   type PurchaseEmailItemSnapshot,
   type PurchaseEmailOrderSnapshot,
 } from './purchaseEmail.js';
+import { buildOrderTrackingUrl } from '../../src/lib/orderTrackingLink.js';
 import type { PaymentProcessResult } from './paymentProcessing.js';
 
 export const PURCHASE_CONFIRMATION_EMAIL_TYPE = 'purchase_confirmation';
@@ -210,7 +211,27 @@ export async function deliverPurchaseConfirmationEmail(supabase: any, orderId: s
       return;
     }
 
-    const data: PurchaseEmailData = { order: snapshot.order, items: snapshot.items, supportUrl: buildSupportUrl(siteUrl) };
+    // FASE 7F-B4: a tracking token distinct from the checkout session's own
+    // status token -- only its hash is ever persisted (orders.tracking_token_hash),
+    // same zero-knowledge model as every other token here. Minted fresh on
+    // every attempt; only the attempt that actually gets marked 'sent' (the
+    // terminal, non-retryable state) ever had its plaintext delivered, so a
+    // retried-after-failure attempt safely invalidates whatever the previous
+    // attempt would have emailed but never sent.
+    const trackingToken = newStatusToken();
+    const { error: trackingTokenError } = await supabase.from('orders').update({ tracking_token_hash: hash(trackingToken) }).eq('id', orderId);
+    if (trackingTokenError) {
+      await markOrderEmailFailed(supabase, orderId, emailType, 'tracking_token_unavailable');
+      logEvent('purchase_email_send', { orderId, emailType, outcome: 'failed', errorCode: 'tracking_token_unavailable' });
+      return;
+    }
+
+    const data: PurchaseEmailData = {
+      order: snapshot.order,
+      items: snapshot.items,
+      supportUrl: buildSupportUrl(siteUrl),
+      trackingUrl: buildOrderTrackingUrl(siteUrl, orderId, trackingToken),
+    };
     const sendResult = await sendTransactionalEmail(providerConfig.config.apiKey, {
       to: snapshot.customerEmail,
       from: providerConfig.config.from,

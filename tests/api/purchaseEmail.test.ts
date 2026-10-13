@@ -131,6 +131,29 @@ test('text: includes the support URL exactly as given', () => {
   assert.match(text, /https:\/\/rehabex\.example\/soporte/);
 });
 
+// --- FASE 7F-B4: "Ver mi pedido" tracking link --------------------------------
+
+test('text: includes the "Ver mi pedido" link exactly as given, when trackingUrl is present', () => {
+  const text = buildPurchaseConfirmationText(buildData({ trackingUrl: 'https://rehabex.example/mi-pedido#abc.def' }));
+  assert.match(text, /Ver mi pedido: https:\/\/rehabex\.example\/mi-pedido#abc\.def/);
+});
+
+test('text: omits the tracking link line entirely when trackingUrl is absent (backward compatible)', () => {
+  const text = buildPurchaseConfirmationText(buildData());
+  assert.doesNotMatch(text, /Ver mi pedido/);
+});
+
+test('html: includes a "Ver mi pedido" button linking to trackingUrl, HTML-escaped', () => {
+  const html = buildPurchaseConfirmationHtml(buildData({ trackingUrl: 'https://rehabex.example/mi-pedido#abc.def&x=1' }));
+  assert.match(html, /href="https:\/\/rehabex\.example\/mi-pedido#abc\.def&amp;x=1"/);
+  assert.match(html, />Ver mi pedido</);
+});
+
+test('html: omits the tracking button entirely when trackingUrl is absent', () => {
+  const html = buildPurchaseConfirmationHtml(buildData());
+  assert.doesNotMatch(html, /Ver mi pedido/);
+});
+
 // --- HTML --------------------------------------------------------------------
 
 test('html: includes the order number, items, totals and delivery, same data as the text version', () => {

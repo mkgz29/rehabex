@@ -64,8 +64,8 @@ function orderSnapshotRow(overrides: Record<string, unknown> = {}) {
 const ITEM_ROWS = [{ product_name: 'Rodillera', product_sku: 'ROD-01', unit_price: 10000, quantity: 1, line_total: 10000 }];
 
 /** Minimal supabase-js-shaped mock: .rpc() dispatches by name, .from() builds a query matching this module's exact call shape. */
-function supabaseMock(options: { claim?: string; orderRow?: Record<string, unknown> | null; itemRows?: unknown[] | null } = {}) {
-  const calls: { rpc: Array<{ name: string; input: unknown }> } = { rpc: [] };
+function supabaseMock(options: { claim?: string; orderRow?: Record<string, unknown> | null; itemRows?: unknown[] | null; trackingTokenUpdateFails?: boolean } = {}) {
+  const calls: { rpc: Array<{ name: string; input: unknown }>; trackingTokenUpdates: unknown[] } = { rpc: [], trackingTokenUpdates: [] };
   const orderRow = options.orderRow === undefined ? orderSnapshotRow() : options.orderRow;
   const itemRows = options.itemRows === undefined ? ITEM_ROWS : options.itemRows;
 
@@ -79,6 +79,10 @@ function supabaseMock(options: { claim?: string; orderRow?: Record<string, unkno
                 return { maybeSingle: async () => ({ data: orderRow, error: null }) };
               },
             };
+          },
+          update(values: unknown) {
+            calls.trackingTokenUpdates.push(values);
+            return { eq: async () => ({ error: options.trackingTokenUpdateFails ? new Error('update failed') : null }) };
           },
         };
       }
@@ -152,6 +156,37 @@ test('deliverPurchaseConfirmationEmail: claimed + valid snapshot + provider succ
   assert.ok(markCall, 'mark_order_email_sent was not called');
   assert.deepEqual(markCall!.input, { p_order_id: ORDER_ID, p_email_type: 'purchase_confirmation', p_provider_message_id: 'resend-msg-42' });
   assert.equal(mock.calls.rpc.some((c) => c.name === 'mark_order_email_failed'), false);
+  resetEnv();
+});
+
+test('deliverPurchaseConfirmationEmail: mints a tracking token, persists its hash, and includes a "Ver mi pedido" link built from it', async () => {
+  setValidEmailEnv();
+  const mock = supabaseMock({ claim: 'claimed' });
+  let capturedBody: any = null;
+  await withFetch(
+    (async (_url: string, init?: RequestInit) => { capturedBody = JSON.parse(String(init?.body)); return jsonResponse(200, { id: 'resend-msg-1' }); }) as typeof fetch,
+    () => deliverPurchaseConfirmationEmail(mock.client, ORDER_ID),
+  );
+  assert.equal(mock.calls.trackingTokenUpdates.length, 1);
+  const update = mock.calls.trackingTokenUpdates[0] as { tracking_token_hash?: unknown };
+  assert.equal(typeof update.tracking_token_hash, 'string');
+  assert.ok((update.tracking_token_hash as string).length > 0);
+  assert.match(capturedBody.html, new RegExp(`https://rehabex\\.example/mi-pedido#${ORDER_ID}\\.`));
+  assert.match(capturedBody.text, new RegExp(`https://rehabex\\.example/mi-pedido#${ORDER_ID}\\.`));
+  resetEnv();
+});
+
+test('deliverPurchaseConfirmationEmail: a failed tracking-token persistence marks the email failed, never calls the provider', async () => {
+  setValidEmailEnv();
+  const mock = supabaseMock({ claim: 'claimed', trackingTokenUpdateFails: true });
+  let fetchCalled = false;
+  await withFetch(
+    (async () => { fetchCalled = true; return jsonResponse(200, { id: 'x' }); }) as typeof fetch,
+    () => deliverPurchaseConfirmationEmail(mock.client, ORDER_ID),
+  );
+  assert.equal(fetchCalled, false);
+  const markCall = mock.calls.rpc.find((c) => c.name === 'mark_order_email_failed');
+  assert.deepEqual(markCall!.input, { p_order_id: ORDER_ID, p_email_type: 'purchase_confirmation', p_error_code: 'tracking_token_unavailable' });
   resetEnv();
 });
 

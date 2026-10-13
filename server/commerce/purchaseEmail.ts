@@ -47,6 +47,8 @@ export type PurchaseEmailData = {
   items: PurchaseEmailItemSnapshot[];
   /** Absolute URL to /soporte, built by the caller from PUBLIC_SITE_URL (see buildSupportUrl). Never hardcoded here. */
   supportUrl: string;
+  /** FASE 7F-B4. Absolute /mi-pedido URL carrying the order id + a tracking token in the URL *fragment* (never a query string -- see src/lib/orderTrackingLink.ts for why). Optional: older callers/tests may omit it, in which case no "Ver mi pedido" link renders. */
+  trackingUrl?: string;
 };
 
 /** Absolute /soporte URL from the same site origin checkout already uses (server/commerce/commerce.ts backendUrls().site) -- never a hardcoded production domain. */
@@ -91,12 +93,13 @@ function deliveryHeading(method: PurchaseEmailDeliveryMethod): string {
 // --- text/plain ---------------------------------------------------------------
 
 export function buildPurchaseConfirmationText(data: PurchaseEmailData): string {
-  const { order, items, supportUrl } = data;
+  const { order, items, supportUrl, trackingUrl } = data;
   const lines: string[] = [];
 
   lines.push(`Hola ${order.customerName},`, '');
   lines.push('Tu pago fue aprobado. Este es el resumen de tu compra:', '');
   lines.push(`Pedido: ${order.orderNumber}`, '');
+  if (trackingUrl) lines.push(`Ver mi pedido: ${trackingUrl}`, '');
 
   lines.push('Productos:');
   for (const item of items) {
@@ -191,7 +194,7 @@ function deliveryHtml(order: PurchaseEmailOrderSnapshot): string {
 }
 
 export function buildPurchaseConfirmationHtml(data: PurchaseEmailData): string {
-  const { order, items, supportUrl } = data;
+  const { order, items, supportUrl, trackingUrl } = data;
   return `<!doctype html>
 <html lang="es">
   <body style="margin:0;padding:24px;background:#f6f5f3;font-family:Arial,Helvetica,sans-serif;">
@@ -199,6 +202,7 @@ export function buildPurchaseConfirmationHtml(data: PurchaseEmailData): string {
       <p style="font-size:14px;color:#1a1a1a;margin:0 0 16px;">Hola ${escapeHtml(order.customerName)},</p>
       <p style="font-size:14px;color:#1a1a1a;margin:0 0 16px;">Tu pago fue aprobado. Este es el resumen de tu compra:</p>
       <p style="font-size:14px;color:#1a1a1a;margin:0 0 20px;"><strong>Pedido:</strong> ${escapeHtml(order.orderNumber)}</p>
+      ${trackingUrl ? `<p style="margin:0 0 20px;"><a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:bold;">Ver mi pedido</a></p>` : ''}
       ${itemsTableHtml(items)}
       ${totalsHtml(order)}
       ${deliveryHtml(order)}
