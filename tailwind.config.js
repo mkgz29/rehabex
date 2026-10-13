@@ -52,6 +52,7 @@ export default {
       zIndex: {
         header: 'var(--z-header)',
         overlay: 'var(--z-overlay)',
+        float: 'var(--z-float)',
         modal: 'var(--z-modal)',
         toast: 'var(--z-toast)',
       },
