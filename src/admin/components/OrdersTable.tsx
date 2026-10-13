@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../auth/useAuth';
 import { formatCurrency } from '../../lib/format';
+import { getOrderById } from '../../services/adminApi';
 import { buildOrderWhatsAppMessage } from '../whatsapp';
 import { AdminCard } from './AdminCard';
 import { AdminEmptyState } from './AdminEmptyState';
+import { AdminSecondaryButton } from './AdminButton';
+import { OrderDetailPanel } from './OrderDetailPanel';
 import { StatusBadge } from './StatusBadge';
 import { WhatsAppContactButton } from './WhatsAppContactButton';
 import {
@@ -65,6 +68,26 @@ export function OrdersTable() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+
+  const openDetail = async (order: AdminOrder) => {
+    if (!order.id) return;
+    setDetailLoadingId(order.id);
+    try {
+      const full = await getOrderById(order.id);
+      setSelectedOrder(full ?? order);
+    } catch {
+      setSelectedOrder(order);
+    } finally {
+      setDetailLoadingId(null);
+    }
+  };
+
+  const handleOrderUpdated = (updated: AdminOrder) => {
+    setSelectedOrder((current) => (current ? { ...current, ...updated } : current));
+    setOrders((current) => current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -156,13 +179,23 @@ export function OrdersTable() {
                 <td className="px-4 py-4 text-slate-600">{formatOrderDate(order.created_at)}</td>
                 <td className="px-4 py-4 font-semibold text-slate-950">{formatCurrency(orderAmount(order))}</td>
                 <td className="px-4 py-4">
-                  <OrderWhatsAppAction order={order} />
+                  <div className="flex flex-wrap items-start gap-2">
+                    <AdminSecondaryButton size="sm" disabled={detailLoadingId === order.id} onClick={() => openDetail(order)}>
+                      {detailLoadingId === order.id ? 'Abriendo...' : 'Ver pedido'}
+                    </AdminSecondaryButton>
+                    <OrderWhatsAppAction order={order} />
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {selectedOrder ? (
+        <div className="border-t border-slate-200 p-4">
+          <OrderDetailPanel order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdated={handleOrderUpdated} />
+        </div>
+      ) : null}
     </AdminCard>
   );
 }

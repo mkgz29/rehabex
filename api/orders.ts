@@ -29,6 +29,26 @@ const ORDER_COLUMNS = [
   'order_items(product_name, quantity, unit_price)',
 ].join(', ');
 
+// FASE 7F-B4. Only the single-order detail fetch (?id=) adds the delivery
+// address + fulfillment history -- an admin opens one real order to act on
+// it, so this is no longer "every personal field shipped for every row in
+// the list" (the concern the comment above already resolved once); the list
+// itself still uses ORDER_COLUMNS, unchanged.
+const ORDER_DETAIL_COLUMNS = [
+  ORDER_COLUMNS,
+  'delivery_recipient_name',
+  'delivery_phone',
+  'delivery_address_line1',
+  'delivery_address_line2',
+  'delivery_city',
+  'delivery_province',
+  'delivery_postal_code',
+  'delivery_notes',
+  'pickup_location_label',
+  'pickup_window',
+  'order_fulfillment_events(from_status, to_status, note, created_at)',
+].join(', ');
+
 const MAX_ORDERS = 200;
 
 type OrdersDependencies = { serviceClient: typeof serviceClient };
@@ -76,7 +96,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   if (id !== undefined) {
     if (!UUID.test(id)) return response.status(400).json({ error: 'Solicitud invalida.' });
 
-    const { data, error } = await supabase.from('orders').select(ORDER_COLUMNS).eq('id', id).maybeSingle();
+    const { data, error } = await supabase.from('orders').select(ORDER_DETAIL_COLUMNS).eq('id', id).maybeSingle();
     if (error) {
       logEvent('orders_query_failed');
       return response.status(503).json({ error: 'No se pudieron obtener las ordenes.' });

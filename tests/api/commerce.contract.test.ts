@@ -352,7 +352,7 @@ test('order-status rejects content type, oversized, malformed and invalid tokens
 
 test('order-status keeps a generic response for absent orders and rate limits', async () => {
   const id = '11111111-1111-4111-8111-111111111111';
-  const chain = { select: () => chain, eq: () => chain, maybeSingle: async () => ({ data: null, error: null }) };
+  const chain = { select: () => chain, eq: () => chain, or: () => chain, maybeSingle: async () => ({ data: null, error: null }) };
   const missingOrder = createOrderStatusHandler({
     serviceClient: (() => ({ from: () => chain })) as never,
     consumeRateLimit: (async () => ({ ok: true, retryAfter: 0, unavailable: false })) as never,

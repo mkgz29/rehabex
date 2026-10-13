@@ -49,17 +49,32 @@ export function createOrderStatusHandler(dependencies: OrderStatusDependencies =
     return response.status(429).json({ error: 'Orden no encontrada.' });
   }
 
+  // FASE 7F-B4: a guest may prove ownership with EITHER their live checkout
+  // session's own token OR a separate tracking token minted when the
+  // purchase-confirmation email was built (orders.tracking_token_hash) --
+  // both are opaque, both are hashed before storage, both are checked the
+  // exact same way. Neither is ever accepted from a query string.
+  const tokenHash = hash(token);
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_number, payment_status, order_status, fulfillment_status, total_amount, currency, refund_required, created_at')
+    .select('id, order_number, payment_status, order_status, fulfillment_status, delivery_method, total_amount, currency, refund_required, created_at')
     .eq('id', orderId)
-    .eq('status_access_token_hash', hash(token))
+    .or(`status_access_token_hash.eq.${tokenHash},tracking_token_hash.eq.${tokenHash}`)
     .maybeSingle();
   if (error || !data) {
     logEvent('order_status_denied');
     return response.status(404).json({ error: 'Orden no encontrada.' });
   }
-  return response.status(200).json({ order: data });
+
+  // Timeline: only the safe fields a guest may see -- never `note` (an
+  // internal operational comment) or `created_by` (an admin id).
+  const { data: events } = await supabase
+    .from('order_fulfillment_events')
+    .select('to_status, created_at')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: true });
+
+  return response.status(200).json({ order: data, fulfillmentTimeline: events ?? [] });
   };
 }
 

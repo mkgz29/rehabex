@@ -326,3 +326,9 @@ export async function listRecentOrders(): Promise<AdminOrder[]> {
   const result = await getAdmin<{ orders: AdminOrder[] }>('/api/orders');
   return result?.orders ?? [];
 }
+
+/** FASE 7F-B4. The RPC is the real authority on which transitions are legal -- this just forwards the admin's choice and surfaces whatever it rejects. */
+export async function updateOrderFulfillmentStatus(id: string, toStatus: string, note: string | null): Promise<AdminOrder> {
+  const { order } = await postAdmin<{ order: AdminOrder }>('/api/admin/orders/update-fulfillment', { id, toStatus, note });
+  return order;
+}
