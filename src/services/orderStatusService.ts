@@ -78,6 +78,39 @@ export async function requestPaymentSync(snapshot: CheckoutSnapshot, request: ty
   };
 }
 
+export type OrderTrackingRecord = OrderStatusRecord & {
+  order_number: string;
+  fulfillment_status: string | null;
+  delivery_method: string | null;
+};
+
+export type OrderTrackingResult =
+  | { ok: true; order: OrderTrackingRecord; fulfillmentTimeline: Array<{ to_status: string; created_at: string }> }
+  | { ok: false };
+
+/**
+ * FASE 7F-B4. Used by /mi-pedido: the (orderId, token) pair comes from the
+ * URL fragment (see src/lib/orderTrackingLink.ts), never from a
+ * CheckoutSnapshot in sessionStorage -- this is the one call site that talks
+ * to /api/order-status directly instead of through requestOrderStatus.
+ */
+export async function requestOrderTracking(orderId: string, token: string, request: typeof fetch = fetch): Promise<OrderTrackingResult> {
+  let response: Response;
+  try {
+    response = await request('/api/order-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Order-Status-Token': token },
+      body: JSON.stringify({ orderId }),
+    });
+  } catch {
+    return { ok: false };
+  }
+  if (!response.ok) return { ok: false };
+  const data = await response.json().catch(() => null) as { order?: OrderTrackingRecord; fulfillmentTimeline?: Array<{ to_status: string; created_at: string }> } | null;
+  if (!data?.order) return { ok: false };
+  return { ok: true, order: data.order, fulfillmentTimeline: data.fulfillmentTimeline ?? [] };
+}
+
 function retryAfter(response: Pick<Response, 'headers'>) {
   const value = response.headers?.get?.('Retry-After') ?? null;
   if (!value || !/^\d+$/.test(value)) return null;

@@ -12,6 +12,7 @@ import { CartPage } from './pages/CartPage';
 import { FailurePage } from './pages/FailurePage';
 import { LoginPage } from './pages/LoginPage';
 import { LandingPage } from './pages/LandingPage';
+import { MyOrderPage } from './pages/MyOrderPage';
 import { PendingPage } from './pages/PendingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ProtectedRoute } from './auth/ProtectedRoute';
@@ -37,6 +38,7 @@ function App() {
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/failure" element={<FailurePage />} />
         <Route path="/pending" element={<PendingPage />} />
+        <Route path="/mi-pedido" element={<MyOrderPage />} />
         <Route
           path="/admin"
           element={
