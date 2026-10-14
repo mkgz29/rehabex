@@ -40,12 +40,12 @@ export function SiteHeader() {
   const showAdminLink = !loading && Boolean(user) && isAdmin;
   const closeMenu = useCallback(() => setIsOpen(false), []);
 
+  // Anchor scrolling itself is handled app-wide by RouteScrollManager (see
+  // AppLayout); this effect only ever needs to close whatever UI was open
+  // when the route changed.
   useEffect(() => {
     closeMenu();
     setIsSearchOpen(false);
-    if (location.pathname !== '/' || !location.hash) return;
-    const sectionId = location.hash.slice(1);
-    window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' }), 0);
   }, [closeMenu, location.hash, location.pathname]);
 
   // The logo swaps between the orange and the Charcoal lockup once the page has
