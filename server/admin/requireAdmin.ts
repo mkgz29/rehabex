@@ -26,7 +26,8 @@ export type AdminAuthClient = {
   auth: { getUser: (token: string) => Promise<{ data: { user: AdminAuthUser | null }; error: unknown }> };
   from: (table: string) => any;
 };
-export type AdminRpcClient = { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string | null; message?: string } | null }> };
+export type AdminRpcError = { code?: string | null; message?: string; details?: string | null; hint?: string | null };
+export type AdminRpcClient = { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: AdminRpcError | null }> };
 
 export type RequireAdminDependencies = {
   authClient: () => AdminAuthClient | null;
