@@ -4,15 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
 import { HERO_CAROUSEL_AUTOPLAY_MS, clampSlideIndex, nextSlideIndex, prevSlideIndex, swipeDirection } from '../lib/heroCarousel';
-import type { ImageFraming } from '../lib/imageFraming';
+import { DEFAULT_FRAMING } from '../lib/imageFraming';
 import type { HeroImage } from '../types/cms';
 import { FramedImage } from './media/FramedImage';
 
 type HeroCarouselProps = {
   images: HeroImage[];
   isLoading: boolean;
-  /** Same frame the single hero image used to carry; applied to every slide. */
-  framing?: ImageFraming;
 };
 
 /**
@@ -21,8 +19,13 @@ type HeroCarouselProps = {
  * image for exactly 1 (no controls over a single photo), and a full
  * autoplaying carousel for 2+. Mounted by HeroSection, which still owns the
  * aspect-ratio box and decorative overlays around it.
+ *
+ * Each slide renders with its own framing (image.framing, normalized server-
+ * side, falling back to DEFAULT_FRAMING) -- never a single framing shared
+ * across every slide. Switching slides never touches or resets any slide's
+ * stored framing; it's just which element is currently visible.
  */
-export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) {
+export function HeroCarousel({ images, isLoading }: HeroCarouselProps) {
   const [index, setIndex] = useState(0);
   const [isInteracting, setIsInteracting] = useState(false);
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -62,7 +65,7 @@ export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) 
   const renderSlideImage = (image: HeroImage, index: number) => (
     <FramedImage
       key={image.mediaAssetId ?? image.url}
-      media={{ kind: 'image', url: getOptimizedImageUrl(image.url, { width: 1600 }), framing }}
+      media={{ kind: 'image', url: getOptimizedImageUrl(image.url, { width: 1600 }), framing: image.framing ?? DEFAULT_FRAMING }}
       srcSet={getResponsiveImageSrcSet(image.url, [640, 960, 1280, 1600])}
       sizes="(min-width: 768px) 55vw, calc(100vw - 2rem)"
       alt={image.alt || 'Equipo de rehabilitación seleccionado por Rehabex'}

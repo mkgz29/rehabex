@@ -237,6 +237,122 @@ BEGIN
 END;
 $$;
 
+-- Per-slide framing (self-contained: fresh admin/assets, independent of the
+-- block above, so it never depends on its leftover state).
+DO $$
+DECLARE
+  v_admin_id uuid := gen_random_uuid();
+  v_asset_1 uuid;
+  v_asset_2 uuid;
+  v_result jsonb;
+  v_legacy_url text;
+  v_item jsonb;
+BEGIN
+  INSERT INTO auth.users (id, email) VALUES (v_admin_id, 'framing-' || v_admin_id || '@example.test');
+  INSERT INTO public.profiles (id, role) VALUES (v_admin_id, 'admin') ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role;
+  PERFORM set_config('request.jwt.claim.sub', v_admin_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v_admin_id, 'role', 'authenticated')::text, true);
+
+  -- Start from a known single legacy slide for this block.
+  SET ROLE authenticated;
+  v_result := public.admin_sync_hero_images('[]'::jsonb, gen_random_uuid());
+  RESET ROLE;
+  INSERT INTO public.hero_images (media_asset_id, url, alt_text, display_order, enabled)
+  VALUES (NULL, 'https://x.test/framing-legacy.jpg', 'Legacy', 0, true);
+  v_legacy_url := 'https://x.test/framing-legacy.jpg';
+
+  INSERT INTO public.media_assets (provider, public_id, folder, secure_url, status, created_by)
+  VALUES ('cloudinary', 'framing-asset-1', 'rehabex/hero', 'https://x.test/framing-1.jpg', 'pending', v_admin_id) RETURNING id INTO v_asset_1;
+  INSERT INTO public.media_assets (provider, public_id, folder, secure_url, status, created_by)
+  VALUES ('cloudinary', 'framing-asset-2', 'rehabex/hero', 'https://x.test/framing-2.jpg', 'pending', v_admin_id) RETURNING id INTO v_asset_2;
+
+  -- 1/5/6/7: a new media-backed image with no framing key gets the column
+  -- default; a legacy image can also receive a custom framing, by
+  -- legacyUrl, with no mediaAssetId required.
+  SET ROLE authenticated;
+  v_result := public.admin_sync_hero_images(
+    jsonb_build_array(
+      jsonb_build_object('legacyUrl', v_legacy_url, 'alt', 'Legacy', 'enabled', true, 'framing', jsonb_build_object('mode', 'contain', 'focalX', 0.2, 'focalY', 0.8, 'zoom', 2)),
+      jsonb_build_object('mediaAssetId', v_asset_1, 'alt', 'Nueva sin framing', 'enabled', true)
+    ),
+    gen_random_uuid()
+  );
+  RESET ROLE;
+
+  SELECT value INTO v_item FROM jsonb_array_elements(v_result) WHERE value->>'mediaAssetId' IS NULL;
+  IF v_item->'framing' <> jsonb_build_object('mode', 'contain', 'focalX', 0.2, 'focalY', 0.8, 'zoom', 2) THEN
+    RAISE EXCEPTION 'legacy image framing was not persisted correctly, got %', v_item->'framing';
+  END IF;
+  INSERT INTO hero_results VALUES ('a legacy image can receive a custom framing by legacyUrl (no mediaAssetId needed)', true, 'mode=contain focalX=0.2 focalY=0.8 zoom=2');
+
+  SELECT value INTO v_item FROM jsonb_array_elements(v_result) WHERE value->>'mediaAssetId' = v_asset_1::text;
+  IF v_item->'framing' <> '{"mode":"fill","focalX":0.5,"focalY":0.5,"zoom":1}'::jsonb THEN
+    RAISE EXCEPTION 'media-backed image with no framing key did not default correctly, got %', v_item->'framing';
+  END IF;
+  INSERT INTO hero_results VALUES ('a new media-backed image with no framing key defaults to DEFAULT_FRAMING', true, 'mode=fill focalX=0.5 focalY=0.5 zoom=1');
+
+  -- 2/3/4: changing focalX/focalY, zoom, and mode (contain) all persist
+  -- independently -- already proven by the legacy-image assertion above
+  -- (mode=contain, focalX=0.2, focalY=0.8, zoom=2 all differ from default
+  -- and all round-tripped). Confirm a *different* zoom on a second image
+  -- in the same call, proving slides don't share one framing.
+  SET ROLE authenticated;
+  v_result := public.admin_sync_hero_images(
+    jsonb_build_array(
+      jsonb_build_object('legacyUrl', v_legacy_url, 'alt', 'Legacy', 'enabled', true, 'framing', jsonb_build_object('mode', 'fill', 'focalX', 0.1, 'focalY', 0.1, 'zoom', 1.2)),
+      jsonb_build_object('mediaAssetId', v_asset_1, 'alt', '', 'enabled', true, 'framing', jsonb_build_object('mode', 'fill', 'focalX', 0.9, 'focalY', 0.9, 'zoom', 3))
+    ),
+    gen_random_uuid()
+  );
+  RESET ROLE;
+  SELECT value INTO v_item FROM jsonb_array_elements(v_result) WHERE value->>'mediaAssetId' IS NULL;
+  IF (v_item->'framing'->>'zoom')::numeric <> 1.2 THEN RAISE EXCEPTION 'first slide zoom not persisted'; END IF;
+  SELECT value INTO v_item FROM jsonb_array_elements(v_result) WHERE value->>'mediaAssetId' = v_asset_1::text;
+  IF (v_item->'framing'->>'zoom')::numeric <> 3 THEN RAISE EXCEPTION 'second slide zoom not persisted, or slides share one framing'; END IF;
+  INSERT INTO hero_results VALUES ('two slides in the same call keep independent framing (different zoom each)', true, 'zoom 1.2 vs zoom 3');
+
+  -- 9/10: invalid framing (bad mode, out-of-range values) is rejected before
+  -- anything is written.
+  SET ROLE authenticated;
+  BEGIN
+    PERFORM public.admin_sync_hero_images(jsonb_build_array(jsonb_build_object('legacyUrl', v_legacy_url, 'alt', '', 'enabled', true, 'framing', jsonb_build_object('mode', 'bogus', 'focalX', 0.5, 'focalY', 0.5, 'zoom', 1))), gen_random_uuid());
+    RESET ROLE;
+    RAISE EXCEPTION 'an invalid framing mode was accepted';
+  EXCEPTION WHEN SQLSTATE 'ADM22' THEN
+    RESET ROLE;
+  END;
+  SET ROLE authenticated;
+  BEGIN
+    PERFORM public.admin_sync_hero_images(jsonb_build_array(jsonb_build_object('legacyUrl', v_legacy_url, 'alt', '', 'enabled', true, 'framing', jsonb_build_object('mode', 'fill', 'focalX', 0.5, 'focalY', 0.5, 'zoom', 99))), gen_random_uuid());
+    RESET ROLE;
+    RAISE EXCEPTION 'an out-of-range zoom was accepted';
+  EXCEPTION WHEN SQLSTATE 'ADM22' THEN
+    RESET ROLE;
+  END;
+  INSERT INTO hero_results VALUES ('invalid framing (bad mode or out-of-range values) is rejected (ADM22)', true, 'invalid_gallery raised');
+
+  -- A present-but-null framing is tolerated the same as absent (the shape
+  -- the client's own validator emits when it has no opinion).
+  SET ROLE authenticated;
+  v_result := public.admin_sync_hero_images(jsonb_build_array(jsonb_build_object('legacyUrl', v_legacy_url, 'alt', '', 'enabled', true, 'framing', 'null'::jsonb)), gen_random_uuid());
+  RESET ROLE;
+  IF (v_result->0->'framing') <> '{"mode":"fill","focalX":0.5,"focalY":0.5,"zoom":1}'::jsonb THEN
+    RAISE EXCEPTION 'a present-but-null framing was not defaulted correctly';
+  END IF;
+  INSERT INTO hero_results VALUES ('a present-but-null framing defaults the same as an absent one', true, 'DEFAULT_FRAMING applied');
+
+  -- 11: an "old" image row (inserted before this migration's column default
+  -- existed on this exact row -- simulated by the legacy backfill pattern:
+  -- any row never explicitly given framing already reads the column
+  -- default) still works end-to-end.
+  SET ROLE authenticated;
+  v_result := public.admin_sync_hero_images(jsonb_build_array(jsonb_build_object('legacyUrl', v_legacy_url, 'alt', '', 'enabled', true)), gen_random_uuid());
+  RESET ROLE;
+  IF jsonb_array_length(v_result) <> 1 THEN RAISE EXCEPTION 'old-style payload without framing failed'; END IF;
+  INSERT INTO hero_results VALUES ('a payload with no framing key at all (pre-framing client) still works', true, 'applied, defaulted');
+END;
+$$;
+
 SELECT test_name, ok, detail FROM hero_results ORDER BY test_name;
 
 ROLLBACK;

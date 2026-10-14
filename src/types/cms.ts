@@ -20,6 +20,8 @@ export type HeroImage = {
   alt: string;
   enabled: boolean;
   displayOrder: number;
+  /** How this slide is positioned in the Hero frame. Optional on read for older documents; always normalized to a full value before use, same convention as ProductImage.framing. */
+  framing?: ImageFraming;
 };
 
 export type AboutMetric = {
