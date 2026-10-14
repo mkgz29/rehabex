@@ -88,30 +88,52 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
     setSaving(true);
     setMessage(null);
     setError(null);
-    try {
-      const saved = await saveHeroContent(heroContent, expectedUpdatedAt, pendingImageAssetId);
-      setHeroContent(saved.content);
-      setInitialHeroContent(saved.content);
-      setExpectedUpdatedAt(saved.updatedAt);
-      setPendingImageAssetId(null);
 
-      const carouselChanged = JSON.stringify(carouselItems) !== JSON.stringify(initialCarouselItems);
-      if (carouselChanged) {
+    // Step 1: hero_content (text/CTA/eyebrow/single image). If this fails,
+    // nothing was saved at all -- the carousel sync below is never
+    // attempted, same as before.
+    let saved: { content: Awaited<ReturnType<typeof saveHeroContent>>['content']; updatedAt: string };
+    try {
+      saved = await saveHeroContent(heroContent, expectedUpdatedAt, pendingImageAssetId);
+    } catch (contentError) {
+      setError(messageForApiError(contentError, 'No se pudo guardar la portada principal.'));
+      setSaving(false);
+      return;
+    }
+
+    // The server never returns `images` (it isn't part of hero_content) --
+    // carry over the carousel's current images rather than losing them from
+    // the visible state. carouselItems/initialCarouselItems remain the real
+    // source of truth for editing; this is only what HeroContent.images
+    // reflects for anything that still reads it off this object.
+    const contentWithImages: HeroContent = { ...saved.content, images: heroContent.images };
+    setHeroContent(contentWithImages);
+    setInitialHeroContent(contentWithImages);
+    setExpectedUpdatedAt(saved.updatedAt);
+    setPendingImageAssetId(null);
+
+    // Step 2: hero_images (the carousel), only if it actually changed. If
+    // this fails, hero_content already committed -- say so explicitly
+    // instead of implying nothing was saved.
+    const carouselChanged = JSON.stringify(carouselItems) !== JSON.stringify(initialCarouselItems);
+    if (carouselChanged) {
+      try {
         const savedImages: HeroImage[] = await syncHeroImages(toHeroImagesPayload(carouselItems));
         const draftImages = savedImages.map(heroImageToDraftItem);
         setCarouselItems(draftImages);
         setInitialCarouselItems(draftImages);
+      } catch {
+        setError('El contenido se guardó, pero no pudimos actualizar las imágenes del carrusel. Intentá nuevamente.');
+        setSaving(false);
+        return;
       }
-
-      setDirty('hero', false);
-      const savedMessage = 'Portada principal guardada correctamente.';
-      setMessage(savedMessage);
-      onSaved?.(savedMessage);
-    } catch (submitError) {
-      setError(messageForApiError(submitError, 'No se pudo guardar la portada principal.'));
-    } finally {
-      setSaving(false);
     }
+
+    setDirty('hero', false);
+    const savedMessage = 'Portada principal guardada correctamente.';
+    setMessage(savedMessage);
+    onSaved?.(savedMessage);
+    setSaving(false);
   };
 
   const ctaDestination = destinationForLink(heroContent.primary_cta_link);
