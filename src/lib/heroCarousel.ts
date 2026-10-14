@@ -21,7 +21,7 @@ export function clampSlideIndex(index: number, length: number): number {
   return Math.min(Math.max(index, 0), length - 1);
 }
 
-export const HERO_CAROUSEL_AUTOPLAY_MS = 5500;
+export const HERO_CAROUSEL_AUTOPLAY_MS = 5000;
 /** Minimum horizontal drag distance (px) before a touch gesture counts as a swipe, not a tap. */
 export const HERO_CAROUSEL_SWIPE_THRESHOLD_PX = 40;
 

@@ -47,7 +47,7 @@ test('Hero: loaded with a single persisted image renders exactly that URL, no ca
   assert.match(markup, /src="https:\/\/images\.example\.test\/persisted-hero\.jpg"/);
   assert.doesNotMatch(markup, /Imagen no configurada/);
   assert.doesNotMatch(markup, /unsplash/i);
-  assert.doesNotMatch(markup, /Imagen siguiente/);
+  assert.doesNotMatch(markup, /Ir a la imagen/);
 });
 
 test('Hero: loaded with no persisted images shows "Imagen no configurada" and no img element', () => {
@@ -57,7 +57,7 @@ test('Hero: loaded with no persisted images shows "Imagen no configurada" and no
   assert.doesNotMatch(markup, /unsplash/i);
 });
 
-test('Hero: loaded with 2+ images renders a carousel with prev/next controls and dots for each slide', () => {
+test('Hero: loaded with 2+ images renders a carousel with line indicators (no prev/next arrows) for each slide', () => {
   const markup = renderHero(
     {
       ...baseHero,
@@ -68,8 +68,8 @@ test('Hero: loaded with 2+ images renders a carousel with prev/next controls and
     },
     false,
   );
-  assert.match(markup, /Imagen anterior/);
-  assert.match(markup, /Imagen siguiente/);
+  assert.doesNotMatch(markup, /Imagen anterior/);
+  assert.doesNotMatch(markup, /Imagen siguiente/);
   assert.match(markup, /Ir a la imagen 1 de 2/);
   assert.match(markup, /Ir a la imagen 2 de 2/);
   assert.match(markup, /slide-1\.jpg/);

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { HERO_CAROUSEL_SWIPE_THRESHOLD_PX, clampSlideIndex, nextSlideIndex, prevSlideIndex, swipeDirection } from '../../src/lib/heroCarousel';
+import { HERO_CAROUSEL_AUTOPLAY_MS, HERO_CAROUSEL_SWIPE_THRESHOLD_PX, clampSlideIndex, nextSlideIndex, prevSlideIndex, swipeDirection } from '../../src/lib/heroCarousel';
+
+test('HERO_CAROUSEL_AUTOPLAY_MS is exactly 5000ms', () => {
+  assert.equal(HERO_CAROUSEL_AUTOPLAY_MS, 5000);
+});
 
 test('nextSlideIndex wraps forward and is a no-op for length <= 1', () => {
   assert.equal(nextSlideIndex(0, 3), 1);

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { ImageOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
@@ -30,11 +30,15 @@ export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) 
 
   const safeIndex = clampSlideIndex(index, images.length);
 
+  // Depending on `index` (not just mount) means any manual slide change --
+  // autoplay's own tick, a dot click, or a swipe -- restarts the 5000ms
+  // countdown from zero, exactly like a fresh autoplay cycle. isInteracting
+  // (hover/focus) pauses it entirely while true.
   useEffect(() => {
     if (images.length < 2 || prefersReducedMotion || isInteracting) return;
     const timer = window.setInterval(() => setIndex((current) => nextSlideIndex(current, images.length)), HERO_CAROUSEL_AUTOPLAY_MS);
     return () => window.clearInterval(timer);
-  }, [images.length, prefersReducedMotion, isInteracting]);
+  }, [images.length, prefersReducedMotion, isInteracting, index]);
 
   if (isLoading) {
     return (
@@ -73,10 +77,10 @@ export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) 
     return <div className="absolute inset-0">{renderSlideImage(current, 0)}</div>;
   }
 
-  const goTo = (next: number) => {
-    setIndex(next);
-    setIsInteracting(true);
-  };
+  // No isInteracting here: a manual pick doesn't need a lasting pause, it
+  // just needs the 5000ms countdown to restart -- which it does on its own,
+  // since the autoplay effect above depends on `index`.
+  const goTo = (next: number) => setIndex(next);
 
   return (
     <div
@@ -90,7 +94,6 @@ export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) 
       onBlur={() => setIsInteracting(false)}
       onTouchStart={(event) => {
         touchStartX.current = event.touches[0]?.clientX ?? null;
-        setIsInteracting(true);
       }}
       onTouchEnd={(event) => {
         const startX = touchStartX.current;
@@ -108,23 +111,9 @@ export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) 
         </div>
       ))}
 
-      <button
-        type="button"
-        aria-label="Imagen anterior"
-        onClick={() => goTo(prevSlideIndex(safeIndex, images.length))}
-        className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink shadow-soft transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:left-4"
-      >
-        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        aria-label="Imagen siguiente"
-        onClick={() => goTo(nextSlideIndex(safeIndex, images.length))}
-        className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink shadow-soft transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:right-4"
-      >
-        <ChevronRight className="h-5 w-5" aria-hidden="true" />
-      </button>
-
+      {/* Line indicators: the only manual navigation now (previous/next
+          arrows removed by design). Active slide: fuller opacity + wider.
+          Inactive: shorter + more subtle. */}
       <div className="absolute bottom-16 left-1/2 flex -translate-x-1/2 gap-2 sm:bottom-20">
         {images.map((image, i) => (
           <button
@@ -133,7 +122,9 @@ export function HeroCarousel({ images, isLoading, framing }: HeroCarouselProps) 
             aria-label={`Ir a la imagen ${i + 1} de ${images.length}`}
             aria-current={i === safeIndex}
             onClick={() => goTo(i)}
-            className={`h-2.5 w-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${i === safeIndex ? 'bg-white' : 'bg-white/50 hover:bg-white/75'}`}
+            className={`h-[3px] rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+              i === safeIndex ? 'w-8 bg-white' : 'w-5 bg-white/45 hover:bg-white/70'
+            }`}
           />
         ))}
       </div>
