@@ -3,11 +3,23 @@ import type { ImageFraming } from '../lib/imageFraming';
 export type HeroContent = {
   title: string;
   subtitle?: string;
+  /** The small uppercase line above the title ("Rehabilitación · Movilidad · Bienestar"). Empty string renders no eyebrow line at all. */
+  eyebrow: string;
   image_url: string;
   /** How image_url is positioned in the portada frame. Optional on read for older documents; always normalized to a full value before use. */
   image_framing?: ImageFraming;
   primary_cta_text: string;
   primary_cta_link: string;
+  /** The hero carousel's slides, fetched separately from hero_images (not part of the hero_content settings document) and attached here by getLandingContent. */
+  images: HeroImage[];
+};
+
+export type HeroImage = {
+  mediaAssetId: string | null;
+  url: string;
+  alt: string;
+  enabled: boolean;
+  displayOrder: number;
 };
 
 export type AboutMetric = {

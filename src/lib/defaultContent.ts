@@ -9,9 +9,13 @@ export const defaultLandingContent: LandingContent = {
   hero: {
     title: 'Recuperacion con confianza.',
     subtitle: 'Equipamiento y soluciones para rehabilitacion profesional, en un solo lugar.',
+    // Same "no hardcoded fallback visible" rule as image_url below: an
+    // empty eyebrow renders no line at all rather than a stale placeholder.
+    eyebrow: '',
     image_url: '',
     primary_cta_text: 'Explorar productos',
     primary_cta_link: '#productos',
+    images: [],
   },
   about: {
     image: '',

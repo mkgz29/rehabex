@@ -20,9 +20,11 @@ import type { HeroContent } from '../../src/types/cms.ts';
 const baseHero: HeroContent = {
   title: 'Titulo de prueba',
   subtitle: 'Subtitulo de prueba',
+  eyebrow: 'Eyebrow de prueba',
   image_url: '',
   primary_cta_text: 'Ir',
   primary_cta_link: '/tienda',
+  images: [],
 };
 
 function renderHero(heroContent: HeroContent, isLoading: boolean) {
@@ -32,26 +34,46 @@ function renderHero(heroContent: HeroContent, isLoading: boolean) {
 }
 
 test('Hero: while loading, there is no img element and no image URL is ever referenced', () => {
-  const markup = renderHero({ ...baseHero, image_url: 'https://res.cloudinary.com/demo/image/upload/v1/hero.jpg' }, true);
+  const markup = renderHero({ ...baseHero, images: [{ mediaAssetId: null, url: 'https://res.cloudinary.com/demo/image/upload/v1/hero.jpg', alt: '', enabled: true, displayOrder: 0 }] }, true);
   assert.doesNotMatch(markup, /<img/);
   assert.doesNotMatch(markup, /unsplash/i);
   assert.doesNotMatch(markup, /cloudinary/i);
   assert.match(markup, /aria-busy="true"/);
 });
 
-test('Hero: loaded with a persisted image renders exactly that URL, nothing else', () => {
-  const markup = renderHero({ ...baseHero, image_url: 'https://images.example.test/persisted-hero.jpg' }, false);
+test('Hero: loaded with a single persisted image renders exactly that URL, no carousel controls', () => {
+  const markup = renderHero({ ...baseHero, images: [{ mediaAssetId: null, url: 'https://images.example.test/persisted-hero.jpg', alt: '', enabled: true, displayOrder: 0 }] }, false);
   assert.match(markup, /<img/);
   assert.match(markup, /src="https:\/\/images\.example\.test\/persisted-hero\.jpg"/);
   assert.doesNotMatch(markup, /Imagen no configurada/);
   assert.doesNotMatch(markup, /unsplash/i);
+  assert.doesNotMatch(markup, /Ir a la imagen/);
 });
 
-test('Hero: loaded with no persisted image shows "Imagen no configurada" and no img element', () => {
-  const markup = renderHero({ ...baseHero, image_url: '' }, false);
+test('Hero: loaded with no persisted images shows "Imagen no configurada" and no img element', () => {
+  const markup = renderHero({ ...baseHero, images: [] }, false);
   assert.doesNotMatch(markup, /<img/);
   assert.match(markup, /Imagen no configurada/);
   assert.doesNotMatch(markup, /unsplash/i);
+});
+
+test('Hero: loaded with 2+ images renders a carousel with line indicators (no prev/next arrows) for each slide', () => {
+  const markup = renderHero(
+    {
+      ...baseHero,
+      images: [
+        { mediaAssetId: null, url: 'https://images.example.test/slide-1.jpg', alt: 'Primera', enabled: true, displayOrder: 0 },
+        { mediaAssetId: null, url: 'https://images.example.test/slide-2.jpg', alt: 'Segunda', enabled: true, displayOrder: 1 },
+      ],
+    },
+    false,
+  );
+  assert.doesNotMatch(markup, /Imagen anterior/);
+  assert.doesNotMatch(markup, /Imagen siguiente/);
+  assert.match(markup, /Ir a la imagen 1 de 2/);
+  assert.match(markup, /Ir a la imagen 2 de 2/);
+  assert.match(markup, /slide-1\.jpg/);
+  assert.match(markup, /slide-2\.jpg/);
 });
 
 // --- Loading-state guardrail (FASE 7D.3-B3): never paint defaultLandingContent text as real while isLoading ---

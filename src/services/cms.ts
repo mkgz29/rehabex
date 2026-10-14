@@ -2,7 +2,7 @@ import { defaultLandingContent } from '../lib/defaultContent';
 import { isPublicCatalogProduct } from '../lib/catalog';
 import { normalizeFraming } from '../lib/imageFraming';
 import { supabase } from '../lib/supabase';
-import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, LandingContent, Product, ProductImage } from '../types/cms';
+import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, HeroImage, LandingContent, Product, ProductImage } from '../types/cms';
 
 type SettingRow = {
   key: string;
@@ -32,6 +32,39 @@ type ProductImageRow = {
   display_order: number;
   framing: unknown;
 };
+
+type HeroImageRow = {
+  media_asset_id: string | null;
+  url: string;
+  alt_text: string | null;
+  display_order: number;
+  enabled: boolean;
+};
+
+const HERO_IMAGES_SELECT = 'media_asset_id, url, alt_text, display_order, enabled';
+
+function mapHeroImageRow(row: HeroImageRow): HeroImage {
+  return {
+    mediaAssetId: row.media_asset_id,
+    url: row.url,
+    alt: row.alt_text ?? '',
+    enabled: row.enabled,
+    displayOrder: row.display_order,
+  };
+}
+
+async function fetchHeroImages(): Promise<HeroImage[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('hero_images')
+    .select(HERO_IMAGES_SELECT)
+    .eq('enabled', true)
+    .order('display_order', { ascending: true });
+  if (error) {
+    throw new Error(formatSupabaseError('No se pudieron cargar las imagenes del carrusel principal'));
+  }
+  return ((data ?? []) as HeroImageRow[]).map(mapHeroImageRow);
+}
 
 const LOCAL_SETTINGS_KEY = 'rehabex.settings';
 const PRODUCT_SELECT = 'id, name, description, category, price, image_url, is_featured, display_order, is_active, created_at, updated_at, stock_on_hand';
@@ -106,6 +139,7 @@ export function normalizeHeroContent(value: unknown): HeroContent | null {
   return {
     ...defaultLandingContent.hero,
     title: typeof raw.title === 'string' ? raw.title : defaultLandingContent.hero.title,
+    eyebrow: typeof raw.eyebrow === 'string' ? raw.eyebrow : defaultLandingContent.hero.eyebrow,
     subtitle:
       typeof raw.subtitle === 'string'
         ? raw.subtitle
@@ -232,13 +266,15 @@ export async function getLandingContent() {
     return mergeLandingSettings(getLocalSettings());
   }
 
-  const { data, error } = await supabase.from('settings').select('key, value');
+  const [{ data, error }, heroImages] = await Promise.all([supabase.from('settings').select('key, value'), fetchHeroImages()]);
 
   if (error) {
     throw new Error('No se pudieron cargar las configuraciones de la landing.');
   }
 
-  return mergeLandingSettings((data ?? []) as SettingRow[]);
+  const content = mergeLandingSettings((data ?? []) as SettingRow[]);
+  content.hero = { ...content.hero, images: heroImages };
+  return content;
 }
 
 export async function getProducts() {

@@ -1,0 +1,265 @@
+import { useRef, useState } from 'react';
+
+import { MediaUploadError, uploadSecureImage, validateFileForUpload } from '../../services/mediaApi';
+import { ImagePreparationError, optimizeImageForUpload } from '../../lib/imageOptimization';
+import {
+  MAX_HERO_IMAGES,
+  addHeroImage,
+  canAddMoreHeroImages,
+  moveHeroImageAfter,
+  moveHeroImageBefore,
+  removeHeroImageAt,
+  reorderHeroImagesByDrag,
+  replaceHeroImageAt,
+  setHeroImageAltAt,
+  shouldWarnFewHeroImages,
+  toggleHeroImageEnabledAt,
+  type HeroGalleryDraftItem,
+} from '../catalog/heroGallery';
+import { AdminEmptyState } from './AdminEmptyState';
+import { AdminNotice } from './AdminNotice';
+import { FormField } from './FormField';
+
+type UploadTarget = 'new' | number;
+
+type UploadState =
+  | { kind: 'idle' }
+  | { kind: 'preparing'; target: UploadTarget }
+  | { kind: 'uploading'; target: UploadTarget; previewUrl: string; percent: number }
+  | { kind: 'verifying'; target: UploadTarget; previewUrl: string }
+  | { kind: 'error'; target: UploadTarget; message: string };
+
+type HeroCarouselFieldProps = {
+  items: HeroGalleryDraftItem[];
+  onChange: (items: HeroGalleryDraftItem[]) => void;
+};
+
+/**
+ * "Carrusel principal" editor inside AdminHeroPage. Add/replace/remove,
+ * reorder (buttons + drag), an enable/disable toggle per slide (no "exactly
+ * one primary" rule -- any number may be enabled) and an optional alt text.
+ * Never blocks saving on having too few images: see shouldWarnFewHeroImages
+ * for the non-blocking recommendation banner instead.
+ */
+export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
+  const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
+  const [confirmRemoveIndex, setConfirmRemoveIndex] = useState<number | null>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTargetRef = useRef<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const busy = upload.kind === 'preparing' || upload.kind === 'uploading' || upload.kind === 'verifying';
+
+  const runUpload = async (file: File, target: UploadTarget) => {
+    setUpload({ kind: 'preparing', target });
+
+    let optimized;
+    try {
+      optimized = await optimizeImageForUpload(file);
+    } catch (error) {
+      const message = error instanceof ImagePreparationError ? error.message : 'No pudimos preparar esta imagen. Probá con otro archivo.';
+      setUpload({ kind: 'error', target, message });
+      return;
+    }
+
+    const validation = await validateFileForUpload(optimized.file);
+    if (!validation.ok) {
+      setUpload({ kind: 'error', target, message: validation.message });
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(optimized.file);
+    setUpload({ kind: 'uploading', target, previewUrl, percent: 0 });
+    try {
+      const result = await uploadSecureImage(optimized.file, 'hero', {
+        onProgress: (percent) => setUpload((current) => (current.kind === 'uploading' && current.target === target ? { ...current, percent } : current)),
+        onUploaded: () => setUpload({ kind: 'verifying', target, previewUrl }),
+      });
+      if (target === 'new') {
+        onChange(addHeroImage(items, { mediaAssetId: result.assetId, url: result.url }));
+      } else {
+        onChange(replaceHeroImageAt(items, target, { mediaAssetId: result.assetId, url: result.url }));
+      }
+      setUpload({ kind: 'idle' });
+    } catch (error) {
+      const message = error instanceof MediaUploadError ? error.message : 'No se pudo subir la imagen.';
+      setUpload({ kind: 'error', target, message });
+    }
+  };
+
+  const handleRemove = (index: number) => {
+    if (confirmRemoveIndex !== index) {
+      setConfirmRemoveIndex(index);
+      return;
+    }
+    setConfirmRemoveIndex(null);
+    onChange(removeHeroImageAt(items, index));
+  };
+
+  return (
+    <FormField label="Carrusel principal" hint={`Hasta ${MAX_HERO_IMAGES} imágenes. Arrastrá para cambiar el orden, o usá los botones para moverlas.`}>
+      <div className="space-y-4">
+        {shouldWarnFewHeroImages(items) ? <AdminNotice>Recomendamos al menos 3 imágenes para el carrusel.</AdminNotice> : null}
+
+        {items.length === 0 ? (
+          <AdminEmptyState compact title="Todavía no agregaste ninguna imagen al carrusel. La portada puede guardarse igual." />
+        ) : (
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {items.map((item, index) => {
+              const isTarget = (upload.kind === 'preparing' || upload.kind === 'uploading' || upload.kind === 'verifying') && upload.target === index;
+              const isConfirmingRemove = confirmRemoveIndex === index;
+              return (
+                <li
+                  key={item.mediaAssetId ?? item.url}
+                  draggable={!busy}
+                  onDragStart={() => setDragIndex(index)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (dragIndex !== null) onChange(reorderHeroImagesByDrag(items, dragIndex, index));
+                    setDragIndex(null);
+                  }}
+                  className="space-y-2 rounded-2xl border border-slate-200 bg-white p-2"
+                >
+                  <p className="text-center text-[11px] font-medium text-slate-500">
+                    Imagen {index + 1} de {MAX_HERO_IMAGES}
+                  </p>
+                  <div className="relative overflow-hidden rounded-xl border border-slate-200">
+                    <img
+                      src={isTarget && 'previewUrl' in upload ? upload.previewUrl : item.url}
+                      alt={item.alt || `Imagen ${index + 1} del carrusel principal`}
+                      className="h-28 w-full object-cover"
+                    />
+                    {!item.enabled ? (
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-slate-900/85 px-2 py-1 text-[10px] font-semibold text-white">Desactivada</span>
+                    ) : null}
+                  </div>
+
+                  <label className="flex items-center gap-2 px-1 text-xs font-medium text-slate-600">
+                    <input type="checkbox" checked={item.enabled} onChange={() => onChange(toggleHeroImageEnabledAt(items, index))} disabled={busy} />
+                    Activa en el carrusel
+                  </label>
+
+                  <input
+                    type="text"
+                    value={item.alt}
+                    onChange={(event) => onChange(setHeroImageAltAt(items, index, event.target.value))}
+                    placeholder="Alt (opcional)"
+                    aria-label={`Texto alternativo de la imagen ${index + 1}`}
+                    disabled={busy}
+                    className="admin-input text-xs"
+                  />
+
+                  {isTarget ? (
+                    <p className="text-center text-[11px] text-slate-500" aria-live="polite">
+                      {upload.kind === 'preparing' ? 'Preparando imagen...' : upload.kind === 'uploading' ? `Subiendo... ${upload.percent}%` : 'Verificando...'}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap justify-center gap-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          replaceTargetRef.current = index;
+                          replaceInputRef.current?.click();
+                        }}
+                        className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Reemplazar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || index === 0}
+                        onClick={() => onChange(moveHeroImageBefore(items, index))}
+                        className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Mover antes
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || index === items.length - 1}
+                        onClick={() => onChange(moveHeroImageAfter(items, index))}
+                        className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Mover después
+                      </button>
+
+                      {isConfirmingRemove ? (
+                        <span className="flex w-full flex-col items-center gap-1 pt-1">
+                          <span className="text-[11px] text-slate-600">¿Quitar esta imagen?</span>
+                          <span className="flex gap-1">
+                            <button type="button" onClick={() => handleRemove(index)} className="min-h-11 rounded-full border border-slate-900 bg-slate-900 px-2.5 py-1.5 text-[11px] font-medium text-white">
+                              Sí, quitar
+                            </button>
+                            <button type="button" onClick={() => setConfirmRemoveIndex(null)} className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700">
+                              Cancelar
+                            </button>
+                          </span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleRemove(index)}
+                          className="min-h-11 rounded-full border border-red-200 px-2.5 py-1.5 text-[11px] font-medium text-red-700 transition hover:border-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Quitar imagen
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {upload.kind === 'error' && upload.target === index ? (
+                    <p role="alert" className="text-center text-[11px] text-red-600">
+                      {upload.message}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {canAddMoreHeroImages(items) ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3">
+            <input
+              ref={addInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={busy}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void runUpload(file, 'new');
+                event.target.value = '';
+              }}
+              className="admin-input"
+              aria-label="Agregar imagen al carrusel"
+            />
+            <p className="mt-2 text-xs leading-5 text-slate-500">JPG, PNG o WebP, hasta 20 MB. La ajustamos automáticamente antes de subirla.</p>
+            {upload.kind === 'preparing' && upload.target === 'new' ? <p className="mt-1 text-xs text-slate-500" aria-live="polite">Preparando imagen...</p> : null}
+            {upload.kind === 'uploading' && upload.target === 'new' ? <p className="mt-1 text-xs text-slate-500" aria-live="polite">Subiendo imagen... {upload.percent}%</p> : null}
+            {upload.kind === 'verifying' && upload.target === 'new' ? <p className="mt-1 text-xs text-slate-500" aria-live="polite">Verificando imagen...</p> : null}
+            {upload.kind === 'error' && upload.target === 'new' ? <p role="alert" className="mt-1 text-xs text-red-600">{upload.message}</p> : null}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">Llegaste al máximo de {MAX_HERO_IMAGES} imágenes. Quitá una para agregar otra.</p>
+        )}
+
+        <input
+          ref={replaceInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            const target = replaceTargetRef.current;
+            if (file && target !== null) void runUpload(file, target);
+            event.target.value = '';
+            replaceTargetRef.current = null;
+          }}
+        />
+      </div>
+    </FormField>
+  );
+}
