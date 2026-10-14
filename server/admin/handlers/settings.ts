@@ -71,7 +71,20 @@ export function createAdminSyncHeroImagesHandler(overrides: Partial<RequireAdmin
 
     if (error || !data) {
       const mapped = mapAdminRpcError(error);
-      logEvent('admin_hero_images_update_failed', { status: mapped.status });
+      // Diagnostic-only: the raw Postgres/PostgREST error code/message/
+      // details/hint, never sent to the client (the response below stays
+      // exactly the same safe, generic message). None of these fields can
+      // carry the images payload, a URL, a JWT or PII -- they describe the
+      // *failure itself* (e.g. a constraint name, a type error), not the
+      // request content.
+      logEvent('admin_hero_images_update_failed', {
+        status: mapped.status,
+        dbCode: error?.code ?? undefined,
+        dbMessage: error?.message ?? undefined,
+        dbDetails: error?.details ?? undefined,
+        dbHint: error?.hint ?? undefined,
+        requestId: auth.requestId,
+      });
       return response.status(mapped.status).json({ error: mapped.error, requestId: auth.requestId });
     }
 
