@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 
 import { MediaUploadError, uploadSecureImage, validateFileForUpload } from '../../services/mediaApi';
 import { ImagePreparationError, optimizeImageForUpload } from '../../lib/imageOptimization';
+import { DEFAULT_FRAMING, framingToImageStyle } from '../../lib/imageFraming';
 import {
   MAX_HERO_IMAGES,
   addHeroImage,
@@ -12,6 +13,7 @@ import {
   reorderHeroImagesByDrag,
   replaceHeroImageAt,
   setHeroImageAltAt,
+  setHeroImageFramingAt,
   shouldWarnFewHeroImages,
   toggleHeroImageEnabledAt,
   type HeroGalleryDraftItem,
@@ -19,6 +21,7 @@ import {
 import { AdminEmptyState } from './AdminEmptyState';
 import { AdminNotice } from './AdminNotice';
 import { FormField } from './FormField';
+import { ImageFramerField } from './ImageFramerField';
 
 type UploadTarget = 'new' | number;
 
@@ -44,6 +47,7 @@ type HeroCarouselFieldProps = {
 export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
   const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
   const [confirmRemoveIndex, setConfirmRemoveIndex] = useState<number | null>(null);
+  const [framingIndex, setFramingIndex] = useState<number | null>(null);
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<number | null>(null);
@@ -94,6 +98,7 @@ export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
       return;
     }
     setConfirmRemoveIndex(null);
+    if (framingIndex === index) setFramingIndex(null);
     onChange(removeHeroImageAt(items, index));
   };
 
@@ -109,6 +114,8 @@ export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
             {items.map((item, index) => {
               const isTarget = (upload.kind === 'preparing' || upload.kind === 'uploading' || upload.kind === 'verifying') && upload.target === index;
               const isConfirmingRemove = confirmRemoveIndex === index;
+              const isFraming = framingIndex === index;
+              const style = framingToImageStyle(item.framing ?? DEFAULT_FRAMING);
               return (
                 <li
                   key={item.mediaAssetId ?? item.url}
@@ -129,7 +136,8 @@ export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
                     <img
                       src={isTarget && 'previewUrl' in upload ? upload.previewUrl : item.url}
                       alt={item.alt || `Imagen ${index + 1} del carrusel principal`}
-                      className="h-28 w-full object-cover"
+                      style={{ objectFit: style.objectFit, objectPosition: style.objectPosition, transform: style.transform }}
+                      className="h-28 w-full"
                     />
                     {!item.enabled ? (
                       <span className="absolute left-1.5 top-1.5 rounded-full bg-slate-900/85 px-2 py-1 text-[10px] font-semibold text-white">Desactivada</span>
@@ -167,6 +175,15 @@ export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
                         className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Reemplazar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setFramingIndex(isFraming ? null : index)}
+                        aria-pressed={isFraming}
+                        className="min-h-11 rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Acomodar imagen
                       </button>
                       <button
                         type="button"
@@ -209,6 +226,15 @@ export function HeroCarouselField({ items, onChange }: HeroCarouselFieldProps) {
                       )}
                     </div>
                   )}
+
+                  {isFraming ? (
+                    <ImageFramerField
+                      url={item.url}
+                      framing={item.framing ?? DEFAULT_FRAMING}
+                      onChange={(framing) => onChange(setHeroImageFramingAt(items, index, framing))}
+                      aspectRatio="4 / 5"
+                    />
+                  ) : null}
 
                   {upload.kind === 'error' && upload.target === index ? (
                     <p role="alert" className="text-center text-[11px] text-red-600">

@@ -55,6 +55,13 @@ test('CONTRACT: autoplay interval is exactly 5000ms', () => {
   assert.match(source, /HERO_CAROUSEL_AUTOPLAY_MS = 5000/);
 });
 
+test('CONTRACT: each slide renders with its own framing (image.framing), never one framing prop shared across every slide', () => {
+  const source = readFileSync(join(process.cwd(), 'src/components/HeroCarousel.tsx'), 'utf8');
+  assert.match(source, /framing: image\.framing \?\? DEFAULT_FRAMING/);
+  assert.doesNotMatch(source, /framing\?:\s*ImageFraming/);
+  assert.doesNotMatch(source, /HeroCarouselProps[\s\S]{0,200}framing/);
+});
+
 test('CONTRACT: only the first slide gets fetchPriority "high" -- later slides are not downloaded aggressively', () => {
   const source = readFileSync(join(process.cwd(), 'src/components/HeroCarousel.tsx'), 'utf8');
   assert.match(source, /fetchPriority=\{index === 0 \? 'high' : 'low'\}/);

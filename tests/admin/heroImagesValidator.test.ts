@@ -84,3 +84,35 @@ test('parseSyncHeroImagesPayload rejects a non-array images field or an unknown 
   assert.equal(isValid(parseSyncHeroImagesPayload({ images: 'not-an-array' })), false);
   assert.equal(isValid(parseSyncHeroImagesPayload({ images: [], extra: 1 })), false);
 });
+
+// --- per-slide framing --------------------------------------------------------
+
+test('parseSyncHeroImagesPayload accepts a well-formed framing object and preserves it exactly', () => {
+  const result = parseSyncHeroImagesPayload({
+    images: [{ mediaAssetId: ASSET_ID_1, alt: '', enabled: true, framing: { mode: 'contain', focalX: 0.2, focalY: 0.8, zoom: 2 } }],
+  });
+  assert.equal(isValid(result), true);
+  if (isValid(result)) assert.deepEqual(result.value.images[0].framing, { mode: 'contain', focalX: 0.2, focalY: 0.8, zoom: 2 });
+});
+
+test('parseSyncHeroImagesPayload: an absent framing key defaults to null (the RPC applies DEFAULT_FRAMING downstream)', () => {
+  const result = parseSyncHeroImagesPayload({ images: [{ mediaAssetId: ASSET_ID_1, alt: '', enabled: true }] });
+  assert.equal(isValid(result), true);
+  if (isValid(result)) assert.equal(result.value.images[0].framing, null);
+});
+
+test('parseSyncHeroImagesPayload rejects an invalid framing: bad mode, out-of-range focalX/focalY/zoom, or extra keys', () => {
+  const base = { mediaAssetId: ASSET_ID_1, alt: '', enabled: true };
+  assert.equal(isValid(parseSyncHeroImagesPayload({ images: [{ ...base, framing: { mode: 'bogus', focalX: 0.5, focalY: 0.5, zoom: 1 } }] })), false);
+  assert.equal(isValid(parseSyncHeroImagesPayload({ images: [{ ...base, framing: { mode: 'fill', focalX: 1.5, focalY: 0.5, zoom: 1 } }] })), false);
+  assert.equal(isValid(parseSyncHeroImagesPayload({ images: [{ ...base, framing: { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: 99 } }] })), false);
+  assert.equal(isValid(parseSyncHeroImagesPayload({ images: [{ ...base, framing: { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: 1, extra: 'x' } }] })), false);
+});
+
+test('parseSyncHeroImagesPayload: a legacy item can also carry a framing object, no mediaAssetId required', () => {
+  const result = parseSyncHeroImagesPayload({
+    images: [{ legacyUrl: 'https://images.example.test/legacy.jpg', alt: '', enabled: true, framing: { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: 1.5 } }],
+  });
+  assert.equal(isValid(result), true);
+  if (isValid(result)) assert.deepEqual(result.value.images[0].framing, { mode: 'fill', focalX: 0.5, focalY: 0.5, zoom: 1.5 });
+});

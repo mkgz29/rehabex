@@ -1,6 +1,8 @@
 // Browser-side client for the ADMIN-01B admin API. Every mutation goes
 // through /api/admin/*, carrying the caller's own Supabase access token; the
 // panel never writes to products/settings directly anymore.
+import { normalizeFraming } from '../lib/imageFraming';
+import type { ImageFraming } from '../lib/imageFraming';
 import { supabase } from '../lib/supabase';
 import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, HeroImage, Product, ProductImage, ProductInput } from '../types/cms';
 import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
@@ -210,12 +212,14 @@ export async function saveHeroContent(
   return { content: setting.value, updatedAt: setting.updatedAt };
 }
 
-export type HeroImagesPayloadItem = { mediaAssetId: string; alt: string; enabled: boolean } | { legacyUrl: string; alt: string; enabled: boolean };
-type HeroImageApiResponse = { mediaAssetId: string | null; url: string; alt: string | null; enabled: boolean };
+export type HeroImagesPayloadItem =
+  | { mediaAssetId: string; alt: string; enabled: boolean; framing: ImageFraming }
+  | { legacyUrl: string; alt: string; enabled: boolean; framing: ImageFraming };
+type HeroImageApiResponse = { mediaAssetId: string | null; url: string; alt: string | null; enabled: boolean; framing?: unknown };
 
 export async function syncHeroImages(images: HeroImagesPayloadItem[]): Promise<HeroImage[]> {
   const { images: saved } = await postAdmin<{ images: HeroImageApiResponse[] }>('/api/admin/settings/hero-images', { images });
-  return saved.map((row, index) => ({ mediaAssetId: row.mediaAssetId, url: row.url, alt: row.alt ?? '', enabled: row.enabled, displayOrder: index }));
+  return saved.map((row, index) => ({ mediaAssetId: row.mediaAssetId, url: row.url, alt: row.alt ?? '', enabled: row.enabled, displayOrder: index, framing: normalizeFraming(row.framing) }));
 }
 
 export async function saveAboutContent(

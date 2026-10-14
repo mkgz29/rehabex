@@ -39,9 +39,10 @@ type HeroImageRow = {
   alt_text: string | null;
   display_order: number;
   enabled: boolean;
+  framing: unknown;
 };
 
-const HERO_IMAGES_SELECT = 'media_asset_id, url, alt_text, display_order, enabled';
+const HERO_IMAGES_SELECT = 'media_asset_id, url, alt_text, display_order, enabled, framing';
 
 function mapHeroImageRow(row: HeroImageRow): HeroImage {
   return {
@@ -50,6 +51,7 @@ function mapHeroImageRow(row: HeroImageRow): HeroImage {
     alt: row.alt_text ?? '',
     enabled: row.enabled,
     displayOrder: row.display_order,
+    framing: normalizeFraming(row.framing),
   };
 }
 

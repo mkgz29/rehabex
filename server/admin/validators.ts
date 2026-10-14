@@ -211,8 +211,8 @@ function parseGallery(value: unknown): ValidationResult<GalleryItemInput[]> {
 // --- Hero carousel (FASE CMS hero carousel) ---------------------------------
 
 export type HeroImageItemInput =
-  | { mediaAssetId: string; alt: string; enabled: boolean }
-  | { legacyUrl: string; alt: string; enabled: boolean };
+  | { mediaAssetId: string; alt: string; enabled: boolean; framing: ImageFramingInput | null }
+  | { legacyUrl: string; alt: string; enabled: boolean; framing: ImageFramingInput | null };
 
 export const MAX_HERO_IMAGES = 8;
 
@@ -239,20 +239,22 @@ export function parseHeroImages(value: unknown): ValidationResult<HeroImageItemI
     const hasAssetId = 'mediaAssetId' in entry;
     const hasLegacyUrl = 'legacyUrl' in entry;
     if (hasAssetId === hasLegacyUrl) return { ok: false, error: 'invalid_gallery' };
-    if (!hasOnlyAllowedKeys(entry, hasAssetId ? ['mediaAssetId', 'alt', 'enabled'] : ['legacyUrl', 'alt', 'enabled'])) {
+    if (!hasOnlyAllowedKeys(entry, hasAssetId ? ['mediaAssetId', 'alt', 'enabled', 'framing'] : ['legacyUrl', 'alt', 'enabled', 'framing'])) {
       return { ok: false, error: 'unknown_field' };
     }
 
     if (typeof entry.enabled !== 'boolean') return { ok: false, error: 'invalid_gallery' };
     const alt = optionalText(entry.alt, MAX_HERO_ALT);
     if (alt === null) return { ok: false, error: 'invalid_gallery' };
+    const framing = optionalFraming(entry.framing);
+    if (!framing.ok) return { ok: false, error: 'invalid_gallery' };
 
     if (hasAssetId) {
       const mediaAssetId = entry.mediaAssetId;
       if (typeof mediaAssetId !== 'string' || !UUID.test(mediaAssetId)) return { ok: false, error: 'invalid_gallery' };
       if (seenAssetIds.has(mediaAssetId)) return { ok: false, error: 'duplicate_image' };
       seenAssetIds.add(mediaAssetId);
-      items.push({ mediaAssetId, alt, enabled: entry.enabled });
+      items.push({ mediaAssetId, alt, enabled: entry.enabled, framing: framing.value });
     } else {
       const legacyUrl = entry.legacyUrl;
       if (typeof legacyUrl !== 'string' || legacyUrl.length > MAX_IMAGE_URL || !isHttpsUrl(legacyUrl)) {
@@ -260,7 +262,7 @@ export function parseHeroImages(value: unknown): ValidationResult<HeroImageItemI
       }
       if (seenLegacyUrls.has(legacyUrl)) return { ok: false, error: 'duplicate_image' };
       seenLegacyUrls.add(legacyUrl);
-      items.push({ legacyUrl, alt, enabled: entry.enabled });
+      items.push({ legacyUrl, alt, enabled: entry.enabled, framing: framing.value });
     }
   }
 

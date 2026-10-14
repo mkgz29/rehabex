@@ -61,7 +61,7 @@ export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
           className="hero-enter hero-enter-delay-4 relative aspect-[4/5] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]"
           aria-busy={isLoading}
         >
-          <HeroCarousel images={heroContent.images} isLoading={isLoading} framing={heroContent.image_framing} />
+          <HeroCarousel images={heroContent.images} isLoading={isLoading} />
           {/* Warms the corner the photograph hands over to the hem below, without
               tinting the product itself. */}
           <div
