@@ -1,10 +1,7 @@
-import { ArrowRight, ImageOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
-import { FramedImage } from './media/FramedImage';
-import { resolveMediaSlotState } from './media/mediaSlotState';
+import { HeroCarousel } from './HeroCarousel';
 import type { HeroContent } from '../types/cms';
 
 type HeroSectionProps = {
@@ -13,20 +10,18 @@ type HeroSectionProps = {
 };
 
 export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => setImageFailed(false), [heroContent.image_url]);
-
-  // 'loading': settings haven't resolved yet, no img element, no request.
-  // 'empty': resolved, but no image is persisted -- never an editorial photo.
-  // 'ready': render the persisted URL. 'error': that URL failed to load.
-  const slotState = resolveMediaSlotState({ isLoading, url: heroContent.image_url, failed: imageFailed });
-
   return (
     <section className="warm-hem warm-hem--drift overflow-hidden bg-canvas" aria-labelledby="hero-title">
       <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-9 py-10 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-10 md:py-12 lg:gap-16 lg:py-14">
         <div className="max-w-2xl py-2 md:py-8">
-          <p className="eyebrow hero-enter">Rehabilitación · Movilidad · Bienestar</p>
+          {/* Same "stay mounted, swap only the content" rule as the h1 below:
+              while loading, a skeleton -- never the old hardcoded text, and
+              never a blank flash once loaded with an empty eyebrow. */}
+          {isLoading ? (
+            <span className="eyebrow hero-enter inline-block h-[1em] w-40 animate-pulse rounded bg-line" aria-hidden="true" />
+          ) : heroContent.eyebrow ? (
+            <p className="eyebrow hero-enter">{heroContent.eyebrow}</p>
+          ) : null}
           {/* The h1/CTA stay mounted with their ids/elements while loading --
               only their content swaps for a skeleton -- so aria-labelledby
               keeps a stable target and no default/old CMS text is ever
@@ -64,30 +59,9 @@ export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
 
         <div
           className="hero-enter hero-enter-delay-4 relative aspect-[4/5] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft md:aspect-[4/5] lg:aspect-[6/5]"
-          aria-busy={slotState === 'loading'}
+          aria-busy={isLoading}
         >
-          {slotState === 'ready' ? (
-            <FramedImage
-              media={{ kind: 'image', url: getOptimizedImageUrl(heroContent.image_url, { width: 1600 }), framing: heroContent.image_framing }}
-              srcSet={getResponsiveImageSrcSet(heroContent.image_url, [640, 960, 1280, 1600])}
-              sizes="(min-width: 768px) 55vw, calc(100vw - 2rem)"
-              alt="Equipo de rehabilitación seleccionado por Rehabex"
-              width={1600}
-              height={1800}
-              fetchPriority="high"
-              onError={() => setImageFailed(true)}
-              className="absolute inset-0 h-full w-full"
-            />
-          ) : slotState === 'loading' ? (
-            <div className="absolute inset-0 bg-[rgb(var(--color-surface-muted))]">
-              <span className="sr-only">Cargando imagen...</span>
-            </div>
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_70%_20%,rgb(var(--color-stone)/0.24),transparent_45%),rgb(var(--color-surface-muted))] text-muted">
-              <ImageOff className="h-8 w-8" aria-hidden="true" />
-              <p className="text-sm font-semibold">{slotState === 'empty' ? 'Imagen no configurada' : 'Imagen no disponible'}</p>
-            </div>
-          )}
+          <HeroCarousel images={heroContent.images} isLoading={isLoading} framing={heroContent.image_framing} />
           {/* Warms the corner the photograph hands over to the hem below, without
               tinting the product itself. */}
           <div
