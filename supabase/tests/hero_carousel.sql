@@ -222,6 +222,18 @@ BEGIN
   RESET ROLE;
   IF jsonb_array_length(v_result) <> 0 THEN RAISE EXCEPTION 'empty gallery was rejected or not applied'; END IF;
   INSERT INTO hero_results VALUES ('an empty set (0 images) is accepted, never blocked', true, '0 rows, no error');
+
+  -- 17. REGRESSION (202610180101): the full-replace DELETE must carry an
+  -- explicit WHERE clause. A bare `DELETE FROM public.hero_images;` passes
+  -- fine over this direct psql session (no safe-update protection here),
+  -- which is exactly why this regression shipped once already -- it only
+  -- ever failed through PostgREST's connection, which enforces safe-update.
+  -- This check is static (reads the function's own source), so it catches
+  -- the regression regardless of which connection runs the test.
+  IF (SELECT prosrc FROM pg_proc WHERE proname = 'admin_sync_hero_images') ~ 'DELETE FROM public\.hero_images;\s' THEN
+    RAISE EXCEPTION 'admin_sync_hero_images contains a bare DELETE with no WHERE clause -- fails under PostgREST safe-update protection (SQLSTATE 21000)';
+  END IF;
+  INSERT INTO hero_results VALUES ('admin_sync_hero_images never issues a bare DELETE without WHERE', true, 'WHERE id IS NOT NULL present');
 END;
 $$;
 
