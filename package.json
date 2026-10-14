@@ -21,7 +21,7 @@
     "test:admin:concurrency": "tsx --test tests/db/adminBoundaryConcurrency.test.ts tests/db/adminProductAtomicity.test.ts tests/db/adminProductGallery.test.ts tests/db/adminProductGalleryLegacyImages.test.ts tests/db/adminContentMedia.test.ts",
     "test:api": "tsx --test tests/api/commerce.contract.test.ts tests/api/paymentRecovery.contract.test.ts tests/api/purchaseEmail.test.ts tests/api/emailProvider.test.ts tests/api/purchaseEmailDelivery.test.ts tests/api/purchaseEmailSecurity.test.ts tests/api/orderTracking.test.ts",
     "test:support": "tsx --test tests/support/publicValidators.test.ts tests/support/publicApi.test.ts tests/support/supportIntakePage.test.ts tests/api/supportIntake.contract.test.ts",
-    "test:cart": "tsx --test tests/cart/cartState.test.ts tests/ui/paymentPresentation.test.ts tests/ui/orderTracking.test.ts tests/ui/floatingWhatsAppButton.test.ts tests/ui/heroCarousel.test.ts tests/ui/heroCarouselContract.test.ts",
+    "test:cart": "tsx --test tests/cart/cartState.test.ts tests/ui/paymentPresentation.test.ts tests/ui/orderTracking.test.ts tests/ui/floatingWhatsAppButton.test.ts tests/ui/heroCarousel.test.ts tests/ui/heroCarouselContract.test.ts tests/ui/productCardGallery.test.ts tests/ui/productCardHoverGalleryContract.test.ts",
     "test:cms:ui": "tsx --test tests/cms/cmsImageLoading.test.ts tests/cms/cmsImageRendering.test.ts tests/cms/landingContentNormalization.test.ts tests/cms/publicContentRendering.test.ts tests/cms/landingPageLoadingWiring.test.ts",
     "test:auth": "tsx --test tests/auth/authInputHandling.test.ts",
     "test:db:concurrency": "tsx --test tests/db/paymentAtomicConcurrency.test.ts",
