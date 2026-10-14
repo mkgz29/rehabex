@@ -25,6 +25,8 @@ const MAX_DISPLAY_ORDER = 100_000;
 const MAX_STOCK_ON_HAND = 1_000_000;
 const MAX_IMAGE_URL = 2000;
 const MAX_HERO_SUBTITLE = 300;
+const MAX_HERO_EYEBROW = 120;
+const MAX_HERO_ALT = 200;
 const MAX_CTA_TEXT = 60;
 const MAX_CTA_LINK = 200;
 const MAX_ABOUT_DESCRIPTION = 2000;
@@ -206,6 +208,80 @@ function parseGallery(value: unknown): ValidationResult<GalleryItemInput[]> {
   return { ok: true, value: items };
 }
 
+// --- Hero carousel (FASE CMS hero carousel) ---------------------------------
+
+export type HeroImageItemInput =
+  | { mediaAssetId: string; alt: string; enabled: boolean }
+  | { legacyUrl: string; alt: string; enabled: boolean };
+
+export const MAX_HERO_IMAGES = 8;
+
+/**
+ * Mirrors parseGallery's shape (and admin_sync_hero_images' own checks,
+ * which are the real security boundary) -- this pass only rejects an
+ * obviously-malformed set before it ever reaches the database. No "exactly
+ * one primary" rule here: "enabled" is a plain per-slide boolean, not
+ * constrained to exactly one true value (see the FASE spec: never block a
+ * save over having fewer than 3 enabled images, only warn in the UI).
+ */
+export function parseHeroImages(value: unknown): ValidationResult<HeroImageItemInput[]> {
+  if (!Array.isArray(value)) return { ok: false, error: 'invalid_gallery' };
+  if (value.length > MAX_HERO_IMAGES) return { ok: false, error: 'too_many_images' };
+
+  const items: HeroImageItemInput[] = [];
+  const seenAssetIds = new Set<string>();
+  const seenLegacyUrls = new Set<string>();
+
+  for (const raw of value) {
+    const entry = asObject(raw);
+    if (!entry) return { ok: false, error: 'invalid_gallery' };
+
+    const hasAssetId = 'mediaAssetId' in entry;
+    const hasLegacyUrl = 'legacyUrl' in entry;
+    if (hasAssetId === hasLegacyUrl) return { ok: false, error: 'invalid_gallery' };
+    if (!hasOnlyAllowedKeys(entry, hasAssetId ? ['mediaAssetId', 'alt', 'enabled'] : ['legacyUrl', 'alt', 'enabled'])) {
+      return { ok: false, error: 'unknown_field' };
+    }
+
+    if (typeof entry.enabled !== 'boolean') return { ok: false, error: 'invalid_gallery' };
+    const alt = optionalText(entry.alt, MAX_HERO_ALT);
+    if (alt === null) return { ok: false, error: 'invalid_gallery' };
+
+    if (hasAssetId) {
+      const mediaAssetId = entry.mediaAssetId;
+      if (typeof mediaAssetId !== 'string' || !UUID.test(mediaAssetId)) return { ok: false, error: 'invalid_gallery' };
+      if (seenAssetIds.has(mediaAssetId)) return { ok: false, error: 'duplicate_image' };
+      seenAssetIds.add(mediaAssetId);
+      items.push({ mediaAssetId, alt, enabled: entry.enabled });
+    } else {
+      const legacyUrl = entry.legacyUrl;
+      if (typeof legacyUrl !== 'string' || legacyUrl.length > MAX_IMAGE_URL || !isHttpsUrl(legacyUrl)) {
+        return { ok: false, error: 'invalid_gallery' };
+      }
+      if (seenLegacyUrls.has(legacyUrl)) return { ok: false, error: 'duplicate_image' };
+      seenLegacyUrls.add(legacyUrl);
+      items.push({ legacyUrl, alt, enabled: entry.enabled });
+    }
+  }
+
+  return { ok: true, value: items };
+}
+
+export type SyncHeroImagesInput = { images: HeroImageItemInput[] };
+
+const SYNC_HERO_IMAGES_FIELD_KEYS = ['images'] as const;
+
+export function parseSyncHeroImagesPayload(value: unknown): ValidationResult<SyncHeroImagesInput> {
+  const outer = asObject(value);
+  if (!outer) return { ok: false, error: 'invalid_payload' };
+  if (!hasOnlyAllowedKeys(outer, SYNC_HERO_IMAGES_FIELD_KEYS)) return { ok: false, error: 'unknown_field' };
+
+  const images = parseHeroImages(outer.images);
+  if (!isValid(images)) return { ok: false, error: images.error };
+
+  return { ok: true, value: { images: images.value } };
+}
+
 export type ProductFieldsInput = {
   name: string;
   description: string;
@@ -310,13 +386,14 @@ export function parseSetActiveProductPayload(value: unknown): ValidationResult<S
 export type HeroContentInput = {
   title: string;
   subtitle: string;
+  eyebrow: string;
   image_url: string;
   image_framing: ImageFramingInput | null;
   primary_cta_text: string;
   primary_cta_link: string;
 };
 
-const HERO_VALUE_FIELD_KEYS = ['title', 'subtitle', 'image_url', 'image_framing', 'primary_cta_text', 'primary_cta_link'] as const;
+const HERO_VALUE_FIELD_KEYS = ['title', 'subtitle', 'eyebrow', 'image_url', 'image_framing', 'primary_cta_text', 'primary_cta_link'] as const;
 const SETTINGS_PAYLOAD_KEYS = ['value', 'expectedUpdatedAt', 'imageAssetId'] as const;
 
 export type SettingsMutationInput<T> = { content: T; expectedUpdatedAt: string | null; imageAssetId: string | null };
@@ -344,6 +421,8 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
   if (!title) return { ok: false, error: 'invalid_title' };
   const subtitle = optionalText(input.subtitle, MAX_HERO_SUBTITLE);
   if (subtitle === null) return { ok: false, error: 'invalid_subtitle' };
+  const eyebrow = optionalText(input.eyebrow, MAX_HERO_EYEBROW);
+  if (eyebrow === null) return { ok: false, error: 'invalid_eyebrow' };
   // When a fresh upload is attached, the server overwrites image_url with the
   // asset's canonical secure_url, so the client-submitted value is not required.
   const imageUrl = imageAssetId.value ? (typeof input.image_url === 'string' ? input.image_url.slice(0, MAX_IMAGE_URL) : '') : requiredImageUrl(input.image_url);
@@ -358,7 +437,7 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
   return {
     ok: true,
     value: {
-      content: { title, subtitle, image_url: imageUrl ?? '', image_framing: framing.value, primary_cta_text: ctaText, primary_cta_link: ctaLink },
+      content: { title, subtitle, eyebrow, image_url: imageUrl ?? '', image_framing: framing.value, primary_cta_text: ctaText, primary_cta_link: ctaLink },
       expectedUpdatedAt: expectedUpdatedAt.value,
       imageAssetId: imageAssetId.value,
     },

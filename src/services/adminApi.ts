@@ -2,7 +2,7 @@
 // through /api/admin/*, carrying the caller's own Supabase access token; the
 // panel never writes to products/settings directly anymore.
 import { supabase } from '../lib/supabase';
-import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, Product, ProductImage, ProductInput } from '../types/cms';
+import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroContent, HeroImage, Product, ProductImage, ProductInput } from '../types/cms';
 import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
 import type { AdminOrder } from '../admin/orderPresentation';
 import type { SupportTopic } from '../support/supportTopics';
@@ -184,6 +184,14 @@ export async function saveHeroContent(
     imageAssetId,
   });
   return { content: setting.value, updatedAt: setting.updatedAt };
+}
+
+export type HeroImagesPayloadItem = { mediaAssetId: string; alt: string; enabled: boolean } | { legacyUrl: string; alt: string; enabled: boolean };
+type HeroImageApiResponse = { mediaAssetId: string | null; url: string; alt: string | null; enabled: boolean };
+
+export async function syncHeroImages(images: HeroImagesPayloadItem[]): Promise<HeroImage[]> {
+  const { images: saved } = await postAdmin<{ images: HeroImageApiResponse[] }>('/api/admin/settings/hero-images', { images });
+  return saved.map((row, index) => ({ mediaAssetId: row.mediaAssetId, url: row.url, alt: row.alt ?? '', enabled: row.enabled, displayOrder: index }));
 }
 
 export async function saveAboutContent(

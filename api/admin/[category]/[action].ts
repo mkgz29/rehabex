@@ -30,6 +30,7 @@ import {
   createAdminCatalogSectionSettingsHandler,
   createAdminFeaturedSectionSettingsHandler,
   createAdminHeroSettingsHandler,
+  createAdminSyncHeroImagesHandler,
 } from '../../../server/admin/handlers/settings.js';
 import { createAdminMediaFinalizeHandler, createAdminMediaSignHandler } from '../../../server/admin/handlers/media.js';
 import {
@@ -52,6 +53,7 @@ const routes: Record<string, AdminRouteHandler> = {
   'products/set-active': createAdminSetProductActiveHandler(),
   'products/set-featured': createAdminSetFeaturedProductsHandler(),
   'settings/hero': createAdminHeroSettingsHandler(),
+  'settings/hero-images': createAdminSyncHeroImagesHandler(),
   'settings/about': createAdminAboutSettingsHandler(),
   'settings/featured-section': createAdminFeaturedSectionSettingsHandler(),
   'settings/catalog-section': createAdminCatalogSectionSettingsHandler(),

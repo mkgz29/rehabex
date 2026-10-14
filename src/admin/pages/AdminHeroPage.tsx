@@ -4,12 +4,14 @@ import type { FormEvent } from 'react';
 import { DEFAULT_FRAMING } from '../../lib/imageFraming';
 import { defaultLandingContent } from '../../lib/defaultContent';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { AdminApiError, getSettingVersion, saveHeroContent } from '../../services/adminApi';
+import { AdminApiError, getSettingVersion, saveHeroContent, syncHeroImages } from '../../services/adminApi';
 import { getLandingContent } from '../../services/cms';
-import type { HeroContent } from '../../types/cms';
+import type { HeroContent, HeroImage } from '../../types/cms';
+import { heroImageToDraftItem, toHeroImagesPayload, type HeroGalleryDraftItem } from '../catalog/heroGallery';
 import { AdminNotice } from '../components/AdminNotice';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
+import { HeroCarouselField } from '../components/HeroCarouselField';
 import { ImageField } from '../components/ImageField';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
@@ -36,6 +38,8 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
   const [initialHeroContent, setInitialHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
   const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
+  const [carouselItems, setCarouselItems] = useState<HeroGalleryDraftItem[]>([]);
+  const [initialCarouselItems, setInitialCarouselItems] = useState<HeroGalleryDraftItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,6 +53,9 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
         setHeroContent(content.hero);
         setInitialHeroContent(content.hero);
         setExpectedUpdatedAt(version);
+        const draftImages = content.hero.images.map(heroImageToDraftItem);
+        setCarouselItems(draftImages);
+        setInitialCarouselItems(draftImages);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la portada principal.');
       } finally {
@@ -58,7 +65,7 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
     void load();
   }, []);
 
-  const isDirty = JSON.stringify(heroContent) !== JSON.stringify(initialHeroContent);
+  const isDirty = JSON.stringify(heroContent) !== JSON.stringify(initialHeroContent) || JSON.stringify(carouselItems) !== JSON.stringify(initialCarouselItems);
   useEffect(() => setDirty('hero', isDirty), [isDirty, setDirty]);
   useEffect(() => () => setDirty('hero', false), [setDirty]);
 
@@ -68,6 +75,7 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
 
   const handleCancel = () => {
     setHeroContent(initialHeroContent);
+    setCarouselItems(initialCarouselItems);
     setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
@@ -86,6 +94,15 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
       setInitialHeroContent(saved.content);
       setExpectedUpdatedAt(saved.updatedAt);
       setPendingImageAssetId(null);
+
+      const carouselChanged = JSON.stringify(carouselItems) !== JSON.stringify(initialCarouselItems);
+      if (carouselChanged) {
+        const savedImages: HeroImage[] = await syncHeroImages(toHeroImagesPayload(carouselItems));
+        const draftImages = savedImages.map(heroImageToDraftItem);
+        setCarouselItems(draftImages);
+        setInitialCarouselItems(draftImages);
+      }
+
       setDirty('hero', false);
       const savedMessage = 'Portada principal guardada correctamente.';
       setMessage(savedMessage);
@@ -125,6 +142,9 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
           />
 
           <div className="space-y-4">
+            <FormField label="Texto superior" hint="La línea pequeña arriba del título. Dejala vacía para no mostrarla.">
+              <input type="text" value={heroContent.eyebrow} onChange={(event) => updateHero('eyebrow', event.target.value)} className="admin-input" />
+            </FormField>
             <FormField label="Título principal" hint="Breve y fácil de leer sobre la imagen.">
               <input type="text" value={heroContent.title} onChange={(event) => updateHero('title', event.target.value)} className="admin-input" />
             </FormField>
@@ -160,6 +180,7 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
             </FormField>
           </div>
         </div>
+        <HeroCarouselField items={carouselItems} onChange={setCarouselItems} />
         <FormActions onCancel={handleCancel} saving={saving} sticky />
       </form>
     </div>
