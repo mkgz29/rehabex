@@ -56,6 +56,17 @@ test('setHeroImageAltAt and toggleHeroImageEnabledAt only touch the targeted ite
   assert.equal(toggled[1].enabled, true);
 });
 
+test('disabling then re-enabling a slide preserves its exact framing -- toggling enabled never touches framing at all', () => {
+  const customFraming: ImageFraming = { mode: 'contain', focalX: 0.33, focalY: 0.67, zoom: 2.1 };
+  const framed = setHeroImageFramingAt([item(1)], 0, customFraming);
+  const disabled = toggleHeroImageEnabledAt(framed, 0);
+  assert.equal(disabled[0].enabled, false);
+  assert.deepEqual(disabled[0].framing, customFraming);
+  const reEnabled = toggleHeroImageEnabledAt(disabled, 0);
+  assert.equal(reEnabled[0].enabled, true);
+  assert.deepEqual(reEnabled[0].framing, customFraming);
+});
+
 test('setHeroImageFramingAt only touches the targeted item, leaving every other slide (and its framing) untouched', () => {
   const items = [item(1), item(2)];
   const newFraming: ImageFraming = { mode: 'contain', focalX: 0.3, focalY: 0.7, zoom: 2.5 };
