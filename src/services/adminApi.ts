@@ -173,13 +173,37 @@ export async function setProductActive(id: string, isActive: boolean, expectedUp
 
 type SettingApiResponse<T> = { value: T; updatedAt: string };
 
+// hero_content (this settings document) and hero_images (the carousel,
+// synced separately by syncHeroImages below) are deliberately two different
+// API contracts. `images` lives on the client-side HeroContent type for
+// convenience (so HeroSection/AdminHeroPage can read hero.images in one
+// place), but it must never reach this endpoint: the server's
+// parseHeroContentPayload allowlists exactly title/subtitle/eyebrow/
+// image_url/image_framing/primary_cta_text/primary_cta_link and rejects any
+// other key as "unknown_field". Building this payload from named fields
+// (never spreading the full HeroContent object) is what guarantees that,
+// regardless of what the client-side type grows next.
+export type HeroContentApiFields = Omit<HeroContent, 'images'>;
+
+export function toHeroContentApiPayload(content: HeroContent): HeroContentApiFields {
+  return {
+    title: content.title,
+    subtitle: content.subtitle,
+    eyebrow: content.eyebrow,
+    image_url: content.image_url,
+    image_framing: content.image_framing,
+    primary_cta_text: content.primary_cta_text,
+    primary_cta_link: content.primary_cta_link,
+  };
+}
+
 export async function saveHeroContent(
   content: HeroContent,
   expectedUpdatedAt: string | null,
   imageAssetId: string | null = null,
-): Promise<{ content: HeroContent; updatedAt: string }> {
-  const { setting } = await postAdmin<{ setting: SettingApiResponse<HeroContent> }>('/api/admin/settings/hero', {
-    value: content,
+): Promise<{ content: HeroContentApiFields; updatedAt: string }> {
+  const { setting } = await postAdmin<{ setting: SettingApiResponse<HeroContentApiFields> }>('/api/admin/settings/hero', {
+    value: toHeroContentApiPayload(content),
     expectedUpdatedAt,
     imageAssetId,
   });
