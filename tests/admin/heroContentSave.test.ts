@@ -36,6 +36,21 @@ test('D: toHeroContentApiPayload preserves every real hero_content field unchang
   assert.equal(payload.primary_cta_link, BASE_HERO.primary_cta_link);
 });
 
+test('7/8 (FASE admin-hero-carousel-only): the legacy image_url and image_framing survive untouched even when only text/eyebrow/images are being edited -- the Admin can no longer edit them, so a save must never null/reset/default them', () => {
+  const legacyFraming: NonNullable<HeroContent['image_framing']> = { mode: 'contain', focalX: 0.3, focalY: 0.8, zoom: 2.4 };
+  const withLegacyImage: HeroContent = { ...BASE_HERO, image_url: 'https://images.example.test/legacy-hero.jpg', image_framing: legacyFraming };
+
+  // Simulate exactly what AdminHeroPage does now: edit only the eyebrow,
+  // never touch image_url/image_framing.
+  const edited: HeroContent = { ...withLegacyImage, eyebrow: 'Eyebrow nuevo' };
+  const payload = toHeroContentApiPayload(edited);
+
+  assert.equal(payload.image_url, 'https://images.example.test/legacy-hero.jpg');
+  assert.deepEqual(payload.image_framing, legacyFraming);
+  assert.notEqual(payload.image_url, '');
+  assert.notEqual(payload.image_framing, null);
+});
+
 // --- A) editing only the eyebrow: the real payload the server receives passes ---
 
 test('A: eyebrow-only edit -- the payload toHeroContentApiPayload builds is accepted by parseHeroContentPayload', () => {
