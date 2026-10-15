@@ -30,3 +30,33 @@ export function prefersHoverCapable(matchMediaImpl: typeof window.matchMedia | u
   if (typeof matchMediaImpl !== 'function') return false;
   return matchMediaImpl('(hover: hover) and (pointer: fine)').matches;
 }
+
+// --- Pure runtime engine ------------------------------------------------------
+// useProductCardHoverGallery (the real React hook) is a thin wrapper around
+// this: the hook owns the actual setInterval/useEffect wiring, this owns
+// every state transition. Driving THIS directly (enter -> tick -> tick ->
+// leave) is how tests exercise the real "does the index actually advance"
+// behavior without a DOM or a timer -- not just checking that the right
+// source strings exist. The hook and the tests both call the exact same
+// functions, so a bug here cannot be "fixed in the test" without also
+// fixing the real component.
+
+export type GalleryEngineState = { index: number; isHovering: boolean };
+
+export const INITIAL_GALLERY_ENGINE_STATE: GalleryEngineState = { index: 0, isHovering: false };
+
+/** Mouse entered the card. Does not by itself start rotating -- shouldRotateGallery (checked by whoever drives ticks) still gates on imageCount/motion/pointer. */
+export function enterGallery(state: GalleryEngineState): GalleryEngineState {
+  return { ...state, isHovering: true };
+}
+
+/** Mouse left the card: stop and reset to the first slide immediately, same as onMouseLeave. */
+export function leaveGallery(_state: GalleryEngineState): GalleryEngineState {
+  return { ...INITIAL_GALLERY_ENGINE_STATE };
+}
+
+/** One 1800ms interval tick. A no-op if the gate says this shouldn't be rotating right now (mirrors the hook's effect bailing out instead of starting a timer). */
+export function tickGallery(state: GalleryEngineState, imageCount: number, gate: { prefersReducedMotion: boolean; isHoverCapable: boolean }): GalleryEngineState {
+  if (!shouldRotateGallery({ imageCount, isHovering: state.isHovering, ...gate })) return state;
+  return { ...state, index: nextSlideIndex(state.index, imageCount) };
+}
