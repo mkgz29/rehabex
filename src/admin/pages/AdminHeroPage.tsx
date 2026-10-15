@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { DEFAULT_FRAMING } from '../../lib/imageFraming';
 import { defaultLandingContent } from '../../lib/defaultContent';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { AdminApiError, getSettingVersion, saveHeroContent, syncHeroImages } from '../../services/adminApi';
@@ -12,7 +11,6 @@ import { AdminNotice } from '../components/AdminNotice';
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { HeroCarouselField } from '../components/HeroCarouselField';
-import { ImageField } from '../components/ImageField';
 import { useUnsavedChanges } from '../unsavedChanges/UnsavedChangesContext';
 
 function messageForApiError(error: unknown, fallback: string) {
@@ -37,11 +35,9 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
   const [heroContent, setHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [initialHeroContent, setInitialHeroContent] = useState<HeroContent>(defaultLandingContent.hero);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
-  const [pendingImageAssetId, setPendingImageAssetId] = useState<string | null>(null);
   const [carouselItems, setCarouselItems] = useState<HeroGalleryDraftItem[]>([]);
   const [initialCarouselItems, setInitialCarouselItems] = useState<HeroGalleryDraftItem[]>([]);
   const [saving, setSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { setDirty } = useUnsavedChanges();
@@ -58,8 +54,6 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
         setInitialCarouselItems(draftImages);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la portada principal.');
-      } finally {
-        setIsLoading(false);
       }
     }
     void load();
@@ -76,7 +70,6 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
   const handleCancel = () => {
     setHeroContent(initialHeroContent);
     setCarouselItems(initialCarouselItems);
-    setPendingImageAssetId(null);
     setMessage(null);
     setError(null);
     setDirty('hero', false);
@@ -94,7 +87,13 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
     // attempted, same as before.
     let saved: { content: Awaited<ReturnType<typeof saveHeroContent>>['content']; updatedAt: string };
     try {
-      saved = await saveHeroContent(heroContent, expectedUpdatedAt, pendingImageAssetId);
+      // No imageAssetId: the legacy single-image uploader was removed from
+      // this page (FASE CMS admin-hero-carousel-only) -- heroContent.image_url/
+      // image_framing are never edited here anymore, so there is never a
+      // fresh upload to attach. Whatever value they already have on the
+      // loaded heroContent flows through toHeroContentApiPayload unchanged,
+      // which is exactly the "preserve the legacy fallback" requirement.
+      saved = await saveHeroContent(heroContent, expectedUpdatedAt);
     } catch (contentError) {
       setError(messageForApiError(contentError, 'No se pudo guardar la portada principal.'));
       setSaving(false);
@@ -110,7 +109,6 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
     setHeroContent(contentWithImages);
     setInitialHeroContent(contentWithImages);
     setExpectedUpdatedAt(saved.updatedAt);
-    setPendingImageAssetId(null);
 
     // Step 2: hero_images (the carousel), only if it actually changed. If
     // this fails, hero_content already committed -- say so explicitly
@@ -147,60 +145,43 @@ export function AdminHeroPage({ onSaved, onCancel }: AdminHeroPageProps = {}) {
       {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
 
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <div className="grid gap-5 xl:grid-cols-2">
-          <ImageField
-            label="Imagen de portada"
-            hint="Usá una imagen amplia y de buena calidad."
-            value={heroContent.image_url}
-            intent="hero"
-            isLoading={isLoading}
-            framing={heroContent.image_framing ?? DEFAULT_FRAMING}
-            onFramingChange={(framing) => setHeroContent((current) => ({ ...current, image_framing: framing }))}
-            aspectRatio="4 / 5"
-            onAssetReady={({ assetId, url }) => {
-              setPendingImageAssetId(assetId);
-              updateHero('image_url', url);
-            }}
-          />
-
-          <div className="space-y-4">
-            <FormField label="Texto superior" hint="La línea pequeña arriba del título. Dejala vacía para no mostrarla.">
-              <input type="text" value={heroContent.eyebrow} onChange={(event) => updateHero('eyebrow', event.target.value)} className="admin-input" />
-            </FormField>
-            <FormField label="Título principal" hint="Breve y fácil de leer sobre la imagen.">
-              <input type="text" value={heroContent.title} onChange={(event) => updateHero('title', event.target.value)} className="admin-input" />
-            </FormField>
-            <FormField label="Descripción" hint="Opcional. Una sola frase corta.">
-              <textarea value={heroContent.subtitle ?? ''} onChange={(event) => updateHero('subtitle', event.target.value)} rows={4} className="admin-input" />
-            </FormField>
-            <FormField label="Texto del botón">
-              <input type="text" value={heroContent.primary_cta_text} onChange={(event) => updateHero('primary_cta_text', event.target.value)} className="admin-input" />
-            </FormField>
-            <FormField label="A dónde lleva el botón" hint="Elegí una sección de la tienda o escribí un enlace.">
-              <select
-                value={ctaDestination}
-                onChange={(event) => {
-                  const next = event.target.value as CtaDestinationId;
-                  const preset = CTA_DESTINATIONS.find((option) => option.id === next);
-                  if (preset) updateHero('primary_cta_link', preset.link);
-                }}
-                className="admin-input"
-              >
-                {CTA_DESTINATIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                <option value="custom">Enlace personalizado</option>
-              </select>
-              {ctaDestination === 'custom' ? (
-                <input
-                  type="text"
-                  value={heroContent.primary_cta_link}
-                  onChange={(event) => updateHero('primary_cta_link', event.target.value)}
-                  placeholder="Pegá o escribí el enlace completo"
-                  className="admin-input mt-3"
-                  aria-label="Enlace personalizado para el botón"
-                />
-              ) : null}
-            </FormField>
-          </div>
+        <div className="max-w-2xl space-y-4">
+          <FormField label="Texto superior" hint="La línea pequeña arriba del título. Dejala vacía para no mostrarla.">
+            <input type="text" value={heroContent.eyebrow} onChange={(event) => updateHero('eyebrow', event.target.value)} className="admin-input" />
+          </FormField>
+          <FormField label="Título principal" hint="Breve y fácil de leer sobre la imagen.">
+            <input type="text" value={heroContent.title} onChange={(event) => updateHero('title', event.target.value)} className="admin-input" />
+          </FormField>
+          <FormField label="Descripción" hint="Opcional. Una sola frase corta.">
+            <textarea value={heroContent.subtitle ?? ''} onChange={(event) => updateHero('subtitle', event.target.value)} rows={4} className="admin-input" />
+          </FormField>
+          <FormField label="Texto del botón">
+            <input type="text" value={heroContent.primary_cta_text} onChange={(event) => updateHero('primary_cta_text', event.target.value)} className="admin-input" />
+          </FormField>
+          <FormField label="A dónde lleva el botón" hint="Elegí una sección de la tienda o escribí un enlace.">
+            <select
+              value={ctaDestination}
+              onChange={(event) => {
+                const next = event.target.value as CtaDestinationId;
+                const preset = CTA_DESTINATIONS.find((option) => option.id === next);
+                if (preset) updateHero('primary_cta_link', preset.link);
+              }}
+              className="admin-input"
+            >
+              {CTA_DESTINATIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              <option value="custom">Enlace personalizado</option>
+            </select>
+            {ctaDestination === 'custom' ? (
+              <input
+                type="text"
+                value={heroContent.primary_cta_link}
+                onChange={(event) => updateHero('primary_cta_link', event.target.value)}
+                placeholder="Pegá o escribí el enlace completo"
+                className="admin-input mt-3"
+                aria-label="Enlace personalizado para el botón"
+              />
+            ) : null}
+          </FormField>
         </div>
         <HeroCarouselField items={carouselItems} onChange={setCarouselItems} />
         <FormActions onCancel={handleCancel} saving={saving} sticky />
