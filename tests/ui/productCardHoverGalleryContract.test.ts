@@ -14,18 +14,17 @@ test('CONTRACT: exactly one setInterval call site, inside a useEffect that retur
   assert.match(HOOK_SOURCE, /return \(\) => window\.clearInterval\(timer\)/);
 });
 
-test('CONTRACT: the rotation effect is keyed on isHovering -- leaving (isHovering: false) re-runs the effect and fires its cleanup, stopping the timer', () => {
-  assert.match(HOOK_SOURCE, /\[imageCount, isHovering, prefersReducedMotion\]/);
+test('CONTRACT: the rotation effect is keyed on state.isHovering -- leaving re-runs the effect and fires its cleanup, stopping the timer', () => {
+  assert.match(HOOK_SOURCE, /\[imageCount, state\.isHovering, prefersReducedMotion\]/);
 });
 
-test('CONTRACT: onMouseLeave resets the index to 0 immediately (not just stops the timer)', () => {
-  assert.match(HOOK_SOURCE, /onMouseLeave: \(\) => \{\s*setIsHovering\(false\);\s*setIndex\(0\);\s*\}/);
+test('CONTRACT: onMouseLeave goes through the shared leaveGallery engine function (not an inline reset) -- the hook owns no transition logic of its own', () => {
+  assert.match(HOOK_SOURCE, /onMouseLeave: \(\) => setState\(\(current\) => leaveGallery\(current\)\)/);
 });
 
-test('CONTRACT: re-entering while already hovering cannot start a second timer -- there is exactly one isHovering boolean, not a counter', () => {
-  const isHoveringDeclarations = HOOK_SOURCE.match(/useState\(false\)/g) ?? [];
-  assert.ok(isHoveringDeclarations.length >= 1);
-  assert.match(HOOK_SOURCE, /onMouseEnter: \(\) => setIsHovering\(true\)/);
+test('CONTRACT: re-entering while already hovering cannot start a second timer -- state.isHovering is one boolean (via the shared enterGallery function), not a counter', () => {
+  assert.match(HOOK_SOURCE, /useState<GalleryEngineState>\(INITIAL_GALLERY_ENGINE_STATE\)/);
+  assert.match(HOOK_SOURCE, /onMouseEnter: \(\) => setState\(\(current\) => enterGallery\(current\)\)/);
 });
 
 // --- 6/7. reduced motion and pointer capability gate the same effect --------
@@ -76,5 +75,17 @@ test('CONTRACT: the "Imagen no disponible" fallback for a product with no images
 // --- performance: secondary images never render before the first real hover ---
 
 test('CONTRACT: secondary gallery slides only render when showGalleryStack is true -- never eagerly on mount', () => {
-  assert.match(CARD_SOURCE, /\{showGalleryStack\s*\n?\s*\?\s*gallerySlides\.map/);
+  assert.match(CARD_SOURCE, /\{showGalleryStack\s*\n?\s*\?\s*slides\.slice\(1\)\.map/);
+});
+
+// --- REGRESSION: the real production bug (undercounted imageCount) ----------
+
+test("REGRESSION: ProductCard passes the hook the TOTAL slide count (primary + secondary), never just the secondary count -- the exact bug that silently broke rotation for any product with a primary + 1 more photo (2 total)", () => {
+  assert.match(CARD_SOURCE, /useProductCardHoverGallery\(slides\.length\)/);
+  assert.doesNotMatch(CARD_SOURCE, /useProductCardHoverGallery\(secondarySlides\.length\)/);
+  assert.doesNotMatch(CARD_SOURCE, /useProductCardHoverGallery\(gallerySlides\.length\)/);
+});
+
+test('CONTRACT: slides is built as [primaryImage, ...secondarySlides] -- the primary is never duplicated and always rendered first', () => {
+  assert.match(CARD_SOURCE, /const slides = primaryImage \? \[primaryImage, \.\.\.secondarySlides\] : secondarySlides;/);
 });

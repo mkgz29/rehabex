@@ -17,12 +17,20 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
   const isOutOfStock = product.stockOnHand !== undefined && product.stockOnHand <= 0;
   const detailHref = `/productos/${product.id}`;
   const primaryImage = product.gallery?.find((image) => image.isPrimary);
-  // Secondary slides, in gallery order, excluding whichever one is primary
-  // (already shown as the base layer below) -- a product with only 1 image
-  // (or none) ends up with gallerySlides.length === 0, so the hook never
-  // starts a timer for it.
-  const gallerySlides = (product.gallery ?? []).filter((image) => !image.isPrimary);
-  const { index, showGalleryStack, onMouseEnter, onMouseLeave } = useProductCardHoverGallery(gallerySlides.length);
+  const secondarySlides = (product.gallery ?? []).filter((image) => !image.isPrimary);
+  // One single ordered list of real visual slides -- the primary always
+  // first (same resting image the card already showed before this
+  // feature), the rest in their existing gallery order. This is the exact
+  // count useProductCardHoverGallery's own contract expects ("imageCount"
+  // means every slide, not just the secondary ones): passing
+  // secondarySlides.length alone undercounts by exactly 1 whenever a
+  // primary image exists, which silently required 3 total images before
+  // shouldRotateGallery's own imageCount >= 2 gate would ever pass -- a
+  // product with its primary + a single second photo (2 total) never
+  // rotated at all. A product with only 1 image (or none) still ends up
+  // with slides.length <= 1, so the hook never starts a timer for it.
+  const slides = primaryImage ? [primaryImage, ...secondarySlides] : secondarySlides;
+  const { index, showGalleryStack, onMouseEnter, onMouseLeave } = useProductCardHoverGallery(slides.length);
 
   return (
     <article
@@ -34,7 +42,7 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
       <Link to={detailHref} className="relative block aspect-[4/5] overflow-hidden bg-canvas" aria-label={`Ver ${product.name}`}>
         {product.imageUrl ? (
           <>
-            <div className="absolute inset-0" style={{ opacity: showGalleryStack && index > 0 ? 0 : 1, transition: 'opacity 250ms ease' }}>
+            <div className="absolute inset-0" style={{ opacity: showGalleryStack && index !== 0 ? 0 : 1, transition: 'opacity 250ms ease' }}>
               <FramedImage
                 media={{ kind: 'image', url: getOptimizedImageUrl(product.imageUrl, { width: 720 }), framing: primaryImage?.framing }}
                 srcSet={getResponsiveImageSrcSet(product.imageUrl, [320, 480, 720])}
@@ -49,13 +57,19 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
             {/* Secondary slides only ever mount once the mouse actually
                 enters the card -- no eager request for them on page load,
                 no matter how many products are on screen. Each one keeps
-                its own framing (image.framing), never the primary's. */}
+                its own framing (image.framing), never the primary's.
+                Indexed against the same unified `slides` array the hook
+                counts (slides[0] is the primary, already rendered above as
+                the resting image, so this only ever maps slideIndex 1..N). */}
             {showGalleryStack
-              ? gallerySlides.map((image, slideIndex) => (
-                  <div key={image.mediaAssetId ?? image.url} aria-hidden="true" className="absolute inset-0" style={{ opacity: index === slideIndex + 1 ? 1 : 0, transition: 'opacity 250ms ease' }}>
-                    <FramedImage media={{ kind: 'image', url: image.url, framing: image.framing }} alt="" loading="lazy" className="h-full w-full transition duration-500 ease-out group-hover:scale-[1.025]" />
-                  </div>
-                ))
+              ? slides.slice(1).map((image, secondaryIndex) => {
+                  const slideIndex = secondaryIndex + 1;
+                  return (
+                    <div key={image.mediaAssetId ?? image.url} aria-hidden="true" className="absolute inset-0" style={{ opacity: index === slideIndex ? 1 : 0, transition: 'opacity 250ms ease' }}>
+                      <FramedImage media={{ kind: 'image', url: image.url, framing: image.framing }} alt="" loading="lazy" className="h-full w-full transition duration-500 ease-out group-hover:scale-[1.025]" />
+                    </div>
+                  );
+                })
               : null}
           </>
         ) : (
