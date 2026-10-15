@@ -1,6 +1,7 @@
 import { ArrowUpRight, ImageOff, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { useProductCardHoverGallery } from '../hooks/useProductCardHoverGallery';
 import { formatCurrency } from '../lib/format';
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
 import { FramedImage } from './media/FramedImage';
@@ -16,21 +17,47 @@ export function ProductCard({ product, onAddToCart, status = 'idle' }: ProductCa
   const isOutOfStock = product.stockOnHand !== undefined && product.stockOnHand <= 0;
   const detailHref = `/productos/${product.id}`;
   const primaryImage = product.gallery?.find((image) => image.isPrimary);
+  // Secondary slides, in gallery order, excluding whichever one is primary
+  // (already shown as the base layer below) -- a product with only 1 image
+  // (or none) ends up with gallerySlides.length === 0, so the hook never
+  // starts a timer for it.
+  const gallerySlides = (product.gallery ?? []).filter((image) => !image.isPrimary);
+  const { index, showGalleryStack, onMouseEnter, onMouseLeave } = useProductCardHoverGallery(gallerySlides.length);
 
   return (
-    <article data-reveal-item className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line/90 bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:border-accent/70 hover:shadow-card focus-within:shadow-card">
+    <article
+      data-reveal-item
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="group flex min-h-full flex-col overflow-hidden rounded-card border border-line/90 bg-surface shadow-soft transition duration-ui hover:-translate-y-0.5 hover:border-accent/70 hover:shadow-card focus-within:shadow-card"
+    >
       <Link to={detailHref} className="relative block aspect-[4/5] overflow-hidden bg-canvas" aria-label={`Ver ${product.name}`}>
         {product.imageUrl ? (
-          <FramedImage
-            media={{ kind: 'image', url: getOptimizedImageUrl(product.imageUrl, { width: 720 }), framing: primaryImage?.framing }}
-            srcSet={getResponsiveImageSrcSet(product.imageUrl, [320, 480, 720])}
-            sizes="(min-width: 1024px) 25vw, (min-width: 500px) 50vw, calc(100vw - 2rem)"
-            alt={product.name}
-            width={800}
-            height={1000}
-            loading="lazy"
-            className="h-full w-full transition duration-500 ease-out group-hover:scale-[1.025]"
-          />
+          <>
+            <div className="absolute inset-0" style={{ opacity: showGalleryStack && index > 0 ? 0 : 1, transition: 'opacity 250ms ease' }}>
+              <FramedImage
+                media={{ kind: 'image', url: getOptimizedImageUrl(product.imageUrl, { width: 720 }), framing: primaryImage?.framing }}
+                srcSet={getResponsiveImageSrcSet(product.imageUrl, [320, 480, 720])}
+                sizes="(min-width: 1024px) 25vw, (min-width: 500px) 50vw, calc(100vw - 2rem)"
+                alt={product.name}
+                width={800}
+                height={1000}
+                loading="lazy"
+                className="h-full w-full transition duration-500 ease-out group-hover:scale-[1.025]"
+              />
+            </div>
+            {/* Secondary slides only ever mount once the mouse actually
+                enters the card -- no eager request for them on page load,
+                no matter how many products are on screen. Each one keeps
+                its own framing (image.framing), never the primary's. */}
+            {showGalleryStack
+              ? gallerySlides.map((image, slideIndex) => (
+                  <div key={image.mediaAssetId ?? image.url} aria-hidden="true" className="absolute inset-0" style={{ opacity: index === slideIndex + 1 ? 1 : 0, transition: 'opacity 250ms ease' }}>
+                    <FramedImage media={{ kind: 'image', url: image.url, framing: image.framing }} alt="" loading="lazy" className="h-full w-full transition duration-500 ease-out group-hover:scale-[1.025]" />
+                  </div>
+                ))
+              : null}
+          </>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted">
             <ImageOff className="h-7 w-7" aria-hidden="true" />
