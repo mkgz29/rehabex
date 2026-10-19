@@ -459,3 +459,57 @@ test('finalize: never logs or returns the api secret even when Cloudinary is unr
   assert.equal(statusCode, 503);
   assert.doesNotMatch(JSON.stringify(body), new RegExp(TEST_ENV.apiSecret));
 });
+
+const VIDEO_PUBLIC_ID = 'rehabex/about/video/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7';
+const VALID_VIDEO_RESOURCE = { format: 'mp4', resource_type: 'video', bytes: 700000, width: 1280, height: 720, duration: 15, secure_url: 'https://res.cloudinary.com/demo/video/upload/v1700000000/about.mp4' };
+
+async function finalizeVideoCapturingLogs(resource: Record<string, unknown>) {
+  const logs: string[] = [];
+  const originalInfo = console.info;
+  console.info = (...args: unknown[]) => { logs.push(JSON.stringify(args)); };
+  let destroyed = 0;
+  try {
+    const handler = createAdminMediaFinalizeHandler(finalizeDeps({
+      fetchResourceMetadata: async () => resource,
+      destroyAsset: async () => { destroyed += 1; return { ok: true }; },
+      userScopedClient: () => fakeRpcClient({ data: { id: 'asset-video', secure_url: VALID_VIDEO_RESOURCE.secure_url, status: 'pending' }, error: null }),
+    }));
+    const result = mockResponse();
+    await handler(jsonRequest({ publicId: VIDEO_PUBLIC_ID, version: 1700000000, signature: 'a'.repeat(40) }), result.response);
+    return { ...result.read(), logs, destroyed };
+  } finally {
+    console.info = originalInfo;
+  }
+}
+
+const POLICY_REJECTIONS: Array<[string, Record<string, unknown>]> = [
+  ['invalid_format', { ...VALID_VIDEO_RESOURCE, format: 'mov' }],
+  ['invalid_resource_type', { ...VALID_VIDEO_RESOURCE, resource_type: 'image' }],
+  ['invalid_bytes', { ...VALID_VIDEO_RESOURCE, bytes: 9 * 1024 * 1024 }],
+  ['invalid_width', { ...VALID_VIDEO_RESOURCE, width: 100 }],
+  ['invalid_height', { ...VALID_VIDEO_RESOURCE, height: 100 }],
+  ['invalid_secure_url', { ...VALID_VIDEO_RESOURCE, secure_url: undefined }],
+  ['invalid_duration', { ...VALID_VIDEO_RESOURCE, duration: undefined }],
+];
+
+for (const [reason, resource] of POLICY_REJECTIONS) {
+  test(`finalize: policy rejection logs reason=${reason}, destroys the asset and leaks nothing`, async () => {
+    const { statusCode, body, logs, destroyed } = await finalizeVideoCapturingLogs(resource);
+    assert.equal(statusCode, 422);
+    assert.equal(destroyed, 1);
+    const line = logs.find((entry) => entry.includes('admin_media_finalize_policy_rejected'));
+    assert.ok(line, 'policy rejection event is logged');
+    assert.ok(line.includes(`"reason":"${reason}"`));
+    assert.ok(line.includes('"destroyed":true'));
+    const everything = logs.join('') + JSON.stringify(body);
+    assert.doesNotMatch(everything, new RegExp(TEST_ENV.apiSecret));
+    assert.doesNotMatch(everything, /res\.cloudinary\.com|valid-token|a{40}|about\.mp4/);
+  });
+}
+
+test('finalize: a valid video still passes and logs no policy rejection', async () => {
+  const { statusCode, logs, destroyed } = await finalizeVideoCapturingLogs(VALID_VIDEO_RESOURCE);
+  assert.equal(statusCode, 200);
+  assert.equal(destroyed, 0);
+  assert.ok(!logs.some((entry) => entry.includes('policy_rejected')));
+});

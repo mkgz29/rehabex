@@ -134,7 +134,8 @@ export function createAdminMediaFinalizeHandler(overrides: Partial<FinalizeDepen
     if (!isValid(metadata)) {
       // The signature was valid, so this public_id is genuinely ours -- safe to destroy.
       const destroyResult = await dependencies.destroyAsset(env, publicId, mediaType);
-      logEvent('admin_media_finalize_policy_rejected', { destroyed: destroyResult.ok });
+      // reason is only the internal validator code (e.g. invalid_duration) - never metadata, URLs or credentials.
+      logEvent('admin_media_finalize_policy_rejected', { destroyed: destroyResult.ok, reason: metadata.error });
       return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
     }
     if (!isCloudinarySecureUrl(metadata.value.secureUrl)) {
