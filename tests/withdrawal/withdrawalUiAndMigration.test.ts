@@ -23,13 +23,13 @@ test('the public page renders without auth and asks only for minimal identificat
   assert.doesNotMatch(source, /ProtectedRoute|adminApi|supabase/i);
 });
 
-test('the route is public and the exact prominent access is present on first access and in the footer', () => {
+test('the route is public and the exact access lives in the footer and is not in the announcement bar', () => {
   const app = readFileSync(join(process.cwd(), 'src/App.tsx'), 'utf8');
   const bar = readFileSync(join(process.cwd(), 'src/components/AnnouncementBar.tsx'), 'utf8');
   const footer = readFileSync(join(process.cwd(), 'src/components/SiteFooter.tsx'), 'utf8');
   assert.match(app, /path="\/arrepentimiento" element=\{<WithdrawalRequestPage \/>\}/);
   assert.ok(app.indexOf('path="/arrepentimiento"') < app.indexOf('path="/admin"'));
-  assert.match(bar, /to="\/arrepentimiento"[\s\S]*BOTÓN DE ARREPENTIMIENTO/);
+  assert.doesNotMatch(bar, /arrepentimiento|ARREPENTIMIENTO/);
   assert.match(footer, /to="\/arrepentimiento"[\s\S]*BOTÓN DE ARREPENTIMIENTO/);
 });
 

@@ -1,6 +1,5 @@
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
@@ -58,8 +57,8 @@ export function AnnouncementBar() {
 
   return (
     <div className="bg-dark text-white">
-      <div className="site-container flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] sm:text-xs">
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-start">
+      <div className="site-container flex min-h-10 items-center justify-center py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] sm:text-xs">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-accent-soft" aria-hidden="true" />
 
         {/*
@@ -80,12 +79,6 @@ export function AnnouncementBar() {
           </span>
         </div>
 
-        <Link
-          to="/arrepentimiento"
-          className="shrink-0 rounded-full bg-accent-soft px-3 py-1.5 font-bold tracking-[0.06em] text-primary transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          BOTÓN DE ARREPENTIMIENTO
-        </Link>
       </div>
     </div>
   );
