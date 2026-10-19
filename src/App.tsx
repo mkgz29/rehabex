@@ -19,6 +19,8 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { StorePage } from './pages/StorePage';
 import { SupportIntakePage } from './pages/SupportIntakePage';
 import { SuccessPage } from './pages/SuccessPage';
+import { TermsAndConditionsPage } from './pages/TermsAndConditionsPage';
+import { WithdrawalRequestPage } from './pages/WithdrawalRequestPage';
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
         <Route path="/registro" element={<Navigate to="/login" replace />} />
         <Route path="/tienda" element={<StorePage />} />
         <Route path="/soporte" element={<SupportIntakePage />} />
+        <Route path="/terminos-y-condiciones" element={<TermsAndConditionsPage />} />
+        <Route path="/arrepentimiento" element={<WithdrawalRequestPage />} />
         <Route path="/productos/:id" element={<ProductDetailPage />} />
         <Route path="/carrito" element={<CartPage />} />
         <Route path="/success" element={<SuccessPage />} />

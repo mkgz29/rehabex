@@ -19,6 +19,7 @@ export const defaultLandingContent: LandingContent = {
   },
   about: {
     image: '',
+    media_type: 'image',
     title: 'Soluciones para acompañar cada etapa de recuperación.',
     description:
       'Somos un equipo enfocado en rehabilitacion y bienestar, con una mirada practica sobre lo que realmente necesita un tratamiento para sostenerse en el tiempo.',

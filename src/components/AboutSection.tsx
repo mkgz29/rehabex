@@ -94,6 +94,7 @@ function getGalleryItems(content: AboutContent, products: Product[]) {
 
   addItem({
     imageUrl: content.image,
+    mediaType: content.media_type,
     alt: 'Imagen editorial de Rehabex vinculada con rehabilitación y bienestar',
     label: 'Rehabilitación, movilidad y bienestar',
     framing: content.image_framing,

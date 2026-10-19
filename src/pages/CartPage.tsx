@@ -168,6 +168,20 @@ export function CartPage() {
                   {checkoutLoading ? 'Creando checkout...' : 'Comprar'}
                 </button>
 
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600" aria-labelledby="checkout-policy-title">
+                  <h3 id="checkout-policy-title" className="font-semibold text-slate-900">Cambios, devoluciones y garantía</h3>
+                  <p className="mt-2">En compras a distancia, podés ejercer el derecho de arrepentimiento dentro del plazo legal aplicable —como regla general, diez (10) días corridos— conforme a la normativa argentina vigente. Cuando corresponda, la devolución no tendrá costo para el consumidor.</p>
+                  <p className="mt-2">Rehabex podrá ofrecer cambios voluntarios dentro de los catorce (14) días corridos desde la recepción, conforme a las condiciones informadas en la tienda. Esta política no limita los derechos legales del consumidor.</p>
+                  <p className="mt-2">Si detectás una posible falla, te pedimos que nos contactes dentro de los primeros siete (7) días para agilizar la gestión. Ese plazo no limita la garantía legal. Para productos nuevos alcanzados por la garantía legal, el plazo mínimo es, como regla general, de seis (6) meses desde la entrega.</p>
+                  <p className="mt-2">Para solicitar un cambio, devolución o gestionar una garantía, escribinos por los canales oficiales de Rehabex e indicá tu número de pedido.</p>
+                  <p className="mt-2 italic">Esta política breve resume las condiciones principales. Se aplica junto con los Términos y Condiciones completos y la legislación vigente; no reemplaza ni reduce los derechos legales del consumidor.</p>
+                  <div className="mt-3 flex flex-col items-start gap-2">
+                    <Link to="/terminos-y-condiciones" className="font-semibold text-slate-900 underline underline-offset-4">Ver términos y condiciones</Link>
+                    <Link to="/terminos-y-condiciones#cambios-devoluciones-y-garantia" className="font-semibold text-slate-900 underline underline-offset-4">Ver cambios, devoluciones y garantía</Link>
+                    <Link to="/soporte" className="font-semibold text-slate-900 underline underline-offset-4">Contactar a soporte</Link>
+                  </div>
+                </div>
+
                 {checkoutError ? <p className="mt-3 text-sm text-red-600">{checkoutError}</p> : null}
 
                 <button
@@ -175,7 +189,7 @@ export function CartPage() {
                   className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-red-200 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
                   onClick={clearCart}
                 >
-                  Vaciar carrito no pendiente
+                  Vaciar carrito
                 </button>
               </aside>
             </div>

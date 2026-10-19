@@ -78,3 +78,10 @@ test('normalizeAboutContent defaults image_framing to centered/fill/normal-zoom 
   const content = normalizeAboutContent({ title: 'Nosotros', description: 'desc', image: 'https://x.test/about.jpg' });
   assert.deepEqual(content?.image_framing, DEFAULT_FRAMING);
 });
+
+test('normalizeAboutContent defaults legacy documents to image and preserves an explicit video type', () => {
+  const legacy = normalizeAboutContent({ image: 'https://x.test/about.jpg', title: 'Nosotros', description: 'desc' });
+  assert.equal(legacy?.media_type, 'image');
+  const video = normalizeAboutContent({ image: 'https://x.test/about.mp4', media_type: 'video', title: 'Nosotros', description: 'desc' });
+  assert.equal(video?.media_type, 'video');
+});

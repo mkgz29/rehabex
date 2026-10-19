@@ -23,11 +23,16 @@ export type SignedUploadParams = {
   uploadUrl: string;
 };
 
-export const ALLOWED_UPLOAD_FORMATS = 'jpg,jpeg,png,webp';
+export type CloudinaryMediaType = 'image' | 'video';
+
+export const IMAGE_UPLOAD_FORMATS = 'jpg,jpeg,png,webp';
+export const VIDEO_UPLOAD_FORMATS = 'mp4,webm';
+/** Kept as the image-policy alias for existing callers and tests. */
+export const ALLOWED_UPLOAD_FORMATS = IMAGE_UPLOAD_FORMATS;
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 export type CloudinaryUploadParams = {
-  allowed_formats: typeof ALLOWED_UPLOAD_FORMATS;
+  allowed_formats: string;
   folder: string;
   overwrite: 'false';
   public_id: string;
@@ -44,9 +49,9 @@ export function buildCloudinaryUploadParams(params: {
   publicId: string;
   folder: string;
   timestamp: number;
-}): CloudinaryUploadParams {
+}, mediaType: CloudinaryMediaType = 'image'): CloudinaryUploadParams {
   return {
-    allowed_formats: ALLOWED_UPLOAD_FORMATS,
+    allowed_formats: mediaType === 'video' ? VIDEO_UPLOAD_FORMATS : IMAGE_UPLOAD_FORMATS,
     folder: params.folder,
     overwrite: 'false',
     public_id: params.publicId,
@@ -78,15 +83,16 @@ export function signCloudinaryParams(params: SignableParams, apiSecret: string):
 export function signUploadParams(
   env: CloudinaryEnv,
   params: { publicId: string; folder: string; timestamp: number },
+  mediaType: CloudinaryMediaType = 'image',
 ): SignedUploadParams {
-  const uploadParams = buildCloudinaryUploadParams(params);
+  const uploadParams = buildCloudinaryUploadParams(params, mediaType);
   const signature = signCloudinaryParams(uploadParams, env.apiSecret);
   return {
     cloudName: env.cloudName,
     apiKey: env.apiKey,
     uploadParams,
     signature,
-    uploadUrl: `https://api.cloudinary.com/v1_1/${env.cloudName}/image/upload`,
+    uploadUrl: `https://api.cloudinary.com/v1_1/${env.cloudName}/${mediaType}/upload`,
   };
 }
 
@@ -108,10 +114,10 @@ export function verifyUploadSignature(env: CloudinaryEnv, publicId: string, vers
  * and resource type: a tampered browser could otherwise lie about all of
  * those while still holding a validly-signed public_id/version pair.
  */
-export async function fetchResourceMetadata(env: CloudinaryEnv, publicId: string): Promise<Record<string, unknown> | null> {
+export async function fetchResourceMetadata(env: CloudinaryEnv, publicId: string, mediaType: CloudinaryMediaType = 'image'): Promise<Record<string, unknown> | null> {
   cloudinary.config({ cloud_name: env.cloudName, api_key: env.apiKey, api_secret: env.apiSecret, secure: true });
   try {
-    return await cloudinary.api.resource(publicId, { resource_type: 'image' });
+    return await cloudinary.api.resource(publicId, { resource_type: mediaType });
   } catch {
     return null;
   }
@@ -123,10 +129,10 @@ export async function fetchResourceMetadata(env: CloudinaryEnv, publicId: string
  * size, dimensions). Never call this for an unverified result: a forged
  * public_id could belong to someone else's unrelated Cloudinary asset.
  */
-export async function destroyAsset(env: CloudinaryEnv, publicId: string): Promise<{ ok: boolean }> {
+export async function destroyAsset(env: CloudinaryEnv, publicId: string, mediaType: CloudinaryMediaType = 'image'): Promise<{ ok: boolean }> {
   cloudinary.config({ cloud_name: env.cloudName, api_key: env.apiKey, api_secret: env.apiSecret, secure: true });
   try {
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image', invalidate: true });
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: mediaType, invalidate: true });
     return { ok: result?.result === 'ok' || result?.result === 'not found' };
   } catch {
     return { ok: false };

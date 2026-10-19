@@ -6,42 +6,23 @@ vectorizado desde una captura ni tomado de un agregador, un blog o un banco de
 iconos. La aplicación no solicita ninguno de estos recursos a un dominio externo
 en tiempo de ejecución.
 
-Fecha de descarga: 2026-09-20.
+Fecha de descarga de los assets existentes: 2026-09-20. Mastercard, Cabal y
+Maestro se incorporaron el 2026-10-18.
 
 | Archivo | Marca | Origen oficial | Formato |
 | --- | --- | --- | --- |
 | `mercadopago.svg` | Mercado Pago | Pack «Logos Mercado Pago 2025», enlazado desde la página oficial de marca <https://www.mercadopago.com.ar/mp/logo-oficial> y servido por el CDN de Mercado Libre: `https://http2.mlstatic.com/storage/pog-cm-admin/calm-assets/Logos Mercado Pago 2025--fb6f16c9.zip` → `Uso digital - RGB/SVGs/MP_RGB_HANDSHAKE_color_horizontal.svg` | SVG |
 | `american-express.svg` | American Express | CDN estático oficial de American Express: `https://www.aexp-static.com/cdaas/one/statics/axp-static-assets/1.8.0/package/dist/img/logos/dls-logo-bluebox-solid.svg` | SVG |
 | `visa.png` | Visa | CDN oficial de Visa: `https://cdn.visa.com/v2/assets/images/logos/visa/blue/logo.png` (208 × 68 px, RGBA) | PNG |
+| `mastercard.png` | Mastercard | Sprite argentino 2× del [repositorio público oficial `mercadolibre/payment-methods-component`](https://github.com/mercadolibre/payment-methods-component/tree/b39185a1af716590bbbee55886d486f0c306eb10), fijado al commit `b39185a1af716590bbbee55886d486f0c306eb10`: `src/images/ar/payment-methods-large@2x.png`. Se extrajo sin redibujar ni recolorear el rectángulo 92 × 72 px que la hoja oficial `payment-methods.ar__large.css` asigna a `.paymentmethod-master`. | PNG |
 | `naranja-x.png` | Naranja X | Asset del sitio oficial <https://www.naranjax.com/>, servido por su CDN de contenidos: `https://images.ctfassets.net/yxlyq25bynna/5aunl52F9uDLxXLUC8L7O4/b025683cc1824c386a19c478a5dd46ae/isologo-naranjax.png` (155 × 36 px, RGBA) | PNG |
+| `cabal.png` | Cabal | Sprite argentino 2× del repositorio público oficial `mercadolibre/payment-methods-component`, fijado al commit `b39185a1af716590bbbee55886d486f0c306eb10`: `src/images/ar/payment-methods-large@2x.png`. Se extrajo sin redibujar ni recolorear el rectángulo 160 × 56 px que la hoja oficial `dist/payment-methods.ar__large.css` asigna a `.paymentmethod-cabal.paymentmethod-large`. | PNG |
+| `maestro.png` | Maestro | Mismo sprite argentino 2× oficial y commit fijado. Se extrajo sin redibujar ni recolorear el rectángulo 88 × 76 px que `dist/payment-methods.ar__large.css` asigna a `.paymentmethod-maestro.paymentmethod-large`. | PNG |
 
-## Faltante: Mastercard
-
-**No hay archivo de Mastercard y no debe agregarse uno dibujado a mano.**
-
-El Brand Center y la Media Library de Mastercard publican paquetes SVG oficiales,
-pero sus endpoints binarios responden `Access Denied` (Akamai) desde este entorno,
-tanto por HTTP directo como desde un navegador real:
-
-- `https://brand.mastercard.com/` → 403
-- `https://brand.mastercard.com/brandcenter.html` → 403
-- `https://www.mastercard.com/global/en.html` → 403
-- `https://www.mastercard.com.ar/es-ar.html` → 403
-- `https://www.mastercard.com/content/dam/.../mc-logo-52.svg` → 403
-- `https://www.mastercard.com/content/dam/brandcenter/assets/downloads/mc_symbol_SVG.zip` → 403
-- `https://www.mastercard.com/news/media/clbpi0i2/mastercard_symbol.zip` → 403
-
-Para completar la franja hace falta descargar desde el Brand Center de
-Mastercard (requiere aceptar sus condiciones de uso) el símbolo horizontal a
-color y guardarlo como:
-
-```
-src/assets/payments/mastercard.svg
-```
-
-Una vez presente el archivo, basta con descomentar su entrada en
-`paymentMethods` dentro de `src/components/PaymentMethods.tsx`; el componente ya
-usa chips normalizados de 84 × 36 px y un área interior de 64 × 22 px.
+La disponibilidad de Cabal y Maestro para Argentina se verificó el 2026-10-18
+en la [documentación oficial de medios de pago de Mercado Pago](https://www.mercadopago.com.ar/developers/es/docs/sales-processing/payment-methods):
+Cabal figura para crédito y débito, y Maestro para débito. La integración de
+Checkout Pro de Rehabex no excluye individualmente ninguno de estos medios.
 
 ## Notas de formato
 

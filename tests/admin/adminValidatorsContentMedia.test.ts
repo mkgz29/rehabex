@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -55,6 +57,33 @@ test('parseAboutContentPayload allows a metric with an empty value and/or label 
   const result = parseAboutContentPayload({ ...VALID_ABOUT, value: { ...VALID_ABOUT.value, metrics: [{ id: 'metric-1', value: '', label: '' }] } });
   assert.equal(isValid(result), true);
   if (isValid(result)) assert.deepEqual(result.value.content.metrics, [{ id: 'metric-1', value: '', label: '' }]);
+});
+
+test('parseAboutContentPayload adds a backward-compatible media type and accepts video or removal', () => {
+  const legacy = parseAboutContentPayload(VALID_ABOUT);
+  assert.equal(isValid(legacy), true);
+  if (isValid(legacy)) assert.equal(legacy.value.content.media_type, 'image');
+
+  const video = parseAboutContentPayload({ ...VALID_ABOUT, value: { ...VALID_ABOUT.value, image: 'https://res.cloudinary.com/demo/video/upload/a.mp4', media_type: 'video' } });
+  assert.equal(isValid(video), true);
+  if (isValid(video)) assert.equal(video.value.content.media_type, 'video');
+
+  assert.equal(isValid(parseAboutContentPayload({ ...VALID_ABOUT, value: { ...VALID_ABOUT.value, image: '', media_type: 'image' } })), true);
+  assert.equal(isValid(parseAboutContentPayload({ ...VALID_ABOUT, value: { ...VALID_ABOUT.value, media_type: 'audio' } })), false);
+});
+
+test('the reversible SQL contract accepts only image/MP4/WebM MIME pairs and orphans removed About media', () => {
+  const migration = readFileSync(join(process.cwd(), 'supabase', 'migrations', '202610200101_about_video_media.sql'), 'utf8');
+  const rollback = readFileSync(join(process.cwd(), 'supabase', 'rollbacks', '202610200101_about_video_media.rollback.sql'), 'utf8');
+  assert.match(migration, /v_format IN \('jpg', 'jpeg'\) AND p_mime_type = 'image\/jpeg'/);
+  assert.match(migration, /v_format = 'mp4' AND p_mime_type = 'video\/mp4'/);
+  assert.match(migration, /v_format = 'webm' AND p_mime_type = 'video\/webm'/);
+  assert.match(migration, /p_public_id LIKE 'rehabex\/about\/video\/%'[\s\S]*v_format NOT IN \('mp4', 'webm'\)/);
+  assert.match(migration, /v_media_type = 'video'[\s\S]*v_asset\.mime_type NOT IN \('video\/mp4', 'video\/webm'\)/);
+  assert.match(migration, /v_final_value->>v_field = v_before\.value->>v_field[\s\S]*jsonb_set\(v_final_value, ARRAY\['image_asset_id'\]/);
+  assert.match(migration, /NULLIF\(btrim\(v_final_value->>v_field\), ''\) IS NULL[\s\S]*media\.orphaned/);
+  assert.match(rollback, /lower\(p_format\) NOT IN \('jpg', 'jpeg', 'png', 'webp'\)/);
+  assert.doesNotMatch(rollback, /video\/mp4|video\/webm/);
 });
 
 // --- Gallery item framing -----------------------------------------------------

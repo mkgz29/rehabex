@@ -449,13 +449,14 @@ export function parseHeroContentPayload(value: unknown): ValidationResult<Settin
 export type AboutMetricInput = { id: string; value: string; label: string };
 export type AboutContentInput = {
   image: string;
+  media_type: 'image' | 'video';
   image_framing: ImageFramingInput | null;
   title: string;
   description: string;
   metrics: AboutMetricInput[];
 };
 
-const ABOUT_VALUE_FIELD_KEYS = ['image', 'image_framing', 'title', 'description', 'metrics'] as const;
+const ABOUT_VALUE_FIELD_KEYS = ['image', 'media_type', 'image_framing', 'title', 'description', 'metrics'] as const;
 const ABOUT_METRIC_FIELD_KEYS = ['id', 'value', 'label'] as const;
 const METRIC_ID_PATTERN = /^[a-z0-9-]{1,40}$/i;
 
@@ -492,8 +493,14 @@ export function parseAboutContentPayload(value: unknown): ValidationResult<Setti
 
   // When a fresh upload is attached, the server overwrites image with the
   // asset's canonical secure_url, so the client-submitted value is not required.
-  const image = imageAssetId.value ? (typeof input.image === 'string' ? input.image.slice(0, MAX_IMAGE_URL) : '') : requiredImageUrl(input.image);
-  if (!imageAssetId.value && !image) return { ok: false, error: 'invalid_image_url' };
+  const image = imageAssetId.value
+    ? (typeof input.image === 'string' ? input.image.slice(0, MAX_IMAGE_URL) : '')
+    : typeof input.image === 'string' && input.image.trim() === ''
+      ? ''
+      : requiredImageUrl(input.image);
+  if (!imageAssetId.value && image === null) return { ok: false, error: 'invalid_image_url' };
+  const mediaType = input.media_type === undefined ? 'image' : input.media_type;
+  if (mediaType !== 'image' && mediaType !== 'video') return { ok: false, error: 'invalid_media_type' };
   const title = requiredText(input.title, MAX_NAME);
   if (!title) return { ok: false, error: 'invalid_title' };
   const description = requiredText(input.description, MAX_ABOUT_DESCRIPTION);
@@ -512,7 +519,7 @@ export function parseAboutContentPayload(value: unknown): ValidationResult<Setti
   return {
     ok: true,
     value: {
-      content: { image: image ?? '', image_framing: framing.value, title, description, metrics },
+      content: { image: image ?? '', media_type: mediaType, image_framing: framing.value, title, description, metrics },
       expectedUpdatedAt: expectedUpdatedAt.value,
       imageAssetId: imageAssetId.value,
     },

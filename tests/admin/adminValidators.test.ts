@@ -261,7 +261,8 @@ test('parseAboutContentPayload rejects a malformed metric', () => {
   assert.equal(isValid(parseAboutContentPayload({ value: extraField, expectedUpdatedAt: null })), false);
 });
 
-test('parseAboutContentPayload requires a non-empty image and title', () => {
-  assert.equal(isValid(parseAboutContentPayload({ value: { ...VALID_ABOUT, image: '' }, expectedUpdatedAt: null })), false);
+test('parseAboutContentPayload allows explicit media removal but still requires a title and valid non-empty URLs', () => {
+  assert.equal(isValid(parseAboutContentPayload({ value: { ...VALID_ABOUT, image: '' }, expectedUpdatedAt: null })), true);
+  assert.equal(isValid(parseAboutContentPayload({ value: { ...VALID_ABOUT, image: 'javascript:alert(1)' }, expectedUpdatedAt: null })), false);
   assert.equal(isValid(parseAboutContentPayload({ value: { ...VALID_ABOUT, title: '' }, expectedUpdatedAt: null })), false);
 });

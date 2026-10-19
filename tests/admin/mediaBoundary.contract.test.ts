@@ -169,6 +169,36 @@ test('sign: a valid admin request returns signed params scoped to the intent-der
   assert.doesNotMatch(JSON.stringify(payload), new RegExp(TEST_ENV.apiSecret));
 });
 
+test('sign: About video uses its server-owned folder, video endpoint and MP4/WebM allowlist', async () => {
+  let pendingArgs: Record<string, unknown> | null = null;
+  const handler = createAdminMediaSignHandler(signDeps({
+    userScopedClient: () => ({
+      rpc: async (_name, args) => {
+        pendingArgs = args;
+        return { data: { id: 'asset-video' }, error: null };
+      },
+    }),
+  }));
+  const result = mockResponse();
+  await handler(jsonRequest({ intent: 'about', mediaType: 'video' }), result.response);
+  const { statusCode, body } = result.read();
+  assert.equal(statusCode, 200);
+  const payload = body as { uploadUrl: string; uploadParams: Record<string, string> };
+  assert.equal(payload.uploadParams.folder, 'rehabex/about/video');
+  assert.equal(payload.uploadParams.allowed_formats, 'mp4,webm');
+  assert.match(payload.uploadUrl, /\/video\/upload$/);
+  assert.equal(pendingArgs?.p_folder, 'rehabex/about/video');
+});
+
+test('sign: video is rejected for product and hero intents', async () => {
+  const handler = createAdminMediaSignHandler(signDeps({}));
+  for (const intent of ['product', 'hero']) {
+    const result = mockResponse();
+    await handler(jsonRequest({ intent, mediaType: 'video' }), result.response);
+    assert.equal(result.read().statusCode, 422);
+  }
+});
+
 test('sign: an RPC failure maps to a sanitized error and never leaks the api secret', async () => {
   const handler = createAdminMediaSignHandler(
     signDeps({ userScopedClient: () => fakeRpcClient({ data: null, error: { code: 'ADM03' } }) }),
@@ -395,6 +425,30 @@ test('finalize: a valid, in-policy, correctly signed result is registered and re
   assert.equal(payload.status, 'pending');
   assert.doesNotMatch(JSON.stringify(payload), new RegExp(TEST_ENV.apiSecret));
   assert.doesNotMatch(JSON.stringify(payload), /valid-token/);
+});
+
+test('finalize: About video is fetched and validated as video before the existing RPC persists it', async () => {
+  const publicId = 'rehabex/about/video/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7';
+  const resource = { format: 'mp4', resource_type: 'video', bytes: 700000, width: 1280, height: 720, duration: 15, secure_url: 'https://res.cloudinary.com/demo/video/upload/v1700000000/about.mp4' };
+  let finalizedArgs: Record<string, unknown> | null = null;
+  const handler = createAdminMediaFinalizeHandler(finalizeDeps({
+    fetchResourceMetadata: async (_env, receivedPublicId, mediaType) => {
+      assert.equal(receivedPublicId, publicId);
+      assert.equal(mediaType, 'video');
+      return resource;
+    },
+    userScopedClient: () => ({
+      rpc: async (_name, args) => {
+        finalizedArgs = args;
+        return { data: { id: 'asset-video', secure_url: resource.secure_url, status: 'pending' }, error: null };
+      },
+    }),
+  }));
+  const result = mockResponse();
+  await handler(jsonRequest({ publicId, version: 1700000000, signature: 'a'.repeat(40) }), result.response);
+  assert.equal(result.read().statusCode, 200);
+  assert.equal(finalizedArgs?.p_format, 'mp4');
+  assert.equal(finalizedArgs?.p_mime_type, 'video/mp4');
 });
 
 test('finalize: never logs or returns the api secret even when Cloudinary is unreachable', async () => {

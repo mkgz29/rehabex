@@ -4,11 +4,12 @@ const QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
  * Reports whether the visitor asked for reduced motion, and keeps reporting it
- * if they change the setting while the page is open. Starts as `false` so the
- * markup rendered on the first pass is the one most visitors get.
+ * if they change the setting while the page is open.
  */
 export function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(QUERY).matches,
+  );
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  folderForUpload,
   isValid,
+  mediaTypeFromPublicId,
   mimeTypeForFormat,
   parseMediaFinalizePayload,
   parseMediaSignPayload,
@@ -27,6 +29,18 @@ test('parseMediaSignPayload rejects unknown fields, including a client-chosen fo
   assert.equal(isValid(parseMediaSignPayload({ intent: 'product', tags: ['x'] })), false);
 });
 
+test('parseMediaSignPayload permits video only for About and keeps image as the legacy default', () => {
+  const legacy = parseMediaSignPayload({ intent: 'about' });
+  assert.equal(isValid(legacy), true);
+  if (isValid(legacy)) assert.equal(legacy.value.mediaType, 'image');
+
+  assert.equal(isValid(parseMediaSignPayload({ intent: 'about', mediaType: 'video' })), true);
+  assert.equal(isValid(parseMediaSignPayload({ intent: 'hero', mediaType: 'video' })), false);
+  assert.equal(isValid(parseMediaSignPayload({ intent: 'product', mediaType: 'video' })), false);
+  assert.equal(isValid(parseMediaSignPayload({ intent: 'about', mediaType: 'raw' })), false);
+  assert.equal(folderForUpload('about', 'video'), 'rehabex/about/video');
+});
+
 const VALID_FINALIZE = {
   publicId: 'rehabex/products/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
   version: 1700000000,
@@ -38,6 +52,10 @@ test('parseMediaFinalizePayload accepts only a Cloudinary provider public ID in 
     const publicId = `rehabex/${folder}/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7`;
     assert.equal(isValid(parseMediaFinalizePayload({ ...VALID_FINALIZE, publicId })), true);
   }
+  const videoPublicId = 'rehabex/about/video/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7';
+  assert.equal(isValid(parseMediaFinalizePayload({ ...VALID_FINALIZE, publicId: videoPublicId })), true);
+  assert.equal(mediaTypeFromPublicId(videoPublicId), 'video');
+  assert.equal(mediaTypeFromPublicId(VALID_FINALIZE.publicId), 'image');
 });
 
 test('parseMediaFinalizePayload rejects unknown fields, including client-supplied format/size/dimensions', () => {
@@ -77,6 +95,7 @@ test('parseMediaFinalizePayload rejects a malformed or altered-looking signature
 });
 
 const VALID_RESOURCE = { format: 'jpg', resource_type: 'image', bytes: 250000, width: 1200, height: 900, secure_url: 'https://res.cloudinary.com/demo/image/upload/v1/x.jpg' };
+const VALID_VIDEO_RESOURCE = { format: 'mp4', resource_type: 'video', bytes: 750000, width: 1280, height: 720, duration: 18, secure_url: 'https://res.cloudinary.com/demo/video/upload/v1/x.mp4' };
 
 test('validateResourceMetadata accepts a well-formed Cloudinary Admin API resource', () => {
   const result = validateResourceMetadata(VALID_RESOURCE);
@@ -92,6 +111,15 @@ test('validateResourceMetadata rejects disallowed formats (svg, gif, pdf) and un
 test('validateResourceMetadata rejects a non-image resource_type', () => {
   assert.equal(isValid(validateResourceMetadata({ ...VALID_RESOURCE, resource_type: 'video' })), false);
   assert.equal(isValid(validateResourceMetadata({ ...VALID_RESOURCE, resource_type: 'raw' })), false);
+});
+
+test('validateResourceMetadata accepts only short MP4/WebM resources for the video policy', () => {
+  assert.equal(isValid(validateResourceMetadata(VALID_VIDEO_RESOURCE, 'video')), true);
+  assert.equal(isValid(validateResourceMetadata({ ...VALID_VIDEO_RESOURCE, format: 'webm', secure_url: 'https://res.cloudinary.com/demo/video/upload/v1/x.webm' }, 'video')), true);
+  assert.equal(isValid(validateResourceMetadata({ ...VALID_VIDEO_RESOURCE, format: 'mov' }, 'video')), false);
+  assert.equal(isValid(validateResourceMetadata({ ...VALID_VIDEO_RESOURCE, resource_type: 'image' }, 'video')), false);
+  assert.equal(isValid(validateResourceMetadata({ ...VALID_VIDEO_RESOURCE, duration: 60.1 }, 'video')), false);
+  assert.equal(isValid(validateResourceMetadata({ ...VALID_VIDEO_RESOURCE, duration: undefined }, 'video')), false);
 });
 
 test('validateResourceMetadata rejects bytes over 8MB or non-positive', () => {
@@ -117,6 +145,8 @@ test('mimeTypeForFormat maps only the allowed formats', () => {
   assert.equal(mimeTypeForFormat('JPEG'), 'image/jpeg');
   assert.equal(mimeTypeForFormat('png'), 'image/png');
   assert.equal(mimeTypeForFormat('webp'), 'image/webp');
+  assert.equal(mimeTypeForFormat('mp4'), 'video/mp4');
+  assert.equal(mimeTypeForFormat('webm'), 'video/webm');
   assert.equal(mimeTypeForFormat('svg'), null);
   assert.equal(mimeTypeForFormat('gif'), null);
 });

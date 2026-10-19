@@ -84,6 +84,25 @@ test('an existing image has one preview plus Cambiar imagen and Acomodar imagen 
   assert.doesNotMatch(markup, /role="dialog"/);
 });
 
+test('the About uploader identifies a video and offers consistent replace/remove actions', () => {
+  const markup = renderToStaticMarkup(React.createElement(ImageField, {
+    label: 'Imagen o video de la sección',
+    value: 'https://res.cloudinary.com/demo/video/upload/about.mp4',
+    intent: 'about',
+    allowVideo: true,
+    mediaType: 'video',
+    onRemove: () => undefined,
+    onAssetReady: () => undefined,
+  }));
+  assert.match(markup, /<video/);
+  assert.match(markup, /controls=""/);
+  assert.match(markup, />Video</);
+  assert.match(markup, />Cambiar archivo</);
+  assert.match(markup, />Eliminar archivo</);
+  assert.doesNotMatch(markup, />Acomodar imagen</);
+  assert.match(markup, /video\/mp4,video\/webm/);
+});
+
 test('Acomodar imagen renders a focused accessible dialog using the existing framing editor', () => {
   const markup = renderToStaticMarkup(React.createElement(ImageFramingDialog, {
     open: true,
@@ -110,7 +129,7 @@ test('Cancel keeps the previous framing while Listo applies the local draft', ()
 test('new files open the framer after preparation, and Escape follows the cancel path', () => {
   const imageFieldSource = readFileSync(join(process.cwd(), 'src', 'admin', 'components', 'ImageField.tsx'), 'utf8');
   const dialogSource = readFileSync(join(process.cwd(), 'src', 'admin', 'components', 'ImageFramingDialog.tsx'), 'utf8');
-  assert.match(imageFieldSource, /setState\(\{ kind: 'uploading', previewUrl, percent: 0 \}\);\s*openFramer\(previewUrl\)/);
+  assert.match(imageFieldSource, /setState\(\{ kind: 'uploading', previewUrl, percent: 0 \}\);[\s\S]*selectedMediaType === 'image'[\s\S]*openFramer\(previewUrl\)/);
   assert.match(dialogSource, /event\.key === 'Escape'[\s\S]*cancelRef\.current\(\)/);
   assert.match(imageFieldSource, /onFramingChange\?\.\(nextFraming\)[\s\S]*setFramingApplied\(true\)/);
 });

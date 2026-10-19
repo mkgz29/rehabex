@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { classifyPaymentConfirmation, requestPaymentSync } from '../../src/services/orderStatusService';
@@ -111,4 +113,35 @@ test('the admin row reads the real order contract and shows no unnecessary perso
   // Legacy columns no longer exist; the row must not silently render blanks.
   assert.equal(paymentReference({}), 'sin pago');
   assert.equal(orderItemsLabel({}), 'sin items');
+});
+
+test('the footer presents only the verified payment methods in the requested order and normalized chips', () => {
+  const source = readFileSync(join(process.cwd(), 'src', 'components', 'PaymentMethods.tsx'), 'utf8');
+  const names = ['Visa', 'Mastercard', 'American Express', 'Naranja X', 'Cabal', 'Maestro', 'Mercado Pago'];
+  let previous = -1;
+  for (const name of names) {
+    const index = source.indexOf(`name: '${name}'`);
+    assert.ok(index > previous, `${name} should follow the requested order`);
+    previous = index;
+  }
+  assert.match(source, /h-9 w-\[5\.25rem\]/);
+  assert.match(source, /bg-white/);
+  assert.match(source, /object-contain/);
+  assert.match(source, /flex flex-wrap/);
+});
+
+test('the new positioning and legal links are present without changing checkout behavior', () => {
+  const footer = readFileSync(join(process.cwd(), 'src', 'components', 'SiteFooter.tsx'), 'utf8');
+  const cart = readFileSync(join(process.cwd(), 'src', 'pages', 'CartPage.tsx'), 'utf8');
+  const product = readFileSync(join(process.cwd(), 'src', 'pages', 'ProductDetailPage.tsx'), 'utf8');
+  const app = readFileSync(join(process.cwd(), 'src', 'App.tsx'), 'utf8');
+  assert.match(footer, /Equipamiento profesional para rendimiento y recuperación\./);
+  assert.match(footer, /Tecnología pensada para fisioterapeutas, centros de rendimiento y atletas que buscan optimizar cada sesión\./);
+  assert.match(footer, /Rendimiento · Recuperación · Tecnología/);
+  assert.match(footer, /\/terminos-y-condiciones#cambios-devoluciones-y-garantia/);
+  assert.match(app, /path="\/terminos-y-condiciones"/);
+  assert.match(cart, /Ver términos y condiciones/);
+  assert.match(cart, /Ver cambios, devoluciones y garantía/);
+  assert.doesNotMatch(cart, /type="checkbox"/);
+  assert.match(product, /Cambios, devoluciones y garantía/);
 });

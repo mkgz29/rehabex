@@ -8,6 +8,7 @@ import type { AboutContent, CatalogSectionContent, FeaturedSectionContent, HeroC
 import type { GalleryPayloadItem } from '../admin/catalog/productGallery';
 import type { AdminOrder } from '../admin/orderPresentation';
 import type { SupportTopic } from '../support/supportTopics';
+import { normalizeAboutContent } from './cms';
 
 export type AdminApiErrorKind = 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'validation' | 'unavailable';
 
@@ -232,7 +233,7 @@ export async function saveAboutContent(
     expectedUpdatedAt,
     imageAssetId,
   });
-  return { content: setting.value, updatedAt: setting.updatedAt };
+  return { content: normalizeAboutContent(setting.value) ?? content, updatedAt: setting.updatedAt };
 }
 
 export async function saveFeaturedSectionContent(
@@ -282,6 +283,7 @@ export async function getSettingVersion(
 export type SupportRequestStatus = 'open' | 'answered' | 'resolved' | 'archived';
 
 export type SupportRequestSource = 'admin' | 'web';
+export type SupportRequestKind = 'support' | 'withdrawal';
 
 export type SupportRequest = {
   id: string;
@@ -297,6 +299,9 @@ export type SupportRequest = {
   /** 'admin' for a staff-logged ticket, 'web' for one submitted through /soporte (ADMIN-03B). */
   source: SupportRequestSource;
   topic: SupportTopic;
+  requestKind?: SupportRequestKind;
+  requestCode?: string;
+  responseDueAt?: string;
   internalNotes?: string;
   createdAt: string;
   updatedAt: string;

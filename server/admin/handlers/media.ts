@@ -13,7 +13,7 @@ import {
   verifyUploadSignature,
   type CloudinaryEnv,
 } from '../cloudinaryClient.js';
-import { FOLDER_BY_INTENT, isValid, mimeTypeForFormat, parseMediaFinalizePayload, parseMediaSignPayload, validateResourceMetadata } from '../mediaValidators.js';
+import { folderForUpload, isValid, mediaTypeFromPublicId, mimeTypeForFormat, parseMediaFinalizePayload, parseMediaSignPayload, validateResourceMetadata, type MediaType } from '../mediaValidators.js';
 import { defaultRequireAdminDependencies, requireAdmin, type RequireAdminDependencies } from '../requireAdmin.js';
 import { applyAdminCors, logEvent, type ApiRequest, type ApiResponse } from '../../commerce/commerce.js';
 
@@ -44,7 +44,7 @@ export function createAdminMediaSignHandler(overrides: Partial<SignDependencies>
 
     // The server -- never the client -- chooses the folder, the public ID and
     // the timestamp. The client only ever states its intent (product/hero/about).
-    const folder = FOLDER_BY_INTENT[payload.value.intent];
+    const folder = folderForUpload(payload.value.intent, payload.value.mediaType);
     const uploadPublicId = randomUUID();
     const providerPublicId = `${folder}/${uploadPublicId}`;
     const timestamp = Math.floor(Date.now() / 1000);
@@ -61,7 +61,7 @@ export function createAdminMediaSignHandler(overrides: Partial<SignDependencies>
       return response.status(mapped.status).json({ error: mapped.error, requestId: auth.requestId });
     }
 
-    const signed = signUploadParams(env, { publicId: uploadPublicId, folder, timestamp });
+    const signed = signUploadParams(env, { publicId: uploadPublicId, folder, timestamp }, payload.value.mediaType);
 
     logEvent('admin_media_sign_issued');
     return response.status(200).json({
@@ -79,8 +79,8 @@ export function createAdminMediaSignHandler(overrides: Partial<SignDependencies>
 export type FinalizeDependencies = RequireAdminDependencies & {
   cloudinaryEnv: () => CloudinaryEnv | null;
   verifyUploadSignature: (env: CloudinaryEnv, publicId: string, version: number, signature: string) => boolean;
-  fetchResourceMetadata: (env: CloudinaryEnv, publicId: string) => Promise<Record<string, unknown> | null>;
-  destroyAsset: (env: CloudinaryEnv, publicId: string) => Promise<{ ok: boolean }>;
+  fetchResourceMetadata: (env: CloudinaryEnv, publicId: string, mediaType: MediaType) => Promise<Record<string, unknown> | null>;
+  destroyAsset: (env: CloudinaryEnv, publicId: string, mediaType: MediaType) => Promise<{ ok: boolean }>;
 };
 
 const defaultFinalizeDependencies: FinalizeDependencies = {
@@ -113,6 +113,7 @@ export function createAdminMediaFinalizeHandler(overrides: Partial<FinalizeDepen
     }
 
     const { publicId, version, signature } = payload.value;
+    const mediaType = mediaTypeFromPublicId(publicId);
 
     // The browser is never trusted for format/size/dimensions: only for
     // *which* upload it means. Cloudinary's own signature over exactly
@@ -123,28 +124,28 @@ export function createAdminMediaFinalizeHandler(overrides: Partial<FinalizeDepen
       return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
     }
 
-    const resource = await dependencies.fetchResourceMetadata(env, publicId);
+    const resource = await dependencies.fetchResourceMetadata(env, publicId, mediaType);
     if (!resource) {
       logEvent('admin_media_finalize_resource_unavailable');
       return response.status(503).json({ error: 'No disponible.' });
     }
 
-    const metadata = validateResourceMetadata(resource);
+    const metadata = validateResourceMetadata(resource, mediaType);
     if (!isValid(metadata)) {
       // The signature was valid, so this public_id is genuinely ours -- safe to destroy.
-      const destroyResult = await dependencies.destroyAsset(env, publicId);
+      const destroyResult = await dependencies.destroyAsset(env, publicId, mediaType);
       logEvent('admin_media_finalize_policy_rejected', { destroyed: destroyResult.ok });
       return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
     }
     if (!isCloudinarySecureUrl(metadata.value.secureUrl)) {
-      const destroyResult = await dependencies.destroyAsset(env, publicId);
+      const destroyResult = await dependencies.destroyAsset(env, publicId, mediaType);
       logEvent('admin_media_finalize_url_rejected', { destroyed: destroyResult.ok });
       return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
     }
 
     const mimeType = mimeTypeForFormat(metadata.value.format);
     if (!mimeType) {
-      const destroyResult = await dependencies.destroyAsset(env, publicId);
+      const destroyResult = await dependencies.destroyAsset(env, publicId, mediaType);
       logEvent('admin_media_finalize_format_rejected', { destroyed: destroyResult.ok });
       return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
     }

@@ -194,6 +194,7 @@ export function normalizeAboutContent(value: unknown): AboutContent | null {
 
   return {
     image: typeof raw.image === 'string' ? raw.image : '',
+    media_type: raw.media_type === 'video' ? 'video' : 'image',
     image_framing: normalizeFraming(raw.image_framing),
     title: typeof raw.title === 'string' ? raw.title : defaultLandingContent.about.title,
     description: typeof raw.description === 'string' ? raw.description : defaultLandingContent.about.description,

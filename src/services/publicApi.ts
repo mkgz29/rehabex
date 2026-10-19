@@ -46,3 +46,40 @@ export async function submitSupportRequest(input: SupportIntakeInput): Promise<v
     throw new PublicApiError(response.status, 'No pudimos enviar tu consulta.');
   }
 }
+
+export type WithdrawalRequestInput = {
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  orderReference: string;
+  message?: string;
+  formGuard?: string;
+};
+
+export async function submitWithdrawalRequest(input: WithdrawalRequestInput): Promise<{ requestCode: string }> {
+  let response: Response;
+  try {
+    response = await fetch('/api/withdrawal-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new PublicApiError(0, 'No pudimos conectar con el servidor.');
+  }
+
+  if (!response.ok) {
+    throw new PublicApiError(response.status, 'No pudimos registrar la solicitud.');
+  }
+
+  let body: { requestCode?: unknown };
+  try {
+    body = (await response.json()) as { requestCode?: unknown };
+  } catch {
+    throw new PublicApiError(500, 'El servidor no devolvio una respuesta valida.');
+  }
+  if (typeof body.requestCode !== 'string' || !/^ARR-\d{8}-[A-F0-9]{8}$/.test(body.requestCode)) {
+    throw new PublicApiError(500, 'El servidor no devolvio un codigo de tramite valido.');
+  }
+  return { requestCode: body.requestCode };
+}

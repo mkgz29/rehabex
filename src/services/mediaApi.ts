@@ -5,6 +5,7 @@
 import { supabase } from '../lib/supabase';
 
 export type MediaIntent = 'product' | 'hero' | 'about';
+export type MediaType = 'image' | 'video';
 
 export type MediaUploadStage = 'validation' | 'sign' | 'upload' | 'finalize';
 
@@ -17,10 +18,12 @@ export class MediaUploadError extends Error {
   }
 }
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm'];
 const MAX_BYTES = 8 * 1024 * 1024;
 const MIN_DIMENSION = 400;
 const MAX_DIMENSION = 6000;
+const MAX_VIDEO_DURATION_SECONDS = 60;
 
 function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -38,13 +41,30 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
   });
 }
 
+function readVideoMetadata(file: File): Promise<{ width: number; height: number; duration: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      resolve({ width: video.videoWidth, height: video.videoHeight, duration: video.duration });
+      URL.revokeObjectURL(url);
+    };
+    video.onerror = () => {
+      reject(new Error('invalid_video'));
+      URL.revokeObjectURL(url);
+    };
+    video.src = url;
+  });
+}
+
 /**
  * UX-only pre-checks. None of this is a security boundary: the server
  * re-verifies format, size and dimensions from Cloudinary's own Admin API
  * response, never from what the browser claims.
  */
 export async function validateFileForUpload(file: File): Promise<{ ok: true } | { ok: false; message: string }> {
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+  if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type)) {
     return { ok: false, message: 'Formato no permitido. Usa una imagen JPG, PNG o WebP.' };
   }
   if (file.size > MAX_BYTES) {
@@ -61,6 +81,37 @@ export async function validateFileForUpload(file: File): Promise<{ ok: true } | 
   return { ok: true };
 }
 
+export async function validateVideoFileForUpload(file: File): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!ALLOWED_VIDEO_MIME_TYPES.includes(file.type)) {
+    return { ok: false, message: 'Formato no permitido. Usá un video MP4 o WebM.' };
+  }
+  if (file.size > MAX_BYTES) {
+    return { ok: false, message: 'El video supera el tamaño máximo de 8 MB.' };
+  }
+  const metadata = await readVideoMetadata(file).catch(() => null);
+  if (!metadata) return { ok: false, message: 'No se pudo leer el video seleccionado.' };
+  if (metadata.width < MIN_DIMENSION || metadata.height < MIN_DIMENSION) {
+    return { ok: false, message: `El video debe tener al menos ${MIN_DIMENSION}x${MIN_DIMENSION}px.` };
+  }
+  if (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION) {
+    return { ok: false, message: `El video no puede superar ${MAX_DIMENSION}x${MAX_DIMENSION}px.` };
+  }
+  if (!Number.isFinite(metadata.duration) || metadata.duration <= 0 || metadata.duration > MAX_VIDEO_DURATION_SECONDS) {
+    return { ok: false, message: `El video debe durar hasta ${MAX_VIDEO_DURATION_SECONDS} segundos.` };
+  }
+  return { ok: true };
+}
+
+export function mediaTypeForFile(file: File): MediaType | null {
+  if (ALLOWED_IMAGE_MIME_TYPES.includes(file.type)) return 'image';
+  if (ALLOWED_VIDEO_MIME_TYPES.includes(file.type)) return 'video';
+  return null;
+}
+
+export function validateMediaFileForUpload(file: File, mediaType: MediaType) {
+  return mediaType === 'video' ? validateVideoFileForUpload(file) : validateFileForUpload(file);
+}
+
 async function getAccessToken(stage: MediaUploadStage): Promise<string> {
   if (!supabase) throw new MediaUploadError(stage, 'Supabase no esta configurado.');
   const { data } = await supabase.auth.getSession();
@@ -74,11 +125,11 @@ function messageForStatus(status: number) {
     case 401:
       return 'Tu sesion expiro. Volve a iniciar sesion.';
     case 403:
-      return 'No tenes permisos de administrador para subir imagenes.';
+      return 'No tenes permisos de administrador para subir archivos.';
     case 409:
       return 'La autorizacion de carga vencio. Volve a intentar la carga.';
     case 422:
-      return 'No se pudo procesar la imagen. Proba con otro archivo.';
+      return 'No se pudo procesar el archivo. Proba con otro.';
     default:
       return 'No se pudo completar la carga. Intenta nuevamente.';
   }
@@ -100,12 +151,12 @@ type SignResponse = {
   requestId: string;
 };
 
-async function requestSign(intent: MediaIntent): Promise<SignResponse> {
+async function requestSign(intent: MediaIntent, mediaType: MediaType): Promise<SignResponse> {
   const token = await getAccessToken('sign');
   const response = await fetch('/api/admin/media/sign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ intent }),
+    body: JSON.stringify({ intent, mediaType }),
   });
   if (!response.ok) throw new MediaUploadError('sign', messageForStatus(response.status));
   return (await response.json()) as SignResponse;
@@ -142,7 +193,7 @@ function uploadToCloudinary(
     };
     xhr.onload = () => {
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new MediaUploadError('upload', 'No se pudo subir la imagen a Cloudinary.'));
+        reject(new MediaUploadError('upload', 'No se pudo subir el archivo a Cloudinary.'));
         return;
       }
       try {
@@ -152,7 +203,7 @@ function uploadToCloudinary(
         reject(new MediaUploadError('upload', 'No se pudo interpretar la respuesta de Cloudinary.'));
       }
     };
-    xhr.onerror = () => reject(new MediaUploadError('upload', 'No se pudo subir la imagen a Cloudinary.'));
+    xhr.onerror = () => reject(new MediaUploadError('upload', 'No se pudo subir el archivo a Cloudinary.'));
     xhr.onabort = () => reject(new MediaUploadError('upload', 'Carga cancelada.'));
     signal?.addEventListener('abort', () => xhr.abort());
     xhr.send(formData);
@@ -172,7 +223,7 @@ async function requestFinalize(result: CloudinaryUploadResult): Promise<Finalize
   return (await response.json()) as FinalizeResponse;
 }
 
-export type UploadSecureImageOptions = {
+export type UploadSecureMediaOptions = {
   onProgress?: (percent: number) => void;
   /** Fired once Cloudinary accepted the upload, before the backend verifies it. */
   onUploaded?: () => void;
@@ -184,9 +235,31 @@ export async function uploadSecureImage(file: File, intent: MediaIntent, options
   const validation = await validateFileForUpload(file);
   if (!validation.ok) throw new MediaUploadError('validation', validation.message);
 
-  const sign = await requestSign(intent);
+  const sign = await requestSign(intent, 'image');
   const uploadResult = await uploadToCloudinary(file, sign, options.onProgress, options.signal);
   options.onUploaded?.();
   const finalized = await requestFinalize(uploadResult);
   return { assetId: finalized.mediaAssetId, url: finalized.url };
+}
+
+export type UploadSecureImageOptions = UploadSecureMediaOptions;
+
+/** Full secure upload flow for an image or an About video. */
+export async function uploadSecureMedia(
+  file: File,
+  intent: MediaIntent,
+  mediaType: MediaType,
+  options: UploadSecureMediaOptions = {},
+): Promise<{ assetId: string; url: string; mediaType: MediaType }> {
+  if (mediaType === 'video' && intent !== 'about') {
+    throw new MediaUploadError('validation', 'Los videos solo están permitidos en Acerca de Rehabex.');
+  }
+  const validation = await validateMediaFileForUpload(file, mediaType);
+  if (!validation.ok) throw new MediaUploadError('validation', validation.message);
+
+  const sign = await requestSign(intent, mediaType);
+  const uploadResult = await uploadToCloudinary(file, sign, options.onProgress, options.signal);
+  options.onUploaded?.();
+  const finalized = await requestFinalize(uploadResult);
+  return { assetId: finalized.mediaAssetId, url: finalized.url, mediaType };
 }

@@ -106,17 +106,23 @@ export function AdminAboutPage({ part = 'about', onSaved, onCancel }: AdminAbout
         {part === 'about' ? (
           <div className="grid gap-5 xl:grid-cols-2">
             <ImageField
-              label="Imagen de la sección"
-              hint="Usá una foto del equipo o del espacio de trabajo."
+              label="Imagen o video de la sección"
+              hint="Usá una imagen del equipo o un video breve que muestre el producto en uso."
               value={content.image}
               intent="about"
+              allowVideo
+              mediaType={content.media_type}
               isLoading={isLoading}
               framing={content.image_framing ?? DEFAULT_FRAMING}
               onFramingChange={(framing) => setContent((current) => ({ ...current, image_framing: framing }))}
               aspectRatio="4 / 5"
-              onAssetReady={({ assetId, url }) => {
+              onAssetReady={({ assetId, url, mediaType }) => {
                 setPendingImageAssetId(assetId);
-                setContent((current) => ({ ...current, image: url }));
+                setContent((current) => ({ ...current, image: url, media_type: mediaType }));
+              }}
+              onRemove={() => {
+                setPendingImageAssetId(null);
+                setContent((current) => ({ ...current, image: '', media_type: 'image' }));
               }}
             />
             <div className="space-y-4">

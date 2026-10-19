@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
@@ -78,6 +80,31 @@ test('Acerca de Rehabex: loaded (isLoading=false) with real content renders it n
   const markup = render(React.createElement(AboutSection, { content, products: [], isLoading: false }));
   assert.match(markup, /Titulo real/);
   assert.match(markup, /Descripcion real/);
+});
+
+test('Acerca de Rehabex: video renders inline, muted, looping and autoplaying without changing the gallery frame', () => {
+  const content: AboutContent = {
+    ...baseAbout,
+    image: 'https://res.cloudinary.com/demo/video/upload/about.mp4',
+    media_type: 'video',
+    image_framing: { mode: 'contain', focalX: 0.5, focalY: 0.5, zoom: 1 },
+  };
+  const markup = render(React.createElement(AboutSection, { content, products: [], isLoading: false }));
+  assert.match(markup, /<video/);
+  assert.match(markup, /autoplay=""/);
+  assert.match(markup, /muted=""/);
+  assert.match(markup, /loop=""/);
+  assert.match(markup, /playsinline=""/);
+  assert.match(markup, /object-fit:cover/);
+  assert.match(markup, /aspect-\[4\/3\]/);
+});
+
+test('Acerca de Rehabex: reduced motion disables forced playback and exposes manual controls', () => {
+  const gridSource = readFileSync(join(process.cwd(), 'src', 'components', 'AboutImageGrid.tsx'), 'utf8');
+  const mediaSource = readFileSync(join(process.cwd(), 'src', 'components', 'media', 'FramedImage.tsx'), 'utf8');
+  assert.match(gridSource, /autoPlay=\{isVideo && !prefersReducedMotion\}/);
+  assert.match(gridSource, /controls=\{isVideo && prefersReducedMotion\}/);
+  assert.match(mediaSource, /if \(!autoPlay\) \{\s*video\.pause\(\)/);
 });
 
 test('Productos destacados: title and subtitle come from the real section content, not a hardcoded string', () => {

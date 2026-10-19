@@ -1,4 +1,7 @@
 import amexMark from '../assets/payments/american-express.svg';
+import cabalMark from '../assets/payments/cabal.png';
+import maestroMark from '../assets/payments/maestro.png';
+import mastercardMark from '../assets/payments/mastercard.png';
 import mercadoPagoMark from '../assets/payments/mercadopago.svg';
 import naranjaXMark from '../assets/payments/naranja-x.png';
 import visaMark from '../assets/payments/visa.png';
@@ -23,7 +26,15 @@ const paymentMethods: PaymentMethod[] = [
     opticalClassName: 'h-4',
     kind: 'card',
   },
-  // Mastercard: falta el SVG oficial. Ver src/assets/payments/SOURCES.md.
+  {
+    name: 'Mastercard',
+    accessibleName: 'Mastercard',
+    src: mastercardMark,
+    intrinsicWidth: 92,
+    intrinsicHeight: 72,
+    opticalClassName: 'h-[1.375rem]',
+    kind: 'card',
+  },
   {
     name: 'American Express',
     accessibleName: 'American Express',
@@ -40,6 +51,24 @@ const paymentMethods: PaymentMethod[] = [
     intrinsicWidth: 155,
     intrinsicHeight: 36,
     opticalClassName: 'h-[0.875rem]',
+    kind: 'card',
+  },
+  {
+    name: 'Cabal',
+    accessibleName: 'Cabal',
+    src: cabalMark,
+    intrinsicWidth: 160,
+    intrinsicHeight: 56,
+    opticalClassName: 'h-[1.125rem]',
+    kind: 'card',
+  },
+  {
+    name: 'Maestro',
+    accessibleName: 'Maestro',
+    src: maestroMark,
+    intrinsicWidth: 88,
+    intrinsicHeight: 76,
+    opticalClassName: 'h-[1.375rem]',
     kind: 'card',
   },
   {

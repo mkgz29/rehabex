@@ -22,10 +22,11 @@ export function nextOpenSection(current: SectionId | null, requested: SectionId,
   return current === requested ? null : requested;
 }
 
-function SummaryImage({ url, alt, framing }: { url: string; alt: string; framing?: LandingContent['hero']['image_framing'] }) {
+function SummaryImage({ url, alt, framing, mediaType = 'image' }: { url: string; alt: string; framing?: LandingContent['hero']['image_framing']; mediaType?: 'image' | 'video' }) {
   return url ? (
-    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-      <FramedImage media={{ kind: 'image', url, framing }} alt={alt} className="h-full w-full" />
+    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+      <FramedImage media={{ kind: mediaType, url, framing }} alt={alt} muted playsInline preload="metadata" className="h-full w-full" />
+      {mediaType === 'video' ? <span className="absolute bottom-1 left-1 rounded bg-slate-950/75 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white">Video</span> : null}
     </div>
   ) : (
     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-1 text-center text-[10px] leading-3 text-slate-500">Sin imagen</div>
@@ -178,7 +179,7 @@ export function AdminEditPagePage() {
           onToggle={() => toggleSection('about')}
           summary={(
             <div className="flex items-center gap-3">
-              <SummaryImage url={landing.about.image} framing={landing.about.image_framing} alt="Vista previa de Acerca de Rehabex" />
+              <SummaryImage url={landing.about.image} mediaType={landing.about.media_type} framing={landing.about.image_framing} alt="Vista previa de Acerca de Rehabex" />
               <p className="truncate text-sm font-semibold text-slate-900">{landing.about.title || 'Sin título'}</p>
             </div>
           )}

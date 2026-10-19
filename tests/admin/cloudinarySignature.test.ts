@@ -9,9 +9,10 @@ import {
   cloudinaryEnv,
   signCloudinaryParams,
   signUploadParams,
+  VIDEO_UPLOAD_FORMATS,
   type CloudinaryEnv,
 } from '../../server/admin/cloudinaryClient';
-import { buildCloudinaryUploadFormData, validateFileForUpload } from '../../src/services/mediaApi';
+import { buildCloudinaryUploadFormData, validateFileForUpload, validateVideoFileForUpload } from '../../src/services/mediaApi';
 
 const TEST_ENV: CloudinaryEnv = {
   cloudName: 'fixture-cloud',
@@ -70,6 +71,15 @@ test('the upload signature contains exactly the five production contract fields'
   assert.equal('max_file_size' in uploadParams, false);
 });
 
+test('video signing uses the video endpoint and only MP4/WebM formats', () => {
+  const input = { ...FIXED_INPUT, folder: 'rehabex/about/video' };
+  const uploadParams = buildCloudinaryUploadParams(input, 'video');
+  const signed = signUploadParams(TEST_ENV, input, 'video');
+  assert.equal(uploadParams.allowed_formats, VIDEO_UPLOAD_FORMATS);
+  assert.equal(signed.uploadParams.allowed_formats, 'mp4,webm');
+  assert.equal(signed.uploadUrl, 'https://api.cloudinary.com/v1_1/fixture-cloud/video/upload');
+});
+
 test('FormData sends exactly the same upload parameter object that was signed', () => {
   const signed = signUploadParams(TEST_ENV, FIXED_INPUT);
   // Independently calculated from the five-field canonical string with .NET SHA1.
@@ -101,6 +111,13 @@ test('the own pre-upload validation still rejects files over 8 MB', async () => 
   const oversized = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'oversized.jpg', { type: 'image/jpeg' });
   const result = await validateFileForUpload(oversized);
   assert.deepEqual(result, { ok: false, message: 'La imagen supera el tamano maximo de 8 MB.' });
+});
+
+test('video pre-upload validation rejects arbitrary MIME types and files over 8 MB', async () => {
+  const arbitrary = new File(['fixture'], 'clip.mov', { type: 'video/quicktime' });
+  assert.equal((await validateVideoFileForUpload(arbitrary)).ok, false);
+  const oversized = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'clip.mp4', { type: 'video/mp4' });
+  assert.deepEqual(await validateVideoFileForUpload(oversized), { ok: false, message: 'El video supera el tamaño máximo de 8 MB.' });
 });
 
 test('environment values are trimmed without adding quotes or CRLF', () => {

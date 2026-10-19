@@ -15,11 +15,11 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
   return (
     <footer id="contacto" className="bg-primary text-white">
       <div className="site-container py-16 lg:py-20">
-        <div className={`grid gap-12 border-b border-white/15 pb-12 lg:gap-14 lg:pb-16 ${visibleCategories.length > 0 ? 'lg:grid-cols-[1.35fr_0.65fr_0.8fr]' : 'lg:grid-cols-[1.4fr_0.6fr]'}`}>
+        <div className={`grid gap-12 border-b border-white/15 pb-12 sm:grid-cols-2 lg:gap-12 lg:pb-16 ${visibleCategories.length > 0 ? 'lg:grid-cols-[1.35fr_0.6fr_0.75fr_0.8fr]' : 'lg:grid-cols-[1.4fr_0.6fr_0.8fr]'}`}>
           <div data-reveal-item className="max-w-lg">
             <img src="/brand/rehabex-logo-light.svg" alt="Rehabex" width="874" height="240" loading="lazy" className="h-9 w-auto sm:h-10" />
-            <p className="mt-7 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] text-white sm:text-3xl">Equipamiento para acompañar cada etapa de tu recuperación.</p>
-            <p className="mt-4 max-w-md text-sm leading-7 text-white/60">Una selección clara de productos para rehabilitación, movilidad y bienestar.</p>
+            <p className="mt-7 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] text-white sm:text-3xl">Equipamiento profesional para rendimiento y recuperación.</p>
+            <p className="mt-4 max-w-md text-sm leading-7 text-white/60">Tecnología pensada para fisioterapeutas, centros de rendimiento y atletas que buscan optimizar cada sesión.</p>
           </div>
 
           <div data-reveal-item>
@@ -47,6 +47,24 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
               </nav>
             </div>
           ) : null}
+
+          <div data-reveal-item>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Legal</p>
+            <nav className="mt-4 flex flex-col items-start" aria-label="Información legal">
+              <Link to="/terminos-y-condiciones" className="group inline-flex min-h-11 min-w-11 items-center gap-1.5 text-sm font-semibold text-white/70 transition hover:text-accent-soft">
+                Términos y condiciones
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />
+              </Link>
+              <Link to="/terminos-y-condiciones#cambios-devoluciones-y-garantia" className="group inline-flex min-h-11 min-w-11 items-center gap-1.5 text-sm font-semibold text-white/70 transition hover:text-accent-soft">
+                Cambios, devoluciones y garantía
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />
+              </Link>
+              <Link to="/arrepentimiento" className="group inline-flex min-h-11 min-w-11 items-center gap-1.5 text-sm font-semibold text-accent-soft transition hover:text-white">
+                BOTÓN DE ARREPENTIMIENTO
+                <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            </nav>
+          </div>
         </div>
 
         <div className="border-b border-white/15 py-6">
@@ -55,7 +73,7 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
 
         <div className="flex flex-col gap-3 pt-6 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Rehabex. Todos los derechos reservados.</p>
-          <p>Rehabilitación · Movilidad · Recuperación</p>
+          <p>Rendimiento · Recuperación · Tecnología</p>
         </div>
       </div>
     </footer>

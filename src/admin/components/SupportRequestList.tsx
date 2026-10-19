@@ -87,6 +87,9 @@ export function SupportRequestList({ items, error, onRetry, filter, onFilterChan
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-900">{item.customerName}</p>
                         <p className="truncate text-xs font-medium text-slate-600">{item.subject || 'Sin asunto'}</p>
+                        {item.requestKind === 'withdrawal' ? (
+                          <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-amber-700">Arrepentimiento · {item.requestCode}</p>
+                        ) : null}
                       </div>
                       <StatusBadge size="sm" tone={SUPPORT_STATUS_TONE[item.status]} label={SUPPORT_STATUS_LABELS[item.status]} />
                     </div>

@@ -30,8 +30,13 @@ export type AboutMetric = {
   label: string;
 };
 
+export type AboutMediaType = 'image' | 'video';
+
 export type AboutContent = {
+  /** Legacy field name retained as the media URL so every existing image document stays valid. */
   image: string;
+  /** Missing in older documents; normalization defaults it to image. */
+  media_type: AboutMediaType;
   image_framing?: ImageFraming;
   title: string;
   description: string;

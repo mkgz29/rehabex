@@ -1,9 +1,12 @@
 import { getOptimizedImageUrl, getResponsiveImageSrcSet } from '../lib/image';
 import { FramedImage } from './media/FramedImage';
 import type { ImageFraming } from '../lib/imageFraming';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import type { AboutMediaType } from '../types/cms';
 
 export type AboutImageGridItem = {
   imageUrl: string;
+  mediaType?: AboutMediaType;
   alt: string;
   label: string;
   framing?: ImageFraming;
@@ -14,6 +17,7 @@ type AboutImageGridProps = {
 };
 
 export function AboutImageGrid({ items }: AboutImageGridProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   if (items.length === 0) return null;
 
   return (
@@ -32,26 +36,35 @@ export function AboutImageGrid({ items }: AboutImageGridProps) {
         room while keeping the lead dominant.
       */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)] lg:grid-rows-2 lg:gap-5" aria-label="Galería editorial de Rehabex">
-        {items.map((item, index) => (
-          <figure
-            key={item.imageUrl}
-            className={`relative overflow-hidden rounded-card bg-primary-hover ${index === 0 ? 'aspect-[4/3] sm:col-span-2 sm:aspect-[16/9] lg:col-span-1 lg:row-span-2 lg:aspect-auto' : 'aspect-[4/3]'}`}
-          >
-            <FramedImage
-              media={{ kind: 'image', url: getOptimizedImageUrl(item.imageUrl, { width: index === 0 ? 1200 : 720 }), framing: item.framing }}
-              srcSet={getResponsiveImageSrcSet(item.imageUrl, index === 0 ? [480, 720, 960, 1200] : [320, 480, 720])}
-              sizes={index === 0 ? '(min-width: 1024px) 28vw, (min-width: 640px) 88vw, calc(100vw - 2rem)' : '(min-width: 1024px) 20vw, (min-width: 640px) 44vw, calc(100vw - 2rem)'}
-              alt={item.alt}
-              width={index === 0 ? 1200 : 720}
-              height={index === 0 ? 900 : 540}
-              loading="lazy"
-              className="h-full w-full transition duration-500 ease-out hover:scale-[1.02]"
-            />
-            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/90 via-primary/45 to-transparent px-4 pb-4 pt-12 text-sm font-semibold text-white sm:px-5 sm:pb-5 sm:pt-16">
-              {item.label}
-            </figcaption>
-          </figure>
-        ))}
+        {items.map((item, index) => {
+          const isVideo = item.mediaType === 'video';
+          return (
+            <figure
+              key={item.imageUrl}
+              className={`relative overflow-hidden rounded-card bg-primary-hover ${index === 0 ? 'aspect-[4/3] sm:col-span-2 sm:aspect-[16/9] lg:col-span-1 lg:row-span-2 lg:aspect-auto' : 'aspect-[4/3]'}`}
+            >
+              <FramedImage
+                media={{ kind: isVideo ? 'video' : 'image', url: isVideo ? item.imageUrl : getOptimizedImageUrl(item.imageUrl, { width: index === 0 ? 1200 : 720 }), framing: item.framing }}
+                srcSet={isVideo ? undefined : getResponsiveImageSrcSet(item.imageUrl, index === 0 ? [480, 720, 960, 1200] : [320, 480, 720])}
+                sizes={index === 0 ? '(min-width: 1024px) 28vw, (min-width: 640px) 88vw, calc(100vw - 2rem)' : '(min-width: 1024px) 20vw, (min-width: 640px) 44vw, calc(100vw - 2rem)'}
+                alt={item.alt}
+                width={index === 0 ? 1200 : 720}
+                height={index === 0 ? 900 : 540}
+                loading="lazy"
+                autoPlay={isVideo && !prefersReducedMotion}
+                muted
+                loop={isVideo}
+                playsInline
+                controls={isVideo && prefersReducedMotion}
+                preload="metadata"
+                className="h-full w-full transition duration-500 ease-out hover:scale-[1.02]"
+              />
+              <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/90 via-primary/45 to-transparent px-4 pb-4 pt-12 text-sm font-semibold text-white sm:px-5 sm:pb-5 sm:pt-16">
+                {item.label}
+              </figcaption>
+            </figure>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
@@ -57,25 +58,34 @@ export function AnnouncementBar() {
 
   return (
     <div className="bg-dark text-white">
-      <div className="site-container flex min-h-8 items-center justify-center gap-2 py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] sm:text-xs">
-        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-accent-soft" aria-hidden="true" />
+      <div className="site-container flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] sm:text-xs">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-start">
+          <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-accent-soft" aria-hidden="true" />
 
         {/*
           Assistive technology reads one stable sentence. The rotation below is
           decoration on top of it, so nothing is re-announced every few seconds.
         */}
-        <span className="sr-only">{announcements.join('. ')}.</span>
+          <span className="sr-only">{announcements.join('. ')}.</span>
 
-        <span className="announce-viewport" aria-hidden="true">
-          {announcements.map((message, position) => (
-            <span
-              key={message}
-              className={`announce-item ${position === index ? 'is-current' : ''}`}
-            >
-              {message}
-            </span>
-          ))}
-        </span>
+          <span className="announce-viewport" aria-hidden="true">
+            {announcements.map((message, position) => (
+              <span
+                key={message}
+                className={`announce-item ${position === index ? 'is-current' : ''}`}
+              >
+                {message}
+              </span>
+            ))}
+          </span>
+        </div>
+
+        <Link
+          to="/arrepentimiento"
+          className="shrink-0 rounded-full bg-accent-soft px-3 py-1.5 font-bold tracking-[0.06em] text-primary transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          BOTÓN DE ARREPENTIMIENTO
+        </Link>
       </div>
     </div>
   );

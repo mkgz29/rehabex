@@ -163,6 +163,11 @@ export function ProductDetailPage() {
                   </div>
                 ) : null}
                 {cartError ? <p className="mt-4 text-sm font-medium text-red-700">{cartError}</p> : null}
+                <div className="mt-6 border-t border-slate-200 pt-5">
+                  <Link to="/terminos-y-condiciones#cambios-devoluciones-y-garantia" className="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-slate-950">
+                    Cambios, devoluciones y garantía
+                  </Link>
+                </div>
               </div>
             </article>
           ) : null}

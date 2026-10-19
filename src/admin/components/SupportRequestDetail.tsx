@@ -204,6 +204,18 @@ export function SupportRequestDetail({
                 <dd className="font-medium text-slate-900">{supportRequest.orderReference}</dd>
               </div>
             ) : null}
+            {supportRequest.requestKind === 'withdrawal' ? (
+              <>
+                <div className="flex gap-2">
+                  <dt className="text-slate-500">Código de trámite:</dt>
+                  <dd className="font-mono font-semibold text-slate-900">{supportRequest.requestCode}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-slate-500">Respuesta antes de:</dt>
+                  <dd className="font-medium text-slate-900">{supportRequest.responseDueAt ? formatOrderDate(supportRequest.responseDueAt) : 'No informado'}</dd>
+                </div>
+              </>
+            ) : null}
           </dl>
           <div className="mt-3 flex flex-wrap items-start gap-2">
             <WhatsAppContactButton
