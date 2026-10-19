@@ -144,3 +144,33 @@ export function validateResourceMetadata(resource: {
     value: { format, resourceType: expectedMediaType, bytes: resource.bytes as number, width: resource.width as number, height: resource.height as number, secureUrl, duration },
   };
 }
+
+function safeKeys(value: unknown): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  return Object.keys(value as Record<string, unknown>)
+    .map((key) => key.replace(/[^A-Za-z0-9_]/g, '').slice(0, 32))
+    .filter(Boolean)
+    .slice(0, 20)
+    .join(',');
+}
+
+/**
+ * Diagnostic-only description of a Cloudinary video resource: key names and
+ * value types, never values, URLs or identifiers. Used to log why a video was
+ * rejected without exposing asset data.
+ */
+export function describeVideoResourceShape(resource: Record<string, unknown>): Record<string, string | boolean> {
+  const mediaMetadata = resource.media_metadata;
+  return {
+    durationType: resource.duration === null ? 'null' : typeof resource.duration,
+    hasMediaMetadata: mediaMetadata !== undefined && mediaMetadata !== null,
+    mediaMetadataKeys: safeKeys(mediaMetadata),
+    hasVideo: resource.video !== undefined && resource.video !== null,
+    videoKeys: safeKeys(resource.video),
+    hasAudio: resource.audio !== undefined && resource.audio !== null,
+    audioKeys: safeKeys(resource.audio),
+    hasFrameRate: resource.frame_rate !== undefined,
+    hasRotation: resource.rotation !== undefined,
+    topLevelKeys: safeKeys(resource),
+  };
+}

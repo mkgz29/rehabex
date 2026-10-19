@@ -117,7 +117,9 @@ export function verifyUploadSignature(env: CloudinaryEnv, publicId: string, vers
 export async function fetchResourceMetadata(env: CloudinaryEnv, publicId: string, mediaType: CloudinaryMediaType = 'image'): Promise<Record<string, unknown> | null> {
   cloudinary.config({ cloud_name: env.cloudName, api_key: env.apiKey, api_secret: env.apiSecret, secure: true });
   try {
-    return await cloudinary.api.resource(publicId, { resource_type: mediaType });
+    // Video details (duration, frame rate, codecs) are only returned by the Admin API
+    // when media_metadata is requested.
+    return await cloudinary.api.resource(publicId, mediaType === 'video' ? { resource_type: mediaType, media_metadata: true } : { resource_type: mediaType });
   } catch {
     return null;
   }

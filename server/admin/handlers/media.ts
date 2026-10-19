@@ -13,7 +13,7 @@ import {
   verifyUploadSignature,
   type CloudinaryEnv,
 } from '../cloudinaryClient.js';
-import { folderForUpload, isValid, mediaTypeFromPublicId, mimeTypeForFormat, parseMediaFinalizePayload, parseMediaSignPayload, validateResourceMetadata, type MediaType } from '../mediaValidators.js';
+import { folderForUpload, isValid, mediaTypeFromPublicId, mimeTypeForFormat, parseMediaFinalizePayload, parseMediaSignPayload, validateResourceMetadata, describeVideoResourceShape, type MediaType } from '../mediaValidators.js';
 import { defaultRequireAdminDependencies, requireAdmin, type RequireAdminDependencies } from '../requireAdmin.js';
 import { applyAdminCors, logEvent, type ApiRequest, type ApiResponse } from '../../commerce/commerce.js';
 
@@ -135,7 +135,11 @@ export function createAdminMediaFinalizeHandler(overrides: Partial<FinalizeDepen
       // The signature was valid, so this public_id is genuinely ours -- safe to destroy.
       const destroyResult = await dependencies.destroyAsset(env, publicId, mediaType);
       // reason is only the internal validator code (e.g. invalid_duration) - never metadata, URLs or credentials.
-      logEvent('admin_media_finalize_policy_rejected', { destroyed: destroyResult.ok, reason: metadata.error });
+      logEvent('admin_media_finalize_policy_rejected', {
+        destroyed: destroyResult.ok,
+        reason: metadata.error,
+        ...(mediaType === 'video' ? describeVideoResourceShape(resource) : {}),
+      });
       return response.status(422).json({ error: 'Solicitud invalida.', requestId: auth.requestId });
     }
     if (!isCloudinarySecureUrl(metadata.value.secureUrl)) {

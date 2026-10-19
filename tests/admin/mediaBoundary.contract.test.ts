@@ -513,3 +513,54 @@ test('finalize: a valid video still passes and logs no policy rejection', async 
   assert.equal(destroyed, 0);
   assert.ok(!logs.some((entry) => entry.includes('policy_rejected')));
 });
+
+// Representative shape of a video resource requested with media_metadata: true.
+// Only key names matter to the shape logger; values below are fixtures.
+const VIDEO_RESOURCE_WITH_MEDIA_METADATA = {
+  ...VALID_VIDEO_RESOURCE,
+  duration: undefined,
+  frame_rate: 29.97,
+  rotation: 0,
+  video: { codec: 'hevc', pix_format: 'yuv420p' },
+  audio: { codec: 'aac' },
+  media_metadata: { duration: '15.2', video_codec: 'hevc' },
+};
+
+test('finalize: a rejected video logs only the safe shape of the Cloudinary response', async () => {
+  const { logs, destroyed } = await finalizeVideoCapturingLogs(VIDEO_RESOURCE_WITH_MEDIA_METADATA);
+  assert.equal(destroyed, 1);
+  const line = logs.find((entry) => entry.includes('admin_media_finalize_policy_rejected')) ?? '';
+  assert.ok(line.includes('"reason":"invalid_duration"'));
+  assert.ok(line.includes('"durationType":"undefined"'));
+  assert.ok(line.includes('"hasMediaMetadata":true'));
+  assert.ok(line.includes('"mediaMetadataKeys":"duration,video_codec"'));
+  assert.ok(line.includes('"hasVideo":true') && line.includes('"videoKeys":"codec,pix_format"'));
+  assert.ok(line.includes('"hasAudio":true') && line.includes('"audioKeys":"codec"'));
+  // Key names and types only: no values, URLs or secrets.
+  assert.doesNotMatch(line, /hevc|aac|yuv420p|res\.cloudinary\.com|29\.97|15\.2/);
+  assert.doesNotMatch(line, new RegExp(TEST_ENV.apiSecret));
+});
+
+test('describeVideoResourceShape: handles absent metadata without throwing', async () => {
+  const { describeVideoResourceShape } = await import('../../server/admin/mediaValidators');
+  const shape = describeVideoResourceShape({ duration: null });
+  assert.equal(shape.durationType, 'null');
+  assert.equal(shape.hasMediaMetadata, false);
+  assert.equal(shape.mediaMetadataKeys, '');
+});
+
+test('fetchResourceMetadata: requests media_metadata for video only', async () => {
+  const { v2: cloudinary } = await import('cloudinary');
+  const { fetchResourceMetadata } = await import('../../server/admin/cloudinaryClient');
+  const original = cloudinary.api.resource;
+  const calls: Array<Record<string, unknown>> = [];
+  (cloudinary.api as { resource: unknown }).resource = async (_id: string, options: Record<string, unknown>) => { calls.push(options); return {}; };
+  try {
+    await fetchResourceMetadata(TEST_ENV, VIDEO_PUBLIC_ID, 'video');
+    await fetchResourceMetadata(TEST_ENV, VALID_FINALIZE_BODY.publicId, 'image');
+  } finally {
+    (cloudinary.api as { resource: unknown }).resource = original;
+  }
+  assert.deepEqual(calls[0], { resource_type: 'video', media_metadata: true });
+  assert.deepEqual(calls[1], { resource_type: 'image' });
+});
