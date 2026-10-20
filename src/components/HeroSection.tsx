@@ -20,7 +20,7 @@ export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
   return (
     <section className="hero-section hex-hem hex-hem--hero overflow-hidden bg-canvas" aria-labelledby="hero-title">
       <DiagonalShapeDefs />
-      <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-9 py-10 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:gap-10 md:py-12 md:min-h-0 lg:max-w-none lg:grid-cols-[minmax(0,44fr)_minmax(0,56fr)] lg:items-center lg:gap-0 lg:py-4 lg:pr-0 lg:pl-0 min-[1200px]:grid-cols-[minmax(0,42fr)_minmax(0,58fr)]">
+      <div className="site-container grid min-h-[calc(100svh-6.5rem)] items-center gap-9 py-10 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:gap-10 md:py-12 md:min-h-0 lg:max-w-none lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:items-center lg:gap-0 lg:py-4 lg:pr-0 lg:pl-0 min-[1200px]:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
         <div className="hero-copy max-w-2xl py-2 md:py-8 lg:max-w-none lg:self-center lg:py-0 lg:pr-10">
           {/* Same "stay mounted, swap only the content" rule as the h1 below:
               while loading, a skeleton -- never the old hardcoded text, and
@@ -66,7 +66,7 @@ export function HeroSection({ heroContent, isLoading }: HeroSectionProps) {
         </div>
 
         <div
-          className="hero-media hero-enter hero-enter-delay-4 relative aspect-[7/8] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft max-md:-mx-[var(--space-page)] max-md:rounded-none max-md:border-x-0 sm:aspect-[4/3] md:aspect-[4/5] lg:aspect-[11/6] lg:h-[clamp(24rem,38cqw,33.75rem)] lg:w-[calc(100%+9cqw)] lg:ml-[calc(-9cqw)] lg:-mt-3 lg:-mb-5 lg:rounded-none lg:border-0"
+          className="hero-media hero-enter hero-enter-delay-4 relative aspect-[7/8] overflow-hidden rounded-card border border-brand/20 bg-line shadow-soft max-md:-mx-[var(--space-page)] max-md:rounded-none max-md:border-x-0 sm:aspect-[4/3] md:aspect-[4/5] lg:aspect-[11/6] lg:h-[clamp(24rem,38cqw,33.75rem)] lg:w-[calc(100%+3cqw)] lg:ml-[calc(-3cqw)] lg:-mt-3 lg:-mb-5 lg:self-end lg:rounded-none lg:border-0"
           aria-busy={isLoading}
         >
           <HeroCarousel images={heroContent.images} isLoading={isLoading} onCurrentImageFailed={setCurrentImageFailed} />

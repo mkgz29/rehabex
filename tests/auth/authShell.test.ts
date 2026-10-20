@@ -127,15 +127,15 @@ test('Hero media shape: the home hero card shares the diagonal family without to
 test('Hero composition: a balanced panel (~58% of the hero) with a capped height, not a full-screen block', () => {
   const hero = read('src/components/HeroSection.tsx');
   const css = read('src/index.css').replace(/\r\n/g, '\n');
-  assert.match(hero, /lg:grid-cols-\[minmax\(0,44fr\)_minmax\(0,56fr\)\]/);
-  assert.match(hero, /min-\[1200px\]:grid-cols-\[minmax\(0,42fr\)_minmax\(0,58fr\)\]/);
+  assert.match(hero, /lg:grid-cols-\[minmax\(0,46fr\)_minmax\(0,54fr\)\]/); // copy ~43% / panel ~57% at 1024
+  assert.match(hero, /min-\[1200px\]:grid-cols-\[minmax\(0,45fr\)_minmax\(0,55fr\)\]/); // copy ~42% / panel ~58% from 1200
   assert.match(hero, /lg:max-w-none/); // no longer boxed by .site-container
   // The panel reaches into the hero (negative margin + wider box); height stays ~540px at 1440.
-  assert.match(hero, /lg:h-\[clamp\(24rem,38cqw,33\.75rem\)\] lg:w-\[calc\(100%\+9cqw\)\] lg:ml-\[calc\(-9cqw\)\]/);
+  assert.match(hero, /lg:h-\[clamp\(24rem,38cqw,33\.75rem\)\] lg:w-\[calc\(100%\+3cqw\)\] lg:ml-\[calc\(-3cqw\)\]/); // only a slight reach into the copy column
   // Compact vertical rhythm: only a small margin above and below the panel (16px), no dead bands.
   assert.match(hero, /lg:py-4 lg:pr-0 lg:pl-0/);
   // The panel nudges 12px up and 20px down, so its lowest point meets the next section (size and diagonal unchanged).
-  assert.match(hero, /lg:-mt-3 lg:-mb-5/);
+  assert.match(hero, /lg:-mt-3 lg:-mb-5 lg:self-end/); // anchored to the benefits strip even when long copy makes the hero taller
   assert.doesNotMatch(hero, /lg:py-12/);
   // Its LEFT edge is the diagonal (starts ~28% in at the top, opens to the box edge at the bottom).
   assert.match(read('src/components/media/DiagonalShapeDefs.tsx'), /id="shape-diagonal-hero-wide"[\s\S]*M0\.285,0 H1 V0\.972 L0\.05,0\.99 Q0,0\.995 0,0\.962 L0\.25,0\.03/);
