@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../auth/useAuth';
+import { EmailField, PasswordField } from '../components/auth/AuthFields';
+import { AuthShell } from '../components/auth/AuthShell';
 
 export function RegisterPage() {
   const { loading, signUp } = useAuth();
@@ -31,53 +33,46 @@ export function RegisterPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-stone-100 px-4 py-12 text-slate-900">
-      <section className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">REHABEX</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Crear cuenta</h1>
-
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <label className="block">
-            <span className="text-sm font-medium text-slate-800">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="admin-input mt-2"
-              autoComplete="email"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-800">Contrasena</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="admin-input mt-2"
-              autoComplete="new-password"
-              minLength={6}
-              required
-            />
-          </label>
-
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
-
-          <button
-            type="submit"
-            className="brand-button inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
-            disabled={submitting || loading}
-          >
-            {submitting ? 'Creando cuenta...' : 'Registrarse'}
-          </button>
-        </form>
-
-        <Link to="/login" className="brand-link mt-5 inline-flex text-sm font-semibold">
+    <AuthShell
+      title="Crear cuenta"
+      description="Registrate con tu email para comenzar."
+      footer={
+        <Link to="/login" className="font-semibold text-ink underline-offset-4 hover:underline">
           Ya tengo cuenta
         </Link>
-      </section>
-    </main>
+      }
+    >
+      <form className="space-y-5" onSubmit={handleSubmit} aria-busy={submitting}>
+        <EmailField
+          id="register-email"
+          label="Email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          autoComplete="email"
+          required
+        />
+
+        <PasswordField
+          id="register-password"
+          label="Contraseña"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="new-password"
+          minLength={6}
+          required
+        />
+
+        {error ? <p role="alert" className="rounded-control bg-danger/[0.07] px-3.5 py-2.5 text-sm font-medium text-danger">{error}</p> : null}
+        {success ? <p role="status" className="rounded-control bg-success/[0.08] px-3.5 py-2.5 text-sm font-medium text-success">{success}</p> : null}
+
+        <button
+          type="submit"
+          className="brand-button w-full !min-h-[3rem] rounded-full px-5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-70"
+          disabled={submitting || loading}
+        >
+          {submitting ? 'Creando cuenta...' : 'Registrarse'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

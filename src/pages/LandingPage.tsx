@@ -23,7 +23,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-canvas text-ink">
       <main id="contenido-principal">
         <HeroSection heroContent={content.hero} isLoading={isLoading} />
-        <Reveal><TrustStrip /></Reveal>
+        <Reveal className="reveal-anchored"><TrustStrip /></Reveal>
         <Reveal><FeaturedProductsSection content={content.featuredSection} products={featuredProducts} isLoading={isLoading} error={productsError} onRetry={reloadProducts} /></Reveal>
         <Reveal><AboutSection content={content.about} products={activeProducts} isLoading={isLoading} /></Reveal>
         {!isLoading && !productsError ? <Reveal><CommercialFeatureSection product={featuredProducts[0]} /></Reveal> : null}

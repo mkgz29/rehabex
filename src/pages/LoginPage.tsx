@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/useAuth';
+import { EmailField, PasswordField } from '../components/auth/AuthFields';
+import { AuthShell } from '../components/auth/AuthShell';
 import { EMAIL_MAX_LENGTH, isValidEmailFormat, normalizeEmail } from '../auth/emailNormalization';
 
 type LocationState = {
@@ -54,58 +56,55 @@ export function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-stone-100 px-4 py-12 text-slate-900">
-      <section className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">REHABEX</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Ingresar al panel</h1>
+    <AuthShell
+      title="Ingresar al panel"
+      description="Acceso para administradores de Rehabex."
+      footer={
+        <Link to="/" className="font-semibold text-ink underline-offset-4 hover:underline">
+          Volver a la tienda
+        </Link>
+      }
+    >
+      <form className="space-y-5" onSubmit={handleSubmit} noValidate aria-busy={submitting}>
+        <EmailField
+          id="login-email"
+          label="Email"
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setEmailInvalid(false);
+          }}
+          autoComplete="email"
+          maxLength={EMAIL_MAX_LENGTH}
+          aria-invalid={emailInvalid}
+          aria-describedby={error ? 'login-error' : undefined}
+          required
+        />
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-          <label className="block">
-            <span className="text-sm font-medium text-slate-800">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => {
-                setEmail(event.target.value);
-                setEmailInvalid(false);
-              }}
-              className="admin-input mt-2"
-              autoComplete="email"
-              maxLength={EMAIL_MAX_LENGTH}
-              aria-invalid={emailInvalid}
-              aria-describedby={error ? 'login-error' : undefined}
-              required
-            />
-          </label>
+        <PasswordField
+          id="login-password"
+          label="Contraseña"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="current-password"
+          aria-describedby={error ? 'login-error' : undefined}
+          required
+        />
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-800">Contrasena</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="admin-input mt-2"
-              autoComplete="current-password"
-              aria-describedby={error ? 'login-error' : undefined}
-              required
-            />
-          </label>
+        {error ? (
+          <p id="login-error" role="alert" className="rounded-control bg-danger/[0.07] px-3.5 py-2.5 text-sm font-medium text-danger">
+            {error}
+          </p>
+        ) : null}
 
-          {error ? (
-            <p id="login-error" role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            className="brand-button inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
-            disabled={submitting || loading}
-          >
-            {submitting ? 'Ingresando...' : 'Ingresar'}
-          </button>
-        </form>
-      </section>
-    </main>
+        <button
+          type="submit"
+          className="brand-button w-full !min-h-[3rem] rounded-full px-5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-70"
+          disabled={submitting || loading}
+        >
+          {submitting ? 'Ingresando...' : 'Ingresar'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

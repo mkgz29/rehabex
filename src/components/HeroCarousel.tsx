@@ -11,7 +11,19 @@ import { FramedImage } from './media/FramedImage';
 type HeroCarouselProps = {
   images: HeroImage[];
   isLoading: boolean;
+  /** Reports whether the slide on screen failed to load, so the parent can drop photo-only styling. */
+  onCurrentImageFailed?: (failed: boolean) => void;
 };
+
+/** Visual fallback for "no image" and "image failed": a neutral panel, never mixed with a real photo. */
+function HeroImageFallback({ message }: { message: string }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_70%_20%,rgb(var(--color-stone)/0.24),transparent_45%),rgb(var(--color-surface-muted))] text-muted">
+      <ImageOff className="h-8 w-8" aria-hidden="true" />
+      <p className="text-sm font-semibold">{message}</p>
+    </div>
+  );
+}
 
 /**
  * The Hero's right-hand visual: a skeleton while CMS content is loading, the
@@ -25,13 +37,19 @@ type HeroCarouselProps = {
  * across every slide. Switching slides never touches or resets any slide's
  * stored framing; it's just which element is currently visible.
  */
-export function HeroCarousel({ images, isLoading }: HeroCarouselProps) {
+export function HeroCarousel({ images, isLoading, onCurrentImageFailed }: HeroCarouselProps) {
   const [index, setIndex] = useState(0);
   const [isInteracting, setIsInteracting] = useState(false);
   const prefersReducedMotion = usePrefersReducedMotion();
   const touchStartX = useRef<number | null>(null);
 
   const safeIndex = clampSlideIndex(index, images.length);
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
+  const currentFailed = images.length > 0 && failedUrls.has(images[safeIndex]?.url ?? '');
+
+  useEffect(() => {
+    onCurrentImageFailed?.(currentFailed);
+  }, [currentFailed, onCurrentImageFailed]);
 
   // Depending on `index` (not just mount) means any manual slide change --
   // autoplay's own tick, a dot click, or a swipe -- restarts the 5000ms
@@ -52,17 +70,14 @@ export function HeroCarousel({ images, isLoading }: HeroCarouselProps) {
   }
 
   if (images.length === 0) {
-    return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_70%_20%,rgb(var(--color-stone)/0.24),transparent_45%),rgb(var(--color-surface-muted))] text-muted">
-        <ImageOff className="h-8 w-8" aria-hidden="true" />
-        <p className="text-sm font-semibold">Imagen no configurada</p>
-      </div>
-    );
+    return <HeroImageFallback message="Imagen no configurada" />;
   }
 
   const current = images[safeIndex];
 
-  const renderSlideImage = (image: HeroImage, index: number) => (
+  const renderSlideImage = (image: HeroImage, index: number) => failedUrls.has(image.url) ? (
+    <HeroImageFallback message="Imagen no disponible" />
+  ) : (
     <FramedImage
       key={image.mediaAssetId ?? image.url}
       media={{ kind: 'image', url: getOptimizedImageUrl(image.url, { width: 1600 }), framing: image.framing ?? DEFAULT_FRAMING }}
@@ -73,6 +88,7 @@ export function HeroCarousel({ images, isLoading }: HeroCarouselProps) {
       height={1800}
       fetchPriority={index === 0 ? 'high' : 'low'}
       className="absolute inset-0 h-full w-full"
+      onError={() => setFailedUrls((previous) => new Set(previous).add(image.url))}
     />
   );
 

@@ -36,7 +36,7 @@ export function FeaturedProductsSection({ content, products, isLoading, error, o
   return (
     // The second and last warm hem: the hand-off from this light block into the
     // Charcoal "Acerca de Rehabex" section below.
-    <section id="productos" className="warm-hem warm-hem--ruled section-shell bg-surface" aria-labelledby="featured-products-title">
+    <section id="productos" className="hex-hem hex-hem--ruled section-shell bg-surface" aria-labelledby="featured-products-title">
       <div className="site-container">
         <div className="flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
           <div id="featured-products-title">

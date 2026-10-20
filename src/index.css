@@ -230,6 +230,14 @@
     transition: opacity 380ms var(--ease-ui), transform 380ms var(--ease-ui);
   }
 
+  /* A section that continues the one above it (the benefits strip right under the
+     hero) is painted in place from the start, so a light gap never opens between
+     them while it waits to be revealed; only its items keep their staggered entrance. */
+  .reveal-ready .reveal-section.reveal-anchored:not(.is-visible) {
+    opacity: 1;
+    transform: none;
+  }
+
   .reveal-ready .reveal-section [data-reveal-item] {
     opacity: 0;
     transform: translateY(12px);
@@ -253,6 +261,31 @@
     transition-delay: 165ms;
   }
 
+  /* TrustStrip: gentler, slightly longer entrance than the generic reveal. */
+  .reveal-ready .reveal-section.is-visible .trust-strip [data-reveal-item] {
+    transition-duration: 560ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible .trust-strip [data-reveal-item]:nth-child(2) {
+    transition-delay: 70ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible .trust-strip [data-reveal-item]:nth-child(3) {
+    transition-delay: 140ms;
+  }
+
+  .reveal-ready .reveal-section.is-visible .trust-strip [data-reveal-item]:nth-child(4) {
+    transition-delay: 210ms;
+  }
+
+  .trust-scroller {
+    scrollbar-width: none;
+  }
+
+  .trust-scroller::-webkit-scrollbar {
+    display: none;
+  }
+
   .cart-badge-enter {
     animation: cart-badge-enter 220ms var(--ease-ui) both;
   }
@@ -262,47 +295,71 @@
      hairline. It is painted as a background layer, so it always sits behind the
      content and can never touch legibility. Reserved for the hero and for the
      single hand-off into a Charcoal block. */
-  .warm-hem {
+  /* ---- Hex hem ----
+     The bottom of a light section melts into the 3D metal honeycomb render
+     (assets/auth/rehabex-hex-metal-3d.webp, derived 1:1 from the original PNG, which
+     stays in the repo). The photo is a background layer only: behind the content
+     (isolation + z-index -1), anchored to the bottom with cover so the bevels and
+     shadows keep their scale, and a vertical mask makes it strongest at the very
+     bottom and fully transparent before the copy, so there is never a rectangular
+     edge. Each section tunes --hex-hem-strength / --hex-hem-height. No blur. */
+  .hex-hem {
+    --hex-hem-strength: 0.4;
+    --hex-hem-height: clamp(7rem, 32%, 13rem);
     position: relative;
     isolation: isolate;
-    background-image:
-      linear-gradient(
-        to top,
-        rgb(var(--color-brand) / 0.085) 0%,
-        rgb(var(--color-brand) / 0.032) 9%,
-        rgb(var(--color-brand) / 0) 20%
-      );
+  }
+
+  .hex-hem::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: -1;
+    height: var(--hex-hem-height);
+    pointer-events: none;
+    background-image: url('./assets/auth/rehabex-hex-metal-3d.webp');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center bottom;
+    opacity: var(--hex-hem-strength);
+    -webkit-mask-image: linear-gradient(to top, #000 0%, rgb(0 0 0 / 0.8) 22%, rgb(0 0 0 / 0.35) 55%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0%, rgb(0 0 0 / 0.8) 22%, rgb(0 0 0 / 0.35) 55%, transparent 100%);
+  }
+
+  /* Hero: runs straight into the dark benefits strip, so it is the strongest hem. */
+  .hex-hem--hero {
+    --hex-hem-strength: 0.72;
+    --hex-hem-height: clamp(7rem, 30%, 11rem);
+  }
+
+  /* Featured products: same render, lighter, plus the hairline that closes the section. */
+  .hex-hem--ruled {
+    --hex-hem-strength: 0.28;
+    --hex-hem-height: clamp(7rem, 34%, 14rem);
+    background-image: linear-gradient(to top, rgb(var(--color-stone) / 0.5) 0 1px, transparent 1px);
     background-repeat: no-repeat;
   }
 
-  .warm-hem--ruled {
-    background-image:
-      linear-gradient(to top, rgb(var(--color-stone) / 0.5) 0 1px, transparent 1px),
-      linear-gradient(
-        to top,
-        rgb(var(--color-brand) / 0.075) 0%,
-        rgb(var(--color-brand) / 0.028) 9%,
-        rgb(var(--color-brand) / 0) 20%
-      );
+  /* Tablet: the hero CTAs sit low in the copy column, so its hem stays below them. */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .hex-hem--hero {
+      --hex-hem-height: 6.5rem;
+    }
   }
 
-  /* The only continuous motion in the page: a compositor-only drift of the
-     glow. Nothing else reads or writes layout while it runs. */
-  .warm-hem--drift::after {
-    content: '';
-    position: absolute;
-    inset-inline: -8%;
-    bottom: 0;
-    z-index: -1;
-    height: 22%;
-    min-height: 6rem;
-    pointer-events: none;
-    background: radial-gradient(46% 62% at 28% 82%, rgb(var(--color-brand) / 0.13), transparent 70%);
-  }
+  /* Phones: a shorter, softer hem so it never takes over the screen. */
+  @media (max-width: 767px) {
+    .hex-hem {
+      --hex-hem-height: clamp(5.5rem, 22%, 9rem);
+    }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .warm-hem--drift::after {
-      animation: warm-drift 16s var(--ease-ui) infinite alternate;
+    .hex-hem--hero {
+      --hex-hem-strength: 0.55;
+    }
+
+    .hex-hem--ruled {
+      --hex-hem-strength: 0.22;
     }
   }
 
@@ -512,11 +569,6 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
-@keyframes warm-drift {
-  from { transform: translate3d(-4%, 0, 0); }
-  to { transform: translate3d(6%, 0, 0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -537,10 +589,148 @@
     transform: none !important;
   }
 
-  /* The logo still swaps and the hem still shows, but neither one moves. */
+  /* The logo and the announcement still swap, but neither one moves. */
   .brand-logo__mark,
-  .announce-item,
-  .warm-hem--drift::after {
+  .announce-item {
     transform: none !important;
+  }
+}
+
+/* ---- TrustStrip desktop marquee ----
+   Desktop only (>= lg) and only when the visitor has not asked for reduced
+   motion: the eight benefits drift left very slowly and loop seamlessly. One loop
+   moves exactly eight cards (--trust-item-width * 8) at the same ~20px/s as before,
+   and the visual copies are hidden in every other case, so mobile/tablet (snap
+   carousel) and prefers-reduced-motion (static grid) keep their own layout. */
+.trust-strip {
+  --trust-item-width: 20rem;
+  --trust-marquee-duration: 128s;
+}
+
+.trust-strip .trust-copy {
+  display: none;
+}
+
+@keyframes trust-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(var(--trust-item-width) * -8)); }
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .trust-strip .trust-frame {
+    max-width: none;
+    padding-inline: 0;
+    overflow: hidden;
+  }
+
+  .trust-strip .trust-scroller {
+    display: flex;
+    width: max-content;
+    overflow: visible;
+    animation: trust-marquee var(--trust-marquee-duration) linear infinite;
+  }
+
+  .trust-strip .trust-item {
+    flex: none;
+    width: var(--trust-item-width);
+    padding-left: 1.25rem;
+    border-left: 1px solid rgb(255 255 255 / 0.1);
+  }
+
+  .trust-strip .trust-copy {
+    display: flex;
+  }
+
+  /* Hovering pauses the drift (same position, no reset) so the card under the pointer stays put. */
+  .trust-strip .trust-frame:hover .trust-scroller {
+    animation-play-state: paused;
+  }
+}
+
+/* TrustStrip hover: a purely chromatic change on the whole card, only for a real mouse
+   (never on touch, so a tap never leaves a card coloured). No scale, movement or glow.
+   The fill is the darker brand tone so white text keeps AA contrast (~4.7:1). */
+@media (hover: hover) and (pointer: fine) {
+  /* The fill lives on its own layer so the card keeps its reveal transition untouched. */
+  .trust-strip .trust-item {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .trust-strip .trust-item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: rgb(var(--color-brand-hover));
+    opacity: 0;
+    transition: opacity 250ms var(--ease-ui);
+  }
+
+  .trust-strip .trust-item .trust-icon,
+  .trust-strip .trust-item .trust-title,
+  .trust-strip .trust-item .trust-text {
+    transition: color 250ms var(--ease-ui);
+  }
+
+  .trust-strip .trust-item:hover::before {
+    opacity: 1;
+  }
+
+  .trust-strip .trust-item:hover .trust-icon,
+  .trust-strip .trust-item:hover .trust-title {
+    color: rgb(255 255 255);
+  }
+
+  .trust-strip .trust-item:hover .trust-text {
+    color: rgb(255 255 255 / 0.9);
+  }
+}
+
+/* ---- Soft diagonal media shapes ----
+   Login photo and home hero card end in a soft diagonal instead of a straight edge.
+   The clip paths live in DiagonalShapeDefs (objectBoundingBox, so they scale with
+   the box); a browser without clip-path support simply keeps the normal shape. */
+.auth-media {
+  clip-path: url(#shape-diagonal-bottom);
+}
+
+@media (min-width: 768px) {
+  .auth-media {
+    clip-path: url(#shape-diagonal-side);
+  }
+}
+
+.hero-media {
+  clip-path: url(#shape-diagonal-hero);
+}
+
+/* Home hero from lg: the visual is a large panel (about two thirds of the hero) that
+   bleeds to the viewport edge, like the login. The copy column keeps its left edge on
+   the page grid (header logo) using the hero's own width, so a scrollbar never skews it. */
+.hero-section {
+  container-type: inline-size;
+}
+
+@media (min-width: 1024px) {
+  .hero-media {
+    clip-path: url(#shape-diagonal-hero-wide);
+  }
+
+  .hero-copy {
+    padding-left: var(--space-page);
+    padding-left: max(var(--space-page), calc((100cqw - 84rem) / 2 + var(--space-page)));
+  }
+}
+
+/* Reduced motion on desktop: no marquee, the eight benefits sit in a static 4 x 2 grid
+   (each row starts without a divider, the second row gets a hairline on top). */
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .trust-strip .trust-scroller > .trust-item:nth-child(4n + 1) {
+    border-left-width: 0;
+  }
+
+  .trust-strip .trust-scroller > .trust-item:nth-child(n + 5):not(.trust-copy) {
+    border-top: 1px solid rgb(255 255 255 / 0.1);
   }
 }
